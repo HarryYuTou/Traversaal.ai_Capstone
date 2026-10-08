@@ -1,0 +1,1 @@
+Welcome to our capstone project. We are building a tool that turns an explanation into a short video. This first module gives the video a voice. It reads a text file, generates speech on the local computer, and saves the result as an audio file. Our teammates can then use that narration when they build the visuals. Clear timing will help the team synchronize sound and pictures.

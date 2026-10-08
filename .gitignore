@@ -218,3 +218,16 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Capstone local outputs, models and credentials
+/runs/
+/.cache/
+/models/
+*.pt
+*.pth
+*.safetensors
+.env.*
+!.env.example
+.DS_Store
+Icon?
+node_modules/
