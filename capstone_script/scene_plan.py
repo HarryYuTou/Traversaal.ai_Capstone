@@ -29,6 +29,10 @@ MAX_LINE_WORDS = 25
 # took 81.0 s (2.64 words/s). Whole paragraphs read faster, about 2.9 words/s.
 WORDS_PER_SECOND = 2.6
 
+# Icon names from Lucide (ISC license) that renderers can draw; see schemas/icons.json.
+ICONS = tuple(json.loads((Path(__file__).resolve().parents[1] / "schemas" / "icons.json")
+                         .read_text(encoding="utf-8")))
+
 # IDs become file names (audio/<narrationId>.wav), so they must be path-safe.
 Id = Annotated[str, StringConstraints(pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", max_length=48)]
 Title = Annotated[str, StringConstraints(min_length=1, max_length=60)]
@@ -76,12 +80,14 @@ class DefinitionLine(_Model):
 class FlowNode(_Model):
     id: Id
     label: Label
+    icon: Id | None = None
 
 
 class ConceptVisual(_Model):
     title: Title
     statement: Statement
     points: list[Point] = Field(default_factory=list, max_length=3)
+    icon: Id | None = None
 
 
 class FlowVisual(_Model):
@@ -92,6 +98,7 @@ class FlowVisual(_Model):
 class ComparisonColumn(_Model):
     label: Label
     points: list[ColumnPoint] = Field(min_length=1, max_length=3)
+    icon: Id | None = None
 
 
 class ComparisonVisual(_Model):
@@ -105,6 +112,7 @@ class DefinitionVisual(_Model):
     term: Term
     definition: Definition
     example: Example | None = None
+    icon: Id | None = None
 
 
 class ConceptScene(_Model):
@@ -227,7 +235,23 @@ def semantic_problems(plan: ScenePlan) -> list[str]:
             elif scene.template == "definition":
                 if line.highlight_part == "example" and scene.visual.example is None:
                     problems.append(f"{at}.highlightPart: 'example' is set, but this scene has no example")
-    return problems + chapter_problems(plan)
+    return problems + icon_problems(plan) + chapter_problems(plan)
+
+
+def scene_icons(scene) -> list[tuple[str, str | None]]:
+    """Every (location, icon) pair of a scene's visual, including unset icons."""
+    visual = scene.visual
+    if scene.template == "flow":
+        return [(f"visual.nodes[{n}].icon", node.icon) for n, node in enumerate(visual.nodes)]
+    if scene.template == "comparison":
+        return [(f"visual.{side}.icon", getattr(visual, side).icon) for side in ("left", "right")]
+    return [("visual.icon", visual.icon)]
+
+
+def icon_problems(plan: ScenePlan) -> list[str]:
+    return [f"scenes[{s}].{where}: {icon!r} is not an available icon; see schemas/icons.json"
+            for s, scene in enumerate(plan.scenes) for where, icon in scene_icons(scene)
+            if icon is not None and icon not in ICONS]
 
 
 def chapter_problems(plan: ScenePlan) -> list[str]:

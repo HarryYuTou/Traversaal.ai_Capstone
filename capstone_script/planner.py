@@ -19,13 +19,13 @@ from time import perf_counter
 from typing import Literal
 
 from .scene_plan import (
-    TEMPLATES, WORDS_PER_SECOND, PlanValidationError, _Model, dump_plan, summarize, validate_plan,
+    ICONS, TEMPLATES, WORDS_PER_SECOND, PlanValidationError, _Model, dump_plan, summarize, validate_plan,
 )
 
 MODEL = "claude-opus-5-5"
 EFFORT = "high"
 MAX_TOKENS = 16000
-PROMPT_VERSION = "scene-planner-v3"
+PROMPT_VERSION = "scene-planner-v4"
 PROMPTS = Path(__file__).resolve().parents[1] / "prompts"
 # The timeline adds short pauses around lines, so speech fills about 95% of the video.
 SPEECH_SHARE = 0.95
@@ -126,11 +126,13 @@ class _OutputLine(_Model):
 class _OutputNode(_Model):
     id: str
     label: str
+    icon: str | None = None
 
 
 class _OutputColumn(_Model):
     label: str
     points: list[str]
+    icon: str | None = None
 
 
 class _OutputVisual(_Model):
@@ -143,6 +145,7 @@ class _OutputVisual(_Model):
     term: str | None = None
     definition: str | None = None
     example: str | None = None
+    icon: str | None = None
 
 
 class _OutputScene(_Model):
@@ -169,6 +172,26 @@ def output_schema() -> dict:
     are left out because the program builds them.
     """
     return structured_schema(_OutputPlan.model_json_schema(by_alias=True))
+
+
+def planner_prompt() -> str:
+    """The scene planner's system prompt with the list of available icons filled in."""
+    return Template((PROMPTS / "scene-planner.txt").read_text(encoding="utf-8")).safe_substitute(
+        icons=", ".join(ICONS))
+
+
+def drop_unknown_icons(data):
+    """Remove icons that are not in the list: they are decoration, not worth a repair request."""
+    for scene in data.get("scenes", []) if isinstance(data, dict) else []:
+        visual = scene.get("visual") if isinstance(scene, dict) else None
+        if not isinstance(visual, dict):
+            continue
+        holders = [visual, *(node for node in visual.get("nodes") or [] if isinstance(node, dict)),
+                   *(visual[side] for side in ("left", "right") if isinstance(visual.get(side), dict))]
+        for holder in holders:
+            if holder.get("icon") not in ICONS:
+                holder.pop("icon", None)
+    return data
 
 
 def drop_nulls(data):
@@ -265,7 +288,7 @@ def review_plan(text: str, spec: dict, require_templates: bool = True):
     if problems:
         return None, problems
     try:
-        plan = validate_plan(normalize_ids(drop_nulls(data), spec["projectId"]))
+        plan = validate_plan(normalize_ids(drop_unknown_icons(drop_nulls(data)), spec["projectId"]))
     except PlanValidationError as exc:
         return None, exc.problems
     problems = length_problems(plan, spec, require_templates) + coverage_problems(plan)
@@ -321,7 +344,7 @@ def request_json(client, system: str, request: str, schema: dict, review, noun: 
 def generate_plan(spec: dict, client, reference_text: str | None = None, progress=lambda message: None,
                   attempts: list | None = None):
     """Return a plan from one request (plus one repair). Raises PlannerError when none is usable."""
-    system = (PROMPTS / "scene-planner.txt").read_text(encoding="utf-8")
+    system = planner_prompt()
     return request_json(client, system, request_text(spec, reference_text), output_schema(),
                         lambda text: review_plan(text, spec), "scene plan",
                         [] if attempts is None else attempts, "plan", progress)

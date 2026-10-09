@@ -57,6 +57,20 @@
           "minItems": 1,
           "title": "Points",
           "type": "array"
+        },
+        "icon": {
+          "anyOf": [
+            {
+              "maxLength": 48,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
         }
       },
       "required": [
@@ -277,6 +291,20 @@
           "maxItems": 3,
           "title": "Points",
           "type": "array"
+        },
+        "icon": {
+          "anyOf": [
+            {
+              "maxLength": 48,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
         }
       },
       "required": [
@@ -404,6 +432,20 @@
           ],
           "default": null,
           "title": "Example"
+        },
+        "icon": {
+          "anyOf": [
+            {
+              "maxLength": 48,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
         }
       },
       "required": [
@@ -465,6 +507,20 @@
           "minLength": 1,
           "title": "Label",
           "type": "string"
+        },
+        "icon": {
+          "anyOf": [
+            {
+              "maxLength": 48,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
         }
       },
       "required": [

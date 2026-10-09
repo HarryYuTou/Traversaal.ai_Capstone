@@ -13,8 +13,8 @@ from typing import Annotated
 from pydantic import Field, StringConstraints, ValidationError
 
 from .planner import (
-    PROMPTS, PlannerError, normalize_ids, output_schema, parse_json, request_json, review_plan, scene_range,
-    structured_schema, word_range,
+    PROMPTS, PlannerError, normalize_ids, output_schema, parse_json, planner_prompt, request_json, review_plan,
+    scene_range, structured_schema, word_range,
 )
 from .scene_plan import (
     MAX_SCENES, PlanValidationError, Purpose, Title, _Model, error_problems, text_problems, validate_plan,
@@ -163,8 +163,8 @@ def generate_long_plan(spec: dict, client, reference_text: str | None = None, pr
               "chapters": [{**chapter.model_dump(mode="json", by_alias=True), "plannedSeconds": planned}
                            for chapter, planned in zip(outline.chapters, seconds)]}
     progress(f"Outline: {len(seconds)} chapters, {', '.join(f'{value} s' for value in seconds)}")
-    system = "\n\n".join((PROMPTS / name).read_text(encoding="utf-8").strip()
-                         for name in ("scene-planner.txt", "chapter-planner.txt")) + "\n"
+    system = (planner_prompt().strip() + "\n\n"
+              + (PROMPTS / "chapter-planner.txt").read_text(encoding="utf-8").strip() + "\n")
     schema, count = output_schema(), len(seconds)
     scene_cap = min(12, MAX_SCENES // count)
     plans, previous = [], []

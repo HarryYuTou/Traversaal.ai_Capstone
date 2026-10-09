@@ -161,6 +161,17 @@ class PlannerTests(unittest.TestCase):
         plan = validate_plan(normalize_ids(model_output(concepts_only), "demo"))
         self.assertIn("scenes: use at least two different templates", length_problems(plan, self.spec))
 
+    def test_unknown_icons_from_the_model_are_dropped_without_a_repair(self):
+        def add_icons(data):
+            data["scenes"][0]["visual"]["icon"] = "lightbulb"
+            data["scenes"][1]["visual"]["nodes"][0]["icon"] = "web-browser"
+        client = FakeClient(response(model_output(add_icons)))
+        plan = write_plan_run(self.out, self.spec, client)
+        self.assertEqual(plan.scenes[0].visual.icon, "lightbulb")
+        self.assertIsNone(plan.scenes[1].visual.nodes[0].icon)
+        self.assertIn("chosen from this list: activity, ", client.calls[0]["system"])
+        self.assertNotIn("$icons", client.calls[0]["system"])
+
     def test_second_failure_keeps_the_evidence_and_publishes_no_plan(self):
         client = FakeClient(response(model_output(broken_highlight)), response(model_output(broken_highlight)))
         with self.assertRaisesRegex(PlannerError, "router"):
