@@ -16,15 +16,16 @@ from pathlib import Path
 import re
 from string import Template
 from time import perf_counter
+from typing import Literal
 
 from .scene_plan import (
-    TEMPLATES, WORDS_PER_SECOND, PlanValidationError, dump_plan, json_schema, summarize, validate_plan,
+    TEMPLATES, WORDS_PER_SECOND, PlanValidationError, _Model, dump_plan, summarize, validate_plan,
 )
 
 MODEL = "claude-opus-5-5"
 EFFORT = "high"
 MAX_TOKENS = 16000
-PROMPT_VERSION = "scene-planner-v2"
+PROMPT_VERSION = "scene-planner-v3"
 PROMPTS = Path(__file__).resolve().parents[1] / "prompts"
 # The timeline adds short pauses around lines, so speech fills about 95% of the video.
 SPEECH_SHARE = 0.95
@@ -93,7 +94,7 @@ def request_text(spec: dict, reference_text: str | None = None) -> str:
             f"Audience: {spec['audience']}\n"
             f"Length: about {seconds} seconds, so about {target} words of narration in total "
             f"(stay between {round(target * 0.9)} and {round(target * 1.1)} words).\n"
-            f"Scenes: {min_scenes} to {max_scenes}, using both templates at least once.")
+            f"Scenes: {min_scenes} to {max_scenes}, using at least two different templates.")
     if reference_text and reference_text.strip():
         text += f"\n\nReference material:\n<reference>\n{reference_text.strip()}\n</reference>"
     return text
@@ -113,12 +114,70 @@ def structured_schema(schema: dict) -> dict:
     return clean(schema)
 
 
+class _OutputLine(_Model):
+    id: str
+    text: str
+    highlight_point_index: int | None = None
+    highlight_node_id: str | None = None
+    highlight_side: Literal["left", "right"] | None = None
+    highlight_part: Literal["term", "definition", "example"] | None = None
+
+
+class _OutputNode(_Model):
+    id: str
+    label: str
+
+
+class _OutputColumn(_Model):
+    label: str
+    points: list[str]
+
+
+class _OutputVisual(_Model):
+    title: str
+    statement: str | None = None
+    points: list[str] | None = None
+    nodes: list[_OutputNode] | None = None
+    left: _OutputColumn | None = None
+    right: _OutputColumn | None = None
+    term: str | None = None
+    definition: str | None = None
+    example: str | None = None
+
+
+class _OutputScene(_Model):
+    id: str
+    purpose: str
+    template: Literal[TEMPLATES]
+    visual: _OutputVisual
+    narration: list[_OutputLine]
+
+
+class _OutputPlan(_Model):
+    schema_version: Literal["1"]
+    project_id: str
+    title: str
+    scenes: list[_OutputScene]
+
+
 def output_schema() -> dict:
-    """The ScenePlan schema for structured outputs, without chapters: the program builds those."""
-    schema = structured_schema(json_schema())
-    schema["properties"].pop("chapters", None)
-    schema["$defs"].pop("Chapter", None)
-    return schema
+    """A loose ScenePlan shape for structured outputs.
+
+    The real schema, a union of four scene types, compiles to a grammar the API rejects as too
+    large. This shape has one kind of scene whose template fields are all optional; validate_plan
+    then applies each template's rules, and any problem goes back in the repair request. Chapters
+    are left out because the program builds them.
+    """
+    return structured_schema(_OutputPlan.model_json_schema(by_alias=True))
+
+
+def drop_nulls(data):
+    """Remove null values, which the loose output shape allows for fields a template does not use."""
+    if isinstance(data, dict):
+        return {key: drop_nulls(value) for key, value in data.items() if value is not None}
+    if isinstance(data, list):
+        return [drop_nulls(item) for item in data]
+    return data
 
 
 def normalize_ids(data, project_id: str):
@@ -158,13 +217,13 @@ def length_problems(plan, spec: dict, require_templates: bool = True) -> list[st
                         f"{low} to {high} words. {change} about {abs(target - summary['words'])} words.")
     if not min_scenes <= summary["scenes"] <= max_scenes:
         problems.append(f"scenes: use {min_scenes} to {max_scenes} scenes, not {summary['scenes']}")
-    if require_templates and summary["templates"] != sorted(TEMPLATES):
-        problems.append("scenes: use at least one concept scene and one flow scene")
+    if require_templates and len(summary["templates"]) < 2:
+        problems.append("scenes: use at least two different templates")
     return problems
 
 
 def coverage_problems(plan) -> list[str]:
-    """Every point and node on screen should be highlighted by some line."""
+    """Every point, node, column and example on screen should be highlighted by some line."""
     problems = []
     for s, scene in enumerate(plan.scenes):
         if scene.template == "flow":
@@ -173,12 +232,22 @@ def coverage_problems(plan) -> list[str]:
             if missing:
                 problems.append(f"scenes[{s}]: no narration line highlights node {', '.join(missing)}; "
                                 "give each node a line that sets highlightNodeId")
-        else:
+        elif scene.template == "concept":
             used = {line.highlight_point_index for line in scene.narration}
             missing = [str(i) for i in range(len(scene.visual.points)) if i not in used]
             if missing:
                 problems.append(f"scenes[{s}]: no narration line highlights point {', '.join(missing)}; "
                                 "give each point a line that sets highlightPointIndex")
+        elif scene.template == "comparison":
+            used = {line.highlight_side for line in scene.narration}
+            missing = [side for side in ("left", "right") if side not in used]
+            if missing:
+                problems.append(f"scenes[{s}]: no narration line highlights the {' and '.join(missing)} column; "
+                                "give each column a line that sets highlightSide")
+        elif scene.visual.example is not None:
+            if "example" not in {line.highlight_part for line in scene.narration}:
+                problems.append(f"scenes[{s}]: no narration line highlights the example; "
+                                "give it a line that sets highlightPart to 'example'")
     return problems
 
 
@@ -196,7 +265,7 @@ def review_plan(text: str, spec: dict, require_templates: bool = True):
     if problems:
         return None, problems
     try:
-        plan = validate_plan(normalize_ids(data, spec["projectId"]))
+        plan = validate_plan(normalize_ids(drop_nulls(data), spec["projectId"]))
     except PlanValidationError as exc:
         return None, exc.problems
     problems = length_problems(plan, spec, require_templates) + coverage_problems(plan)

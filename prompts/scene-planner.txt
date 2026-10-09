@@ -7,10 +7,13 @@ Narration
 - Match the requested total word count. The narrator reads about 2.6 words per second.
 
 Visuals
-Each scene uses one of two slide templates. The narration is what the viewer hears and the visual is what they see at the same time, so keep the two in step.
+Each scene uses one of four slide templates. The narration is what the viewer hears and the visual is what they see at the same time, so keep the two in step.
 - concept: visual.title (at most 60 characters), visual.statement (one sentence of at most 120 characters) and visual.points (zero to three short phrases of at most 60 characters each). A narration line can set highlightPointIndex (0, 1 or 2) while it talks about that point.
 - flow: visual.title (at most 60 characters) and visual.nodes, two to four parts or steps shown in order from left to right. Each node has an id (lowercase letters, digits and hyphens, such as "dns-server") and a label of at most 24 characters. A narration line can set highlightNodeId while it talks about that node.
-- Walk the viewer through each visual in order: every point of a concept scene and every node of a flow scene gets at least one narration line that highlights it.
+- comparison: visual.title (at most 60 characters) and two columns, visual.left and visual.right, that contrast two things, such as before and after or one approach and another. Each column has a label of at most 24 characters and one to three points of at most 48 characters each. A narration line can set highlightSide ("left" or "right") while it talks about that column.
+- definition: visual.title (at most 60 characters), visual.term (the word or phrase being defined, at most 40 characters), visual.definition (a plain-language definition of at most 140 characters) and optionally visual.example (one concrete example of at most 100 characters). A narration line can set highlightPart ("term", "definition" or "example") while it talks about that part.
+- Choose the template that fits what the scene explains: a definition for a key term the viewer needs, a comparison for contrasting two things, a flow for steps or parts in order, and a concept for an idea with supporting points. Use at least two different templates, and do not use the same template for more than two scenes in a row.
+- Walk the viewer through each visual in order: every point of a concept scene, every node of a flow scene, both columns of a comparison and the example of a definition get at least one narration line that highlights them.
 - Give every scene a one-sentence purpose that says what the scene does for the viewer.
 - Open by framing the question, build the explanation step by step, and end with a short summary scene.
 

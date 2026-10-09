@@ -2,7 +2,7 @@
 
 `capstone_script` turns a topic into a scene-by-scene script and voices every
 line with the `capstone_tts` module. Each scene says what the viewer sees (one
-of two slide templates) and what the narrator says, one short line at a time.
+of four slide templates) and what the narrator says, one short line at a time.
 
 ```text
 Topic -> scene-plan.json -> one WAV per line + audio-manifest.json -> narration-preview.wav + preview.html
@@ -62,6 +62,8 @@ command refuses an existing output directory.
 | --- | --- | --- |
 | `concept` | `title` (≤60 chars), `statement` (≤120), up to 3 `points` (≤60 each) | `highlightPointIndex` |
 | `flow` | `title` (≤60), 2–4 `nodes` with `id` and `label` (≤24) | `highlightNodeId` |
+| `comparison` | `title` (≤60), `left` and `right` columns, each a `label` (≤24) and 1–3 `points` (≤48 each) | `highlightSide` (`left` or `right`) |
+| `definition` | `title` (≤60), `term` (≤40), `definition` (≤140), optional `example` (≤100) | `highlightPart` (`term`, `definition` or `example`) |
 
 Every scene has an `id`, a `purpose`, a `template`, a `visual` and 1–8
 narration lines of at most 25 English words. IDs use lowercase letters, digits
@@ -80,10 +82,15 @@ paths, durations or frames; later stages measure those from real audio.
 1. `prompts/scene-planner.txt` sets the rules; the request gives the topic,
    audience, word target and optional reference facts.
 2. Claude Opus 5.5 (effort `high`) answers with structured JSON output. The
-   program renumbers scene and line IDs and makes node IDs path-safe.
+   output shape is looser than the ScenePlan schema (one kind of scene whose
+   template fields are all optional), because the full four-template schema
+   compiles to a grammar the API rejects as too large; validation then applies
+   each template's rules. The program renumbers scene and line IDs and makes
+   node IDs path-safe.
 3. The plan must pass validation and fit the length: the word target assumes
    2.6 words per second, and a plan outside 80–120% of the target words counts
-   as a problem. Every point and node must also be highlighted by at least one
+   as a problem. A plan must use at least two different templates, and every
+   point, node, column and example must be highlighted by at least one
    narration line, so the visuals follow the narration.
 4. If anything fails, one repair request (`prompts/repair-scene-plan.txt`)
    lists every problem. A second failure stops the run; `llm-response.json`
@@ -106,7 +113,8 @@ seconds are planned in two stages.
    lines, and `prompts/chapter-planner.txt` adds the rules for chapters: only
    the first chapter opens the video, only the last one ends with the summary,
    and every other chapter starts with one line that links to the one before.
-   The two-template rule applies to the video, not to each chapter.
+   The rule of at least two templates applies to the video, not to each
+   chapter.
 
 The chapter plans are merged into one plan with chapters. Every request,
 including the outline, gets at most one repair. A chapter that fails twice
@@ -165,6 +173,12 @@ plan passed on the first request, with no repair needed:
 \* Prompt v1. It left some points and nodes without a highlighting line, which
 led to the coverage rule in v2. At list prices the three plans cost about
 $0.12, $0.06 and $0.07.
+
+Prompt v3, with the comparison and definition templates (October 8, 2026):
+"Why do AI chatbots sometimes make things up?", 90 s, for curious adults with
+no technical background. The first request passed: 5 scenes that used all four
+templates (concept, definition, flow, comparison, concept), 20 lines and 217
+words, for $0.07. The review rewrote 4 lines (217 to 225 words) for $0.05.
 
 First long video (October 8, 2026, prompts `outline-planner-v1`,
 `chapter-planner-v1` and `script-reviewer-v1`): "How AI search engines find
