@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from capstone_script.render import RenderError, render_command, render_video
+from capstone_script.render import RenderError, render_command, render_video, share_command, still_command
 
 TIMELINE = Path("runs") / "demo" / "video" / "timeline.json"
 OUTPUT = Path("runs") / "demo" / "video.mp4"
@@ -23,6 +23,18 @@ class RenderCommandTests(unittest.TestCase):
         self.assertIn(f"--public-dir={TIMELINE.parent}", command)
         self.assertNotIn("--scale=0.5", command)
         self.assertEqual(draft[-1], "--scale=0.5")
+
+    def test_thumbnail_and_sharing_commands(self):
+        with patch("capstone_script.render.shutil.which", return_value="node"),                 patch("capstone_script.render.REMOTION_CLI", Path(__file__)):
+            still = still_command(TIMELINE, Path("thumbnail.png"))
+            share = share_command(OUTPUT, Path("video-720p.mp4"))
+        self.assertEqual(still[2:6], ["still", "src/index.ts", "Explainer", "thumbnail.png"])
+        self.assertIn("--frame=30", still)
+        self.assertIn(f"--public-dir={TIMELINE.parent}", still)
+        self.assertEqual(share[2], "ffmpeg")
+        self.assertEqual(share[share.index("-i") + 1], str(OUTPUT))
+        self.assertIn("scale=1280:720", share)
+        self.assertEqual(share[-1], "video-720p.mp4")
 
     def test_missing_node_or_renderer_is_explained(self):
         with patch("capstone_script.render.shutil.which", return_value=None), \

@@ -13,7 +13,7 @@ from capstone_script.planner import write_json
 from capstone_script.scene_plan import dump_plan, load_plan, validate_plan
 from capstone_script.timeline import (
     CHAPTER_FRAMES, END_FRAMES, GAP_FRAMES, LEAD_FRAMES, TAIL_FRAMES, TITLE_FRAMES, TimelineError, build_timeline,
-    subtitle_rows, subtitles, write_timeline,
+    chapter_list, subtitle_rows, subtitles, write_timeline,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -82,6 +82,16 @@ class TimelineTests(unittest.TestCase):
         self.assertEqual(first["from"] + first["durationInFrames"], second["from"])
         self.assertEqual(second["from"] + second["durationInFrames"], timeline["durationInFrames"])
         self.assertEqual(third_scene["chapterId"], "chapter-02")
+
+    def test_chapter_list_starts_at_zero_and_is_written_for_long_plans(self):
+        plan = chaptered(self.plan)
+        self.narrate(plan)
+        out = write_timeline(self.run_dir)
+        timeline = json.loads((out / "timeline.json").read_text(encoding="utf-8"))
+        second = timeline["chapters"][1]["from"] // 30
+        self.assertEqual(chapter_list(timeline), f"0:00 The question\n0:{second:02d} The answer\n")
+        self.assertEqual((out / "chapters.txt").read_text(encoding="utf-8"), chapter_list(timeline))
+        self.assertEqual(chapter_list({"fps": 30, "chapters": []}), "")
 
     def test_a_plan_edited_after_narration_is_refused(self):
         manifest = self.narrate(self.plan)

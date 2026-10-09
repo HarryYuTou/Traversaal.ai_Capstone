@@ -39,6 +39,22 @@ def render_command(timeline_path: Path, output: Path, draft: bool = False) -> li
     return command + (["--scale=0.5"] if draft else [])
 
 
+# The title card is fully faded in by this frame.
+THUMBNAIL_FRAME = 30
+# A 720p copy at this quality is about a quarter of the full file and still sharp for slides.
+SHARE_ENCODING = ["-vf", "scale=1280:720", "-c:v", "libx264", "-crf", "30", "-preset", "slow", "-tune", "stillimage",
+                  "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart"]
+
+
+def still_command(timeline_path: Path, output: Path, frame: int = THUMBNAIL_FRAME) -> list[str]:
+    return [_node(), str(REMOTION_CLI), "still", "src/index.ts", "Explainer", str(output), f"--frame={frame}",
+            f"--props={timeline_path}", f"--public-dir={timeline_path.parent}"]
+
+
+def share_command(video: Path, output: Path) -> list[str]:
+    return [_node(), str(REMOTION_CLI), "ffmpeg", "-v", "error", "-y", "-i", str(video), *SHARE_ENCODING, str(output)]
+
+
 def probe_seconds(video: Path) -> float:
     """Duration of a rendered file, read with the ffprobe that ships with Remotion."""
     result = subprocess.run([_node(), str(REMOTION_CLI), "ffprobe", "-v", "error", "-show_entries",
@@ -47,8 +63,12 @@ def probe_seconds(video: Path) -> float:
     return float(result.stdout.strip().splitlines()[-1])
 
 
-def render_video(run_dir: Path, draft: bool = False, progress=lambda message: None) -> dict:
-    """Render video.mp4 (or video-draft.mp4 at half size) into run_dir and describe it in video-info.json."""
+def render_video(run_dir: Path, draft: bool = False, share: bool = False, progress=lambda message: None) -> dict:
+    """Render video.mp4 (or video-draft.mp4 at half size) into run_dir and describe it in video-info.json.
+
+    A full render also writes thumbnail.png from the title card; `share` adds video-720p.mp4, a smaller
+    copy for uploads and email.
+    """
     run_dir = Path(run_dir).resolve()
     name = "video-draft" if draft else "video"
     output = run_dir / f"{name}.mp4"
@@ -74,6 +94,15 @@ def render_video(run_dir: Path, draft: bool = False, progress=lambda message: No
             "expectedSeconds": timeline["durationSeconds"], "probedSeconds": duration,
             "bytes": output.stat().st_size, "renderSeconds": round(seconds, 1),
             "subtitles": [f"{VIDEO_DIR}/subtitles.srt", f"{VIDEO_DIR}/subtitles.vtt"]}
+    if not draft:
+        progress("Rendering the thumbnail...")
+        if subprocess.run(still_command(timeline_path, run_dir / "thumbnail.png"), cwd=RENDERER).returncode == 0:
+            info["thumbnail"] = "thumbnail.png"
+    if share:
+        progress("Encoding a 720p copy for sharing...")
+        copy = run_dir / f"{name}-720p.mp4"
+        subprocess.run(share_command(output, copy), cwd=RENDERER, check=True)
+        info["shareCopy"] = {"path": copy.name, "bytes": copy.stat().st_size}
     write_json(run_dir / f"{name}-info.json", info)
     if abs(duration - timeline["durationSeconds"]) > 0.2:
         raise RenderError(f"{output.name} lasts {duration:.2f} s, but the timeline is "

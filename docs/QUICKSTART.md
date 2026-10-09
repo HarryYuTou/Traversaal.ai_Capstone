@@ -58,7 +58,8 @@ python -m capstone_script run --topic "How does GPS know where you are?" --audie
 
 `--duration` takes 30 to 600 seconds. Every command refuses an existing
 output folder, so pick a new `--out` each time. Leave out `--render` to stop
-after narration, and add `--draft` for a quicker half-size render.
+after narration, add `--draft` for a quicker half-size render, and add
+`--share` for a 720p copy small enough to email or upload.
 
 API cost at list prices: about $0.10–0.20 for a video of up to three
 minutes and about $0.60 for seven minutes, including the review.
@@ -73,7 +74,10 @@ In the run folder:
 | `preview.html` | Open in a browser: slides, highlights and subtitles over the narration, for a quick check |
 | `scene-plan.json` | The script: every scene's slide and narration lines |
 | `review.json` | The review's scores, issues and every rewritten line |
+| `video-720p.mp4` | With `--share`: a copy about a quarter of the size |
+| `thumbnail.png` | The title card as an image |
 | `video/subtitles.srt` | Subtitles for uploading with the video |
+| `video/chapters.txt` | Chapter start times for long videos, to paste into a video description |
 
 To change the script by hand, edit a copy of `scene-plan.json`, check it with
 `python -m capstone_script validate --plan <file>`, then voice and render it:

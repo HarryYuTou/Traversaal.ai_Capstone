@@ -129,8 +129,19 @@ def subtitles(timeline: dict, kind: str = "srt") -> str:
     return ("WEBVTT\n\n" if kind == "vtt" else "") + "\n".join(cues)
 
 
+def chapter_list(timeline: dict) -> str:
+    """Chapter start times in the "0:00 Title" form video sites read; the first chapter starts at 0:00."""
+    lines = []
+    for index, chapter in enumerate(timeline["chapters"]):
+        seconds = 0 if index == 0 else chapter["from"] // timeline["fps"]
+        minutes, seconds = divmod(seconds, 60)
+        lines.append(f"{minutes}:{seconds:02d} {chapter['title']}")
+    return "\n".join(lines) + ("\n" if lines else "")
+
+
 def write_timeline(run_dir: Path) -> Path:
-    """Write video/timeline.json, video/narration.wav and video/subtitles.(srt|vtt) for a narrated run."""
+    """Write video/timeline.json, video/narration.wav, video/subtitles.(srt|vtt) and, for long plans,
+    video/chapters.txt for a narrated run."""
     import soundfile as sf
 
     run_dir = Path(run_dir)
@@ -148,4 +159,6 @@ def write_timeline(run_dir: Path) -> Path:
     write_json(out / "timeline.json", timeline)
     for kind in ("srt", "vtt"):
         (out / f"subtitles.{kind}").write_text(subtitles(timeline, kind), encoding="utf-8", newline="\n")
+    if timeline["chapters"]:
+        (out / "chapters.txt").write_text(chapter_list(timeline), encoding="utf-8", newline="\n")
     return out

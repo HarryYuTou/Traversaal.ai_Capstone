@@ -40,6 +40,7 @@ python -m capstone_script timeline --run runs/narration-01
 # Narrated run -> MP4 (builds the timeline first if it is missing)
 python -m capstone_script render --run runs/narration-01
 python -m capstone_script render --run runs/narration-01 --draft   # 960x540, quicker
+python -m capstone_script render --run runs/narration-01 --share   # also video-720p.mp4 for sharing
 
 # Check a few frames as PNG files without rendering the whole video
 cd renderer
@@ -49,8 +50,12 @@ node scripts/stills.mjs ../runs/narration-01/video/timeline.json ../runs/narrati
 npx remotion studio src/index.ts
 ```
 
-The `render` command refuses an existing `video.mp4`; delete it to render
-again. Deleting `video/` rebuilds the timeline on the next render.
+A full render also writes `thumbnail.png` from the title card and
+`video-info.json` with the probed length, size and render time. `--share`
+adds `video-720p.mp4`, re-encoded with the FFmpeg that ships with Remotion
+(the seven-minute video drops from 34 MB to 8.6 MB). The `render` command
+refuses an existing `video.mp4`; delete it to render again. Deleting
+`video/` rebuilds the timeline on the next render.
 
 ## The timeline
 
@@ -77,6 +82,7 @@ The `video/` folder holds:
 | `timeline.json` | Size, fps, total frames, title and chapter cards, and every scene and line with its start frame, length, text, visual and highlight |
 | `narration.wav` | One 48 kHz mono track: each line's samples start exactly at its start frame (1,600 samples per frame), with silence elsewhere |
 | `subtitles.srt`, `subtitles.vtt` | One cue per line on the same frames, split into two rows when longer than 42 characters |
+| `chapters.txt` | Long plans only: chapter start times as "0:00 Title" lines, the form video sites read for chapters |
 
 Because narration.wav is built from the same frames, the renderer only plays
 one audio file and cannot drift out of sync.
@@ -117,17 +123,14 @@ with its default concurrency, full size (1920x1080, H.264 video and AAC audio):
 | Retrieval-augmented generation for business users | 5 | 2,876 | 95.9 s | 120 s (24 frames per second) | 7.4 MB |
 | How AI search engines find answers (7 chapters, reviewed) | 26 | 12,830 | 427.7 s | 528 s (24 frames per second) | 34.4 MB |
 | Why AI chatbots make things up (all four templates, reviewed) | 5 | 2,684 | 89.5 s | 109 s (25 frames per second) | 7.2 MB |
+| How AI search engines find answers, remade with four templates and 47 icons* | 25 | 13,473 | 449.1 s | 601 s (22 frames per second) | 38.8 MB |
+
+\* Rendered while another job was voicing scripts on the same CPU.
 
 The probed length of each MP4 matched its timeline within 0.01 s. Rendering
 runs at about 24 frames per second here, so a video takes about 1.2 times its
 own length to render. Narrating the seven-minute plan took another 4.3 minutes
 (94 lines, 396 s of speech, 4 CPU threads).
 
-The default H.264 quality is high for flat slides. For a copy small enough to
-send (the seven-minute video drops from 34 MB to 8.6 MB at 720p), re-encode it
-with the FFmpeg that ships with Remotion:
-
-```bash
-cd renderer
-npx remotion ffmpeg -i ../runs/long-01/video.mp4 -vf scale=1280:720 -c:v libx264 -crf 30 -preset slow -tune stillimage -c:a aac -b:a 96k -movflags +faststart ../runs/long-01/video-720p.mp4
-```
+The default H.264 quality is high for flat slides; `--share` makes the
+smaller 720p copy described above.
