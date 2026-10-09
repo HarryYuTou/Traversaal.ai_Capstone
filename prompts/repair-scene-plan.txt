@@ -1,0 +1,4 @@
+The plan cannot be used yet. Fix every problem listed below and return the complete corrected plan as one JSON object. Keep the parts that are already correct.
+
+Problems:
+$problems

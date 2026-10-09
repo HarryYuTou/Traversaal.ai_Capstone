@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "1",
+  "projectId": "invalid-demo",
+  "title": "Broken references",
+  "scenes": [
+    {
+      "id": "scene-01",
+      "purpose": "A concept scene whose highlight points past its last point",
+      "template": "concept",
+      "visual": {
+        "title": "Three points",
+        "statement": "Only three points exist.",
+        "points": ["One", "Two", "Three"]
+      },
+      "narration": [
+        {"id": "scene-01-line-01", "text": "This line highlights a fourth point that does not exist.", "highlightPointIndex": 3}
+      ]
+    },
+    {
+      "id": "scene-02",
+      "purpose": "A flow scene with a reused id, a missing node and an overlong line",
+      "template": "flow",
+      "visual": {
+        "title": "Two nodes",
+        "nodes": [
+          {"id": "browser", "label": "Browser"},
+          {"id": "dns", "label": "DNS"}
+        ]
+      },
+      "narration": [
+        {"id": "scene-01-line-01", "text": "This line reuses the first narration id.", "highlightNodeId": "dns"},
+        {"id": "scene-02-line-02", "text": "This line highlights a server node.", "highlightNodeId": "server"},
+        {"id": "scene-02-line-03", "text": "This narration line keeps going far past the word limit because it tries to explain every single detail of the whole journey in one breath without ever stopping."}
+      ]
+    }
+  ]
+}
