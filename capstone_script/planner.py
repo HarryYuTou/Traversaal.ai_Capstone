@@ -1,8 +1,10 @@
-"""Topic -> ScenePlan with one Claude API call, plus at most one repair call.
+"""Topic -> ScenePlan with the Claude API.
 
-The response must pass the same validation as a hand-written plan. If it does
-not, a single repair request lists every problem. Raw responses and call
-metadata are saved for every run, including failed ones; the API key never is.
+Videos up to three minutes take one request. Longer videos are planned chapter
+by chapter (see long_form.py). Every response must pass the same validation as
+a hand-written plan; if it does not, a single repair request lists every
+problem. Raw responses and call metadata are saved for every run, including
+failed ones; the API key never is.
 """
 
 import copy
@@ -26,8 +28,12 @@ PROMPT_VERSION = "scene-planner-v2"
 PROMPTS = Path(__file__).resolve().parents[1] / "prompts"
 # The timeline adds short pauses around lines, so speech fills about 95% of the video.
 SPEECH_SHARE = 0.95
-# A plan holds at most 12 scenes for now, which limits videos to about three minutes.
-MIN_SECONDS, MAX_SECONDS = 30, 180
+MIN_SECONDS, MAX_SECONDS = 30, 600
+# One request plans at most 12 scenes, about three minutes; longer videos are planned chapter by chapter.
+SINGLE_PLAN_MAX_SECONDS = 180
+SINGLE_PLAN_MAX_SCENES = 12
+# List prices for Claude Opus 5.5 in US dollars per million tokens, used to estimate what a run cost.
+PRICE_PER_MILLION = {"input_tokens": 4.0, "output_tokens": 20.0}
 # Structured outputs reject these JSON Schema keywords; validate_plan still enforces them.
 UNSUPPORTED_KEYWORDS = {"minLength", "maxLength", "minimum", "maximum", "exclusiveMinimum",
                         "exclusiveMaximum", "multipleOf", "minItems", "maxItems", "pattern",
@@ -53,9 +59,9 @@ def word_range(seconds: int):
     return round(words * 0.8), round(words), round(words * 1.2)
 
 
-def scene_range(seconds: int):
+def scene_range(seconds: int, cap: int = SINGLE_PLAN_MAX_SCENES):
     low = 4 if seconds >= 60 else 2
-    return low, min(12, max(low + 1, round(seconds / 10)))
+    return low, min(cap, max(low + 1, round(seconds / 10)))
 
 
 def make_spec(topic: str, audience: str, seconds: int, reference: Path | None = None):
@@ -64,10 +70,11 @@ def make_spec(topic: str, audience: str, seconds: int, reference: Path | None = 
     if not topic or not audience:
         raise ValueError("Topic and audience must not be empty.")
     if not MIN_SECONDS <= seconds <= MAX_SECONDS:
-        raise ValueError(f"Duration must be between {MIN_SECONDS} and {MAX_SECONDS} seconds for now.")
+        raise ValueError(f"Duration must be between {MIN_SECONDS} and {MAX_SECONDS} seconds.")
     spec = {"schemaVersion": "1", "projectId": slug(topic), "topic": topic, "audience": audience,
             "language": "en", "targetDurationSec": seconds,
             "durationRangeSec": [round(seconds * 0.8), round(seconds * 1.2)],
+            "planMode": "chapters" if seconds > SINGLE_PLAN_MAX_SECONDS else "single",
             "allowedTemplates": list(TEMPLATES)}
     reference_text = None
     if reference is not None:
@@ -92,8 +99,8 @@ def request_text(spec: dict, reference_text: str | None = None) -> str:
     return text
 
 
-def output_schema() -> dict:
-    """The ScenePlan schema reduced to the keywords structured outputs accept."""
+def structured_schema(schema: dict) -> dict:
+    """A JSON Schema reduced to the keywords structured outputs accept."""
     def clean(node, keys_are_names=False):
         if isinstance(node, list):
             return [clean(item) for item in node]
@@ -103,7 +110,15 @@ def output_schema() -> dict:
             return {name: clean(value) for name, value in node.items()}
         return {("anyOf" if key == "oneOf" else key): clean(value, key in ("properties", "$defs"))
                 for key, value in node.items() if key not in UNSUPPORTED_KEYWORDS}
-    return clean(json_schema())
+    return clean(schema)
+
+
+def output_schema() -> dict:
+    """The ScenePlan schema for structured outputs, without chapters: the program builds those."""
+    schema = structured_schema(json_schema())
+    schema["properties"].pop("chapters", None)
+    schema["$defs"].pop("Chapter", None)
+    return schema
 
 
 def normalize_ids(data, project_id: str):
@@ -130,10 +145,10 @@ def normalize_ids(data, project_id: str):
     return data
 
 
-def length_problems(plan, spec: dict) -> list[str]:
+def length_problems(plan, spec: dict, require_templates: bool = True) -> list[str]:
     seconds = spec["targetDurationSec"]
     low, target, high = word_range(seconds)
-    min_scenes, max_scenes = scene_range(seconds)
+    min_scenes, max_scenes = scene_range(seconds, spec.get("sceneCap", SINGLE_PLAN_MAX_SCENES))
     summary = summarize(plan)
     problems = []
     if not low <= summary["words"] <= high:
@@ -143,7 +158,7 @@ def length_problems(plan, spec: dict) -> list[str]:
                         f"{low} to {high} words. {change} about {abs(target - summary['words'])} words.")
     if not min_scenes <= summary["scenes"] <= max_scenes:
         problems.append(f"scenes: use {min_scenes} to {max_scenes} scenes, not {summary['scenes']}")
-    if summary["templates"] != sorted(TEMPLATES):
+    if require_templates and summary["templates"] != sorted(TEMPLATES):
         problems.append("scenes: use at least one concept scene and one flow scene")
     return problems
 
@@ -167,22 +182,30 @@ def coverage_problems(plan) -> list[str]:
     return problems
 
 
-def _review(text: str, spec: dict):
+def parse_json(text: str):
+    """Return (data, problems); problems is empty when the text is valid JSON."""
     try:
-        data = json.loads(text)
+        return json.loads(text), []
     except json.JSONDecodeError as exc:
         return None, [f"the response is not valid JSON: {exc}"]
+
+
+def review_plan(text: str, spec: dict, require_templates: bool = True):
+    """Return (plan, problems); the plan is None unless the response can be used as it is."""
+    data, problems = parse_json(text)
+    if problems:
+        return None, problems
     try:
         plan = validate_plan(normalize_ids(data, spec["projectId"]))
     except PlanValidationError as exc:
         return None, exc.problems
-    problems = length_problems(plan, spec) + coverage_problems(plan)
+    problems = length_problems(plan, spec, require_templates) + coverage_problems(plan)
     return (None if problems else plan), problems
 
 
-def _record(response, latency_ms: int, text: str, problems: list[str]) -> dict:
+def _record(step: str, response, latency_ms: int, text: str, problems: list[str]) -> dict:
     usage = getattr(response, "usage", None)
-    return {"modelServed": getattr(response, "model", None),
+    return {"step": step, "modelServed": getattr(response, "model", None),
             "requestId": getattr(response, "_request_id", None),
             "stopReason": response.stop_reason, "latencyMs": latency_ms,
             "usage": {name: getattr(usage, name, None) for name in
@@ -190,37 +213,55 @@ def _record(response, latency_ms: int, text: str, problems: list[str]) -> dict:
             "problems": problems, "rawText": text}
 
 
-def generate_plan(spec: dict, client, reference_text: str | None = None, progress=lambda message: None):
-    """Return (plan, attempts). Raises PlannerError when no attempt yields a usable plan."""
-    system = (PROMPTS / "scene-planner.txt").read_text(encoding="utf-8")
+def request_json(client, system: str, request: str, schema: dict, review, noun: str, attempts: list,
+                 step: str, progress=lambda message: None):
+    """Send one structured-output request plus at most one repair and return the reviewed result.
+
+    `review(text)` returns (result, problems); a None result goes back with its problems.
+    Every response is appended to `attempts` as it arrives, so a failed run keeps the evidence.
+    """
     repair = Template((PROMPTS / "repair-scene-plan.txt").read_text(encoding="utf-8"))
-    messages = [{"role": "user", "content": request_text(spec, reference_text)}]
-    attempts = []
+    messages = [{"role": "user", "content": request}]
     for attempt in (1, 2):
-        progress(f"Requesting the scene plan from {MODEL} (attempt {attempt} of 2)...")
+        progress(f"Requesting the {noun} from {MODEL} (attempt {attempt} of 2)...")
         started = perf_counter()
         response = client.beta.messages.create(
             model=MODEL, max_tokens=MAX_TOKENS, system=system, messages=messages,
-            output_config={"effort": EFFORT, "format": {"type": "json_schema", "schema": output_schema()}},
+            output_config={"effort": EFFORT, "format": {"type": "json_schema", "schema": schema}},
             betas=["server-side-fallback-2026-07-01"], fallbacks="default",
         )
         latency_ms = round((perf_counter() - started) * 1000)
         text = next((block.text for block in response.content if getattr(block, "type", None) == "text"), "")
         if response.stop_reason in FATAL_STOPS:
             category = getattr(getattr(response, "stop_details", None), "category", None)
-            plan, problems = None, [FATAL_STOPS[response.stop_reason]
-                                    + (f" (category: {category})" if category else "")]
+            result, problems = None, [FATAL_STOPS[response.stop_reason]
+                                      + (f" (category: {category})" if category else "")]
         else:
-            plan, problems = _review(text, spec)
-        attempts.append(_record(response, latency_ms, text, problems))
-        if plan is not None:
-            return plan, attempts
+            result, problems = review(text)
+        attempts.append(_record(step, response, latency_ms, text, problems))
+        if result is not None:
+            return result
         if response.stop_reason in FATAL_STOPS:
             break
         messages += [{"role": "assistant", "content": response.content},
                      {"role": "user", "content": repair.substitute(
                          problems="\n".join(f"- {problem}" for problem in problems))}]
-    raise PlannerError("No usable scene plan: " + "; ".join(attempts[-1]["problems"]), attempts)
+    raise PlannerError(f"No usable {noun}: " + "; ".join(attempts[-1]["problems"]), attempts)
+
+
+def generate_plan(spec: dict, client, reference_text: str | None = None, progress=lambda message: None,
+                  attempts: list | None = None):
+    """Return a plan from one request (plus one repair). Raises PlannerError when none is usable."""
+    system = (PROMPTS / "scene-planner.txt").read_text(encoding="utf-8")
+    return request_json(client, system, request_text(spec, reference_text), output_schema(),
+                        lambda text: review_plan(text, spec), "scene plan",
+                        [] if attempts is None else attempts, "plan", progress)
+
+
+def estimated_cost(attempts) -> float:
+    """List-price estimate in US dollars for every request in a run."""
+    return round(sum((attempt["usage"].get(name) or 0) * price / 1_000_000
+                     for attempt in attempts for name, price in PRICE_PER_MILLION.items()), 4)
 
 
 def write_json(path: Path, data) -> None:
@@ -229,25 +270,39 @@ def write_json(path: Path, data) -> None:
 
 def write_plan_run(out_dir: Path, spec: dict, client, reference_text: str | None = None,
                    progress=lambda message: None):
-    """Write project-spec.json, llm-response.json and, on success, scene-plan.json."""
+    """Write project-spec.json, llm-response.json and, on success, scene-plan.json.
+
+    Videos planned chapter by chapter also get outline.json.
+    """
+    from .long_form import CHAPTER_PROMPT_VERSION, OUTLINE_PROMPT_VERSION, generate_long_plan
+
     out_dir = Path(out_dir)
     if out_dir.exists():
         raise FileExistsError(f"Output already exists: {out_dir}. Choose a new output directory.")
     out_dir.mkdir(parents=True)
     write_json(out_dir / "project-spec.json", spec)
+    chapters = spec["targetDurationSec"] > SINGLE_PLAN_MAX_SECONDS
     record = {"promptVersion": PROMPT_VERSION, "modelRequested": MODEL, "effort": EFFORT,
+              "mode": "chapters" if chapters else "single",
               "createdAt": datetime.now(timezone.utc).isoformat()}
+    if chapters:
+        record.update(outlinePromptVersion=OUTLINE_PROMPT_VERSION, chapterPromptVersion=CHAPTER_PROMPT_VERSION)
+    attempts = []
     try:
-        plan, attempts = generate_plan(spec, client, reference_text, progress)
-    except PlannerError as exc:
-        write_json(out_dir / "llm-response.json",
-                    {**record, "status": "failed", "error": str(exc), "attempts": exc.attempts})
-        raise
+        if chapters:
+            plan, outline = generate_long_plan(spec, client, reference_text, progress, attempts)
+            write_json(out_dir / "outline.json", outline)
+        else:
+            plan = generate_plan(spec, client, reference_text, progress, attempts)
     except Exception as exc:
-        write_json(out_dir / "llm-response.json",
-                    {**record, "status": "failed", "error": f"{type(exc).__name__}: {exc}", "attempts": []})
+        error = str(exc) if isinstance(exc, PlannerError) else f"{type(exc).__name__}: {exc}"
+        write_json(out_dir / "llm-response.json", {**record, "status": "failed", "error": error,
+                                                    "estimatedCostUsd": estimated_cost(attempts),
+                                                    "attempts": attempts})
         raise
-    write_json(out_dir / "llm-response.json", {**record, "status": "completed", "attempts": attempts})
+    write_json(out_dir / "llm-response.json", {**record, "status": "completed",
+                                                "estimatedCostUsd": estimated_cost(attempts),
+                                                "attempts": attempts})
     (out_dir / "scene-plan.json").write_text(dump_plan(plan), encoding="utf-8", newline="\n")
     return plan
 

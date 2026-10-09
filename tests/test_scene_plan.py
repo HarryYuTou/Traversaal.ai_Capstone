@@ -24,6 +24,13 @@ def valid_data():
     return json.loads(VALID.read_text(encoding="utf-8"))
 
 
+def with_chapters(data):
+    ids = [scene["id"] for scene in data["scenes"]]
+    data["chapters"] = [{"id": "chapter-01", "title": "The question", "sceneIds": ids[:2]},
+                        {"id": "chapter-02", "title": "The answer", "sceneIds": ids[2:]}]
+    return data
+
+
 class ScenePlanTests(unittest.TestCase):
     def problems(self, data):
         with self.assertRaises(PlanValidationError) as caught:
@@ -57,8 +64,8 @@ class ScenePlanTests(unittest.TestCase):
                          "scenes[1].visual.nodes: List should have at least 2 items"),
             "four points": (lambda d: d["scenes"][0]["visual"]["points"].append("Fourth"),
                             "scenes[0].visual.points: List should have at most 3 items"),
-            "too many scenes": (lambda d: d.update(scenes=d["scenes"] * 3),
-                                "scenes: List should have at most 12 items"),
+            "too many scenes": (lambda d: d.update(scenes=d["scenes"] * 13),
+                                "scenes: List should have at most 60 items"),
             "path-like id": (lambda d: d["scenes"][0].update(id="../scene"),
                              "scenes[0].id: String should match pattern"),
             "missing narration": (lambda d: d["scenes"][0].pop("narration"),
@@ -108,6 +115,31 @@ class ScenePlanTests(unittest.TestCase):
         data["scenes"][0]["narration"][0]["text"] = " ".join(["word"] * 25)
         validate_plan(data)
 
+    def test_chapters_group_consecutive_scenes(self):
+        data = with_chapters(valid_data())
+        plan = validate_plan(data)
+        self.assertEqual(summarize(plan)["chapters"], 2)
+        self.assertEqual(json.loads(dump_plan(plan)), data)
+        self.assertNotIn("chapters", json.loads(dump_plan(load_plan(VALID))))
+
+    def test_chapter_errors(self):
+        cases = {
+            "unknown scene": (lambda c: c[1]["sceneIds"].append("scene-99"),
+                              "chapters[1].sceneIds[3]: 'scene-99' is not a scene in this plan"),
+            "missing scene": (lambda c: c[1]["sceneIds"].pop(),
+                              "chapters: together the chapters must list every scene exactly once, in plan order"),
+            "out of order": (lambda c: c[0]["sceneIds"].reverse(),
+                             "chapters: together the chapters must list every scene exactly once, in plan order"),
+            "duplicate id": (lambda c: c[1].update(id=c[0]["id"]), "chapters[1].id: duplicate chapter id"),
+            "empty chapter": (lambda c: c[1].update(sceneIds=[]),
+                              "chapters[1].sceneIds: List should have at least 1 item"),
+        }
+        for name, (change, expected) in cases.items():
+            with self.subTest(case=name):
+                data = with_chapters(valid_data())
+                change(data["chapters"])
+                self.assert_problem(data, expected)
+
     def test_invalid_fixture_reports_every_problem_at_once(self):
         with self.assertRaises(PlanValidationError) as caught:
             load_plan(INVALID)
@@ -141,6 +173,9 @@ class SchemaExportTests(unittest.TestCase):
             data = valid_data()
             change(data)
             self.assertFalse(validator.is_valid(data))
+
+    def test_schema_accepts_chapters(self):
+        self.assertTrue(jsonschema.Draft202012Validator(json_schema()).is_valid(with_chapters(valid_data())))
 
     def test_schema_alone_does_not_catch_cross_reference_errors(self):
         # Documents the gap: other languages must also run these checks.

@@ -1,8 +1,9 @@
 """ScenePlan: the scene-by-scene script that the planner writes.
 
 A plan says what each scene shows (one of two visual templates) and what the
-narrator says, one short line at a time. It never contains audio paths,
-durations or frame numbers; later stages measure those from real audio.
+narrator says, one short line at a time. Long plans also group their scenes
+into chapters. A plan never contains audio paths, durations or frame numbers;
+later stages measure those from real audio.
 
 The Pydantic models hold the structural rules and are exported as JSON Schema
 for the renderer. Cross-reference rules (unique IDs, valid highlights, word
@@ -20,7 +21,8 @@ from pydantic.alias_generators import to_camel
 
 SCHEMA_VERSION = "1"
 TEMPLATES = ("concept", "flow")
-MAX_SCENES = 12
+MAX_SCENES = 60
+MAX_CHAPTERS = 10
 MAX_LINES_PER_SCENE = 8
 MAX_LINE_WORDS = 25
 # Measured with capstone_tts at speed 1.0, one line at a time: the 214-word fixture
@@ -94,6 +96,14 @@ class FlowScene(_Model):
 Scene = Annotated[Union[ConceptScene, FlowScene], Field(discriminator="template")]
 
 
+class Chapter(_Model):
+    """A named run of consecutive scenes in a long video."""
+
+    id: Id
+    title: Title
+    scene_ids: list[Id] = Field(min_length=1, max_length=MAX_SCENES)
+
+
 class ScenePlan(_Model):
     """Scene-by-scene script: what each scene shows and what the narrator says."""
 
@@ -101,6 +111,8 @@ class ScenePlan(_Model):
     project_id: Id
     title: Title
     scenes: list[Scene] = Field(min_length=1, max_length=MAX_SCENES)
+    # Optional: when present, the chapters list every scene once, in plan order.
+    chapters: list[Chapter] | None = Field(default=None, min_length=1, max_length=MAX_CHAPTERS)
 
 
 class PlanValidationError(ValueError):
@@ -156,6 +168,23 @@ def semantic_problems(plan: ScenePlan) -> list[str]:
                   and line.highlight_point_index >= len(scene.visual.points)):
                 problems.append(f"{at}.highlightPointIndex: {line.highlight_point_index} is out of range; "
                                 f"this scene has {len(scene.visual.points)} points")
+    return problems + chapter_problems(plan)
+
+
+def chapter_problems(plan: ScenePlan) -> list[str]:
+    if plan.chapters is None:
+        return []
+    problems, chapter_ids = [], set()
+    scene_ids = [scene.id for scene in plan.scenes]
+    for c, chapter in enumerate(plan.chapters):
+        if chapter.id in chapter_ids:
+            problems.append(f"chapters[{c}].id: duplicate chapter id {chapter.id!r}")
+        chapter_ids.add(chapter.id)
+        problems += [f"chapters[{c}].sceneIds[{k}]: {scene_id!r} is not a scene in this plan"
+                     for k, scene_id in enumerate(chapter.scene_ids) if scene_id not in scene_ids]
+    listed = [scene_id for chapter in plan.chapters for scene_id in chapter.scene_ids]
+    if not problems and listed != scene_ids:
+        problems.append("chapters: together the chapters must list every scene exactly once, in plan order")
     return problems
 
 
@@ -171,11 +200,16 @@ def _location(loc) -> str:
     return text or "plan"
 
 
+def error_problems(exc: ValidationError) -> list[str]:
+    """One problem per Pydantic error, prefixed with its JSON location."""
+    return [f"{_location(e['loc'])}: {e['msg']}" for e in exc.errors()]
+
+
 def validate_plan(data) -> ScenePlan:
     try:
         plan = ScenePlan.model_validate(data)
     except ValidationError as exc:
-        raise PlanValidationError(f"{_location(e['loc'])}: {e['msg']}" for e in exc.errors()) from None
+        raise PlanValidationError(error_problems(exc)) from None
     problems = semantic_problems(plan)
     if problems:
         raise PlanValidationError(problems)
@@ -207,6 +241,6 @@ def schema_text() -> str:
 def summarize(plan: ScenePlan) -> dict:
     lines = [line for scene in plan.scenes for line in scene.narration]
     words = sum(len(text_words(line.text)) for line in lines)
-    return {"scenes": len(plan.scenes), "lines": len(lines), "words": words,
-            "estimatedSpeechSeconds": round(words / WORDS_PER_SECOND, 1),
+    return {"scenes": len(plan.scenes), "chapters": len(plan.chapters or ()), "lines": len(lines),
+            "words": words, "estimatedSpeechSeconds": round(words / WORDS_PER_SECOND, 1),
             "templates": sorted({scene.template for scene in plan.scenes})}

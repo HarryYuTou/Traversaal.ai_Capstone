@@ -2,6 +2,42 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "scene-plan.schema.json",
   "$defs": {
+    "Chapter": {
+      "additionalProperties": false,
+      "description": "A named run of consecutive scenes in a long video.",
+      "properties": {
+        "id": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 60,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "sceneIds": {
+          "items": {
+            "maxLength": 48,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "type": "string"
+          },
+          "maxItems": 60,
+          "minItems": 1,
+          "title": "Sceneids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "sceneIds"
+      ],
+      "title": "Chapter",
+      "type": "object"
+    },
     "ConceptLine": {
       "additionalProperties": false,
       "properties": {
@@ -284,10 +320,27 @@
           }
         ]
       },
-      "maxItems": 12,
+      "maxItems": 60,
       "minItems": 1,
       "title": "Scenes",
       "type": "array"
+    },
+    "chapters": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/Chapter"
+          },
+          "maxItems": 10,
+          "minItems": 1,
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Chapters"
     }
   },
   "required": [

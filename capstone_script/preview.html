@@ -76,6 +76,10 @@ function el(tag, className, text) {
 
 const lines = new Map();
 data.plan.scenes.forEach(scene => scene.narration.forEach(line => lines.set(line.id, line)));
+const chapters = data.plan.chapters || [];
+const chapterOf = new Map();
+chapters.forEach((chapter, c) =>
+  chapter.sceneIds.forEach(id => chapterOf.set(id, `Chapter ${c + 1}: ${chapter.title}`)));
 const ranges = data.plan.scenes.map(scene => {
   const blocks = data.blocks.filter(block => block.sceneId === scene.id);
   const last = blocks[blocks.length - 1];
@@ -84,18 +88,20 @@ const ranges = data.plan.scenes.map(scene => {
 });
 
 document.getElementById("title").textContent = data.plan.title;
-document.getElementById("summary").textContent =
-  `${ranges.length} scenes · ${data.blocks.length} narration lines · ${data.speechSeconds.toFixed(1)} s of speech`;
+document.getElementById("summary").textContent = (chapters.length ? `${chapters.length} chapters · ` : "")
+  + `${ranges.length} scenes · ${data.blocks.length} narration lines · ${data.speechSeconds.toFixed(1)} s of speech`;
 
 ranges.forEach((range, index) => {
   const button = el("button", "", `${index + 1}. ${range.scene.visual.title}`);
+  button.title = chapterOf.get(range.scene.id) || "";
   button.addEventListener("click", () => { audio.currentTime = range.start + 0.001; update(); });
   sceneButtons.append(button);
 });
 
 let shownScene = null;
 function drawScene(scene) {
-  slide.replaceChildren(el("div", "template", scene.template), el("h2", "", scene.visual.title));
+  const label = chapterOf.has(scene.id) ? `${chapterOf.get(scene.id)} · ${scene.template}` : scene.template;
+  slide.replaceChildren(el("div", "template", label), el("h2", "", scene.visual.title));
   if (scene.template === "concept") {
     slide.append(el("p", "statement", scene.visual.statement));
     const list = el("ul", "points");

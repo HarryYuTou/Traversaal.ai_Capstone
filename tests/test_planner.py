@@ -185,7 +185,9 @@ class PlannerTests(unittest.TestCase):
 
     def test_length_targets_and_input_limits(self):
         self.assertEqual(word_range(75), (148, 185, 222))
-        for seconds in (29, 181):
+        self.assertEqual(make_spec("Topic", "Audience", 180)[0]["planMode"], "single")
+        self.assertEqual(make_spec("Topic", "Audience", 600)[0]["planMode"], "chapters")
+        for seconds in (29, 601):
             with self.subTest(seconds=seconds), self.assertRaises(ValueError):
                 make_spec("Topic", "Audience", seconds)
         with self.assertRaises(ValueError):
