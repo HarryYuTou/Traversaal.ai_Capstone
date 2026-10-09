@@ -99,7 +99,8 @@ paths, durations or frames; later stages measure those from real audio.
    audience, word target (and asks to stay within 5% of it) and optional
    reference facts. `--reference-url` downloads a page, keeps its readable
    text (headings, paragraphs, lists and tables, without menus, scripts or
-   footers), caps it at 20,000 characters and saves it as `reference.md`.
+   footers) and caps it at 20,000 characters. Every run with a reference saves
+   its own copy as `reference.md`.
 2. Claude Opus 5.5 (effort `high`) answers with structured JSON output. The
    output shape is looser than the ScenePlan schema (one kind of scene whose
    template fields are all optional), because the full four-template schema
@@ -181,6 +182,7 @@ minutes.
 | File | Written by | Contents |
 | --- | --- | --- |
 | `project-spec.json` | `plan`, `run` | Topic, audience, target duration, reference hash |
+| `reference.md` | `plan`, `run` (with a reference) | The run's own copy of the reference text, which `review` reads |
 | `llm-response.json` | `plan`, `run` | Model, request IDs, token usage, latency, problems and raw text for every request, plus a list-price cost estimate |
 | `outline.json` | `plan`, `run` (long videos) | The chapter outline, with the length each chapter was planned for |
 | `review.json` | `review`, `--review` | Scores, issues, each rewritten line before and after, speech hints, word counts, cost |
