@@ -4,6 +4,7 @@ from contextlib import redirect_stdout
 import io
 import json
 from pathlib import Path
+import shutil
 import tempfile
 import unittest
 from unittest.mock import Mock, patch
@@ -65,6 +66,14 @@ class NarrateTests(unittest.TestCase):
         self.assertEqual(reused["synthesisMs"], 0.0)
         self.assertEqual(sf.info(second / reused["audioPath"]).frames, reused["sampleCount"])
         self.assertTrue((second / "narration-preview.wav").exists())
+
+    def test_a_missing_earlier_line_is_synthesized_instead(self):
+        narrate_plan(PLAN, self.run, Mock(return_value=WordEngine()))
+        shutil.rmtree(self.run / "audio" / "scene-01-line-02")
+        factory = Mock(return_value=WordEngine())
+        manifest = narrate_plan(PLAN, Path(self.temporary.name) / "second", factory, reuse_from=self.run)
+        factory.assert_called_once()
+        self.assertEqual([block["cacheHit"] for block in manifest["blocks"][:3]], [True, False, True])
 
     def test_a_fully_reused_plan_never_loads_the_model(self):
         narrate_plan(PLAN, self.run, Mock(return_value=WordEngine()))

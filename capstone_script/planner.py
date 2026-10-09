@@ -33,6 +33,7 @@ MIN_SECONDS, MAX_SECONDS = 30, 600
 # One request plans at most 12 scenes, about three minutes; longer videos are planned chapter by chapter.
 SINGLE_PLAN_MAX_SECONDS = 180
 SINGLE_PLAN_MAX_SCENES = 12
+REFERENCE_COPY = "reference.md"
 # List prices for Claude Opus 5.5 in US dollars per million tokens, used to estimate what a run cost.
 PRICE_PER_MILLION = {"input_tokens": 4.0, "output_tokens": 20.0}
 # Structured outputs reject these JSON Schema keywords; validate_plan still enforces them.
@@ -85,17 +86,11 @@ def make_spec(topic: str, audience: str, seconds: int, reference: Path | None = 
     return spec, reference_text
 
 
-def attach_reference_url(spec: dict, url: str, text: str, run_dir: Path) -> None:
-    """Record a downloaded reference in the spec; the text itself is saved as run_dir/reference.md."""
+def attach_reference_url(spec: dict, url: str, text: str) -> None:
+    """Record a downloaded reference in the spec; write_plan_run saves the text as reference.md."""
     if "referenceFile" in spec:
         raise ValueError("Use a reference file or a reference URL, not both.")
-    spec.update(referenceUrl=url, referenceFile=(Path(run_dir) / "reference.md").as_posix(),
-                referenceSha256=hashlib.sha256(text.encode("utf-8")).hexdigest())
-
-
-def save_reference(run_dir: Path, text: str) -> None:
-    if Path(run_dir).is_dir():
-        (Path(run_dir) / "reference.md").write_text(text, encoding="utf-8", newline="\n")
+    spec.update(referenceUrl=url, referenceSha256=hashlib.sha256(text.encode("utf-8")).hexdigest())
 
 
 def request_text(spec: dict, reference_text: str | None = None) -> str:
@@ -385,6 +380,10 @@ def write_plan_run(out_dir: Path, spec: dict, client, reference_text: str | None
     if out_dir.exists():
         raise FileExistsError(f"Output already exists: {out_dir}. Choose a new output directory.")
     out_dir.mkdir(parents=True)
+    if reference_text is not None:
+        # The run keeps its own copy, so a later review finds the reference wherever the run is opened.
+        (out_dir / REFERENCE_COPY).write_text(reference_text, encoding="utf-8", newline="\n")
+        spec = {**spec, "referenceCopy": REFERENCE_COPY}
     write_json(out_dir / "project-spec.json", spec)
     chapters = spec["targetDurationSec"] > SINGLE_PLAN_MAX_SECONDS
     record = {"promptVersion": PROMPT_VERSION, "modelRequested": MODEL, "effort": EFFORT,

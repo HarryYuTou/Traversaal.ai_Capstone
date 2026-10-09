@@ -25,7 +25,7 @@ class _TextExtractor(HTMLParser):
     def handle_starttag(self, tag, attrs):
         if tag in SKIPPED:
             self.skipping += 1
-        elif tag == "title":
+        elif tag == "title" and not self.skipping:  # Inline SVG icons carry <title> elements too.
             self.in_title = True
         elif tag in BLOCKS:
             self.parts.append("\n")
@@ -43,9 +43,11 @@ class _TextExtractor(HTMLParser):
             self.parts.append("\n")
 
     def handle_data(self, data):
+        if self.skipping:
+            return
         if self.in_title:
             self.title += data
-        elif not self.skipping:
+        else:
             self.parts.append(data)
 
 
@@ -68,7 +70,9 @@ def fetch_reference(url: str, timeout: float = 30) -> str:
         body = response.read(MAX_DOWNLOAD_BYTES)
         charset = response.headers.get_content_charset() or "utf-8"
         kind = response.headers.get_content_type()
-    text = body.decode(charset, errors="replace")
+    if "html" not in kind and not kind.startswith("text/"):
+        raise ValueError(f"{url} is {kind}, not a web page or text file.")
+    text = body.decode(charset, errors="replace").replace("\r\n", "\n").replace("\r", "\n")
     text = html_text(text) if "html" in kind else text.strip()
     if len(text) < 200:
         raise ValueError(f"{url} has too little readable text to use as a reference.")

@@ -44,6 +44,16 @@ class EvaluateTests(unittest.TestCase):
         plan = json.loads((self.out / first["run"] / "scene-plan.json").read_text(encoding="utf-8"))
         self.assertEqual(plan["scenes"][0]["narration"][0]["text"], NEW_TEXT)
 
+    def test_an_invalid_topic_is_recorded_and_the_batch_continues(self):
+        topics = [{"topic": "Too short", "audience": "Anyone", "duration": 20}, TOPICS[0]]
+        client = FakeClient(response(model_output()), response(review_output()))
+        results = evaluate(topics, self.out, client)
+        bad, good = results["runs"]
+        self.assertEqual(bad["planStatus"], "not started")
+        self.assertIn("Duration must be between", bad["error"])
+        self.assertEqual(good["planStatus"], "completed")
+        self.assertTrue((self.out / "results.md").exists())
+
     def test_existing_output_is_refused(self):
         self.out.mkdir()
         with self.assertRaises(FileExistsError):

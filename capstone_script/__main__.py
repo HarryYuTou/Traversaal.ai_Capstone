@@ -7,7 +7,7 @@ import sys
 
 from .evaluate import evaluate
 from .narrate import narrate_plan
-from .planner import attach_reference_url, load_env_file, make_spec, save_reference, write_plan_run
+from .planner import attach_reference_url, load_env_file, make_spec, write_plan_run
 from .reference import fetch_reference
 from .preview import build_preview
 from .render import render_video
@@ -54,19 +54,17 @@ def _new_output(path: Path) -> None:
 
 
 def _write_plan(args):
+    if args.reference and args.reference_url:
+        raise ValueError("Use --reference or --reference-url, not both.")
     spec, reference_text = make_spec(args.topic, args.audience, args.duration, args.reference)
     _new_output(args.out)
     if args.reference_url:
         reference_text = fetch_reference(args.reference_url)
-        attach_reference_url(spec, args.reference_url, reference_text, args.out)
+        attach_reference_url(spec, args.reference_url, reference_text)
         _print(f"Reference: {len(reference_text):,} characters from {args.reference_url}")
     load_env_file()
     client = _client()
-    try:
-        plan = write_plan_run(args.out, spec, client, reference_text, progress=_print)
-    finally:
-        if args.reference_url:
-            save_reference(args.out, reference_text)
+    plan = write_plan_run(args.out, spec, client, reference_text, progress=_print)
     summary = summarize(plan)
     cost = json.loads((args.out / "llm-response.json").read_text(encoding="utf-8"))["estimatedCostUsd"]
     print(f"Plan: {args.out.resolve() / 'scene-plan.json'}")
@@ -89,13 +87,14 @@ def _review(run_dir: Path, client, reference_text) -> None:
 
 
 def _reference_for(run_dir: Path):
-    """The reference file recorded in a run's project spec, checked against its hash."""
+    """The run's reference text (its own copy, or the recorded file for older runs), checked against its hash."""
     spec = json.loads((run_dir / "project-spec.json").read_text(encoding="utf-8"))
-    if "referenceFile" not in spec:
+    if "referenceSha256" not in spec:
         return None
-    text = Path(spec["referenceFile"]).read_text(encoding="utf-8-sig")
+    path = run_dir / spec["referenceCopy"] if "referenceCopy" in spec else Path(spec["referenceFile"])
+    text = path.read_text(encoding="utf-8-sig")
     if hashlib.sha256(text.encode("utf-8")).hexdigest() != spec["referenceSha256"]:
-        raise ValueError(f"{spec['referenceFile']} changed since the plan was written.")
+        raise ValueError(f"{path} changed since the plan was written.")
     return text
 
 
@@ -212,7 +211,7 @@ def main(argv=None):
             topics = json.loads(args.topics.read_text(encoding="utf-8"))
             load_env_file()
             results = evaluate(topics, args.out, _client(), args.narrate, _engine_factory(args.offline, args.threads),
-                               args.offline, args.threads, progress=_print)
+                               args.offline, args.threads, args.speed, progress=_print)
             summary = results["summary"]
             print(f"Results: {args.out.resolve() / 'results.md'}")
             print(f"{summary['planned']} of {summary['topics']} planned | first request passed "
