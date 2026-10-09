@@ -89,6 +89,28 @@ on the target. One of the six v5 plans needed a repair (a point without a
 highlighting line), and review scores did not change: mean accuracy 4.33,
 clarity 4.0, audience fit 4.5. The two re-runs cost $0.93 and $1.20.
 
+## Grounding in a source
+
+Three of the v5 topics were planned again with a Wikipedia article as the
+reference (`referenceUrl`: Vaccine, Global Positioning System, Leap year),
+without narration:
+
+| Topic | Accuracy score, no reference → reference | Accuracy issues, no reference → reference | Cost with reference |
+| --- | --- | --- | ---: |
+| How do vaccines train the immune system? | 4 → 4 | 2 → 1 | $0.25 |
+| How does GPS know where you are? | 4 → 5 | 0 → 0 | $0.27 |
+| Why do we have leap years? | 4 → 5 | 1 → 0 | $0.24 |
+
+All three passed on the first request at 101–103% of the word target.
+Accuracy issues fell from 3 to 1, and the one left shows the benefit: the
+reviewer checked the script against the source ("the reference says toxoid
+vaccines use inactivated toxins") instead of judging from general knowledge.
+Grounded scripts used more exact details, which the reviewer then flagged
+for speech (for example "February 29" and a digit mid-sentence). The
+reference adds about $0.08 per short video. Three topics are too few for a
+firm conclusion, but a source file or URL looks worth using for anything
+published.
+
 ## Limits of this batch
 
 One run per topic, so the numbers show typical behavior rather than rates
