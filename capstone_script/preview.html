@@ -33,7 +33,19 @@
           border-radius: 1.4cqw; background: var(--bg); border: .25cqw solid var(--line);
           transition: background .25s, border-color .25s, color .25s, transform .25s; }
   .arrow { font-size: 3.2cqw; color: var(--muted); }
+  .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 2cqw; margin-top: .8cqw; }
+  .column { padding: calc(1.6cqw * var(--fit, 1)) 2cqw; border-radius: 1.2cqw; background: var(--bg);
+            border: .25cqw solid transparent; transition: background .25s, border-color .25s; }
+  .column h3 { margin: 0 0 .8cqw; font-size: calc(2.4cqw * var(--fit, 1)); }
+  .column ul { margin: 0; padding-left: 1.3em; font-size: calc(2cqw * var(--fit, 1)); line-height: 1.35; }
+  .definition { display: flex; flex-direction: column; gap: 1cqw; margin-top: .4cqw; }
+  .definition p { margin: 0; padding: .7cqw 1.4cqw; border-radius: 1cqw; border: .25cqw solid transparent;
+                  transition: background .25s, border-color .25s; }
+  .term { font-size: calc(3.4cqw * var(--fit, 1)); font-weight: 700; color: var(--accent); }
+  .meaning { font-size: calc(2.4cqw * var(--fit, 1)); line-height: 1.35; }
+  .example { font-size: calc(2cqw * var(--fit, 1)); line-height: 1.35; color: var(--muted); }
   .points li.on, .node.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .column.on, .definition p.on { background: var(--accent-soft); border-color: var(--accent); }
   .node.on { transform: translateY(-.6cqw); }
   .subtitle { position: absolute; left: 6cqw; right: 6cqw; bottom: 3.2cqw; text-align: center;
               font-size: 2.3cqw; line-height: 1.35; padding: 1.1cqw 2cqw; border-radius: 1cqw;
@@ -111,7 +123,7 @@ function drawScene(scene) {
       list.append(item);
     });
     slide.append(list);
-  } else {
+  } else if (scene.template === "flow") {
     const flow = el("div", "flow");
     scene.visual.nodes.forEach((node, i) => {
       if (i) flow.append(el("span", "arrow", "→"));
@@ -120,6 +132,27 @@ function drawScene(scene) {
       flow.append(box);
     });
     slide.append(flow);
+  } else if (scene.template === "comparison") {
+    const columns = el("div", "columns");
+    ["left", "right"].forEach(side => {
+      const column = el("div", "column");
+      column.dataset.side = side;
+      const list = el("ul");
+      scene.visual[side].points.forEach(point => list.append(el("li", "", point)));
+      column.append(el("h3", "", scene.visual[side].label), list);
+      columns.append(column);
+    });
+    slide.append(columns);
+  } else {
+    const card = el("div", "definition");
+    const parts = [["term", scene.visual.term], ["meaning", scene.visual.definition, "definition"]];
+    if (scene.visual.example) parts.push(["example", `For example: ${scene.visual.example}`]);
+    parts.forEach(([className, text, part]) => {
+      const node = el("p", className, text);
+      node.dataset.part = part || className;
+      card.append(node);
+    });
+    slide.append(card);
   }
   shownScene = scene.id;
   fit();
@@ -147,6 +180,10 @@ function update() {
     item.classList.toggle("on", line !== null && Number(item.dataset.index) === line.highlightPointIndex));
   slide.querySelectorAll(".node").forEach(box =>
     box.classList.toggle("on", line !== null && box.dataset.id === line.highlightNodeId));
+  slide.querySelectorAll(".column").forEach(column =>
+    column.classList.toggle("on", line !== null && column.dataset.side === line.highlightSide));
+  slide.querySelectorAll(".definition p").forEach(part =>
+    part.classList.toggle("on", line !== null && part.dataset.part === line.highlightPart));
 }
 
 function tick() { update(); if (!audio.paused) requestAnimationFrame(tick); }

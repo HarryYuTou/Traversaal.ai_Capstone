@@ -1,6 +1,6 @@
 """ScenePlan: the scene-by-scene script that the planner writes.
 
-A plan says what each scene shows (one of two visual templates) and what the
+A plan says what each scene shows (one of four visual templates) and what the
 narrator says, one short line at a time. Long plans also group their scenes
 into chapters. A plan never contains audio paths, durations or frame numbers;
 later stages measure those from real audio.
@@ -20,7 +20,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, Validation
 from pydantic.alias_generators import to_camel
 
 SCHEMA_VERSION = "1"
-TEMPLATES = ("concept", "flow")
+TEMPLATES = ("concept", "flow", "comparison", "definition")
 MAX_SCENES = 60
 MAX_CHAPTERS = 10
 MAX_LINES_PER_SCENE = 8
@@ -34,7 +34,11 @@ Id = Annotated[str, StringConstraints(pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", max
 Title = Annotated[str, StringConstraints(min_length=1, max_length=60)]
 Label = Annotated[str, StringConstraints(min_length=1, max_length=24)]
 Point = Annotated[str, StringConstraints(min_length=1, max_length=60)]
+ColumnPoint = Annotated[str, StringConstraints(min_length=1, max_length=48)]
 Statement = Annotated[str, StringConstraints(min_length=1, max_length=120)]
+Term = Annotated[str, StringConstraints(min_length=1, max_length=40)]
+Definition = Annotated[str, StringConstraints(min_length=1, max_length=140)]
+Example = Annotated[str, StringConstraints(min_length=1, max_length=100)]
 Purpose = Annotated[str, StringConstraints(min_length=1, max_length=200)]
 # A character cap the schema can express; the word limit is a semantic check.
 LineText = Annotated[str, StringConstraints(min_length=1, max_length=200)]
@@ -57,6 +61,18 @@ class FlowLine(_Model):
     highlight_node_id: Id | None = None
 
 
+class ComparisonLine(_Model):
+    id: Id
+    text: LineText
+    highlight_side: Literal["left", "right"] | None = None
+
+
+class DefinitionLine(_Model):
+    id: Id
+    text: LineText
+    highlight_part: Literal["term", "definition", "example"] | None = None
+
+
 class FlowNode(_Model):
     id: Id
     label: Label
@@ -71,6 +87,24 @@ class ConceptVisual(_Model):
 class FlowVisual(_Model):
     title: Title
     nodes: list[FlowNode] = Field(min_length=2, max_length=4)
+
+
+class ComparisonColumn(_Model):
+    label: Label
+    points: list[ColumnPoint] = Field(min_length=1, max_length=3)
+
+
+class ComparisonVisual(_Model):
+    title: Title
+    left: ComparisonColumn
+    right: ComparisonColumn
+
+
+class DefinitionVisual(_Model):
+    title: Title
+    term: Term
+    definition: Definition
+    example: Example | None = None
 
 
 class ConceptScene(_Model):
@@ -93,7 +127,28 @@ class FlowScene(_Model):
     narration: list[FlowLine] = Field(min_length=1, max_length=MAX_LINES_PER_SCENE)
 
 
-Scene = Annotated[Union[ConceptScene, FlowScene], Field(discriminator="template")]
+class ComparisonScene(_Model):
+    """A title and two labelled columns that contrast two things, with up to three points each."""
+
+    id: Id
+    purpose: Purpose
+    template: Literal["comparison"]
+    visual: ComparisonVisual
+    narration: list[ComparisonLine] = Field(min_length=1, max_length=MAX_LINES_PER_SCENE)
+
+
+class DefinitionScene(_Model):
+    """A title, one key term, its plain-language definition and an optional example."""
+
+    id: Id
+    purpose: Purpose
+    template: Literal["definition"]
+    visual: DefinitionVisual
+    narration: list[DefinitionLine] = Field(min_length=1, max_length=MAX_LINES_PER_SCENE)
+
+
+Scene = Annotated[Union[ConceptScene, FlowScene, ComparisonScene, DefinitionScene],
+                  Field(discriminator="template")]
 
 
 class Chapter(_Model):
@@ -164,10 +219,14 @@ def semantic_problems(plan: ScenePlan) -> list[str]:
                 if line.highlight_node_id is not None and line.highlight_node_id not in node_ids:
                     problems.append(f"{at}.highlightNodeId: {line.highlight_node_id!r} "
                                     "is not a node in this scene")
-            elif (line.highlight_point_index is not None
-                  and line.highlight_point_index >= len(scene.visual.points)):
-                problems.append(f"{at}.highlightPointIndex: {line.highlight_point_index} is out of range; "
-                                f"this scene has {len(scene.visual.points)} points")
+            elif scene.template == "concept":
+                if (line.highlight_point_index is not None
+                        and line.highlight_point_index >= len(scene.visual.points)):
+                    problems.append(f"{at}.highlightPointIndex: {line.highlight_point_index} is out of range; "
+                                    f"this scene has {len(scene.visual.points)} points")
+            elif scene.template == "definition":
+                if line.highlight_part == "example" and scene.visual.example is None:
+                    problems.append(f"{at}.highlightPart: 'example' is set, but this scene has no example")
     return problems + chapter_problems(plan)
 
 

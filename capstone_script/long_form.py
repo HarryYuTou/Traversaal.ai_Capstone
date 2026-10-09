@@ -126,7 +126,7 @@ def chapter_request(spec: dict, outline: Outline, index: int, seconds: int, scen
             f"Key points, in order:\n{points}\n"
             f"Length: about {seconds} seconds, so about {target} words of narration "
             f"(stay between {round(target * 0.9)} and {round(target * 1.1)} words).\n"
-            f"Scenes: {min_scenes} to {max_scenes}. Mix both templates when the content allows. "
+            f"Scenes: {min_scenes} to {max_scenes}. Vary the templates when the content allows. "
             f"Use the chapter title as the plan title.\n"
             f"{position}")
     if previous_lines:

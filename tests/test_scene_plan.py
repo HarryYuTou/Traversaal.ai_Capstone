@@ -24,6 +24,34 @@ def valid_data():
     return json.loads(VALID.read_text(encoding="utf-8"))
 
 
+def new_template_scenes():
+    """A comparison scene and a definition scene that fit after the valid fixture's five scenes."""
+    return [
+        {"id": "scene-06", "purpose": "Contrast a plain chatbot with one that looks things up.",
+         "template": "comparison",
+         "visual": {"title": "Guessing versus looking it up",
+                    "left": {"label": "Plain chatbot", "points": ["Answers from memory", "Can be out of date"]},
+                    "right": {"label": "Chatbot with search", "points": ["Reads fresh pages first"]}},
+         "narration": [{"id": "scene-06-line-01", "text": "A plain chatbot answers from memory.",
+                        "highlightSide": "left"},
+                       {"id": "scene-06-line-02", "text": "A chatbot with search reads fresh pages first.",
+                        "highlightSide": "right"}]},
+        {"id": "scene-07", "purpose": "Define the word cache.", "template": "definition",
+         "visual": {"title": "What is a cache?", "term": "Cache",
+                    "definition": "A nearby copy of something, kept so it can be used again quickly.",
+                    "example": "Your browser keeps a site's logo so it loads instantly next time."},
+         "narration": [{"id": "scene-07-line-01", "text": "A cache is a nearby copy kept for quick reuse.",
+                        "highlightPart": "definition"},
+                       {"id": "scene-07-line-02", "text": "Your browser caches a site's logo, so it loads fast.",
+                        "highlightPart": "example"}]},
+    ]
+
+
+def with_new_templates(data):
+    data["scenes"] += new_template_scenes()
+    return data
+
+
 def with_chapters(data):
     ids = [scene["id"] for scene in data["scenes"]]
     data["chapters"] = [{"id": "chapter-01", "title": "The question", "sceneIds": ids[:2]},
@@ -140,6 +168,29 @@ class ScenePlanTests(unittest.TestCase):
                 change(data["chapters"])
                 self.assert_problem(data, expected)
 
+    def test_comparison_and_definition_scenes(self):
+        plan = validate_plan(with_new_templates(valid_data()))
+        self.assertEqual(summarize(plan)["templates"], ["comparison", "concept", "definition", "flow"])
+        cases = {
+            "unknown side": (lambda d: d["scenes"][5]["narration"][0].update(highlightSide="middle"),
+                             "scenes[5].narration[0].highlightSide: Input should be 'left' or 'right'"),
+            "four column points": (lambda d: d["scenes"][5]["visual"]["left"]["points"].extend(["C", "D"]),
+                                   "scenes[5].visual.left.points: List should have at most 3 items"),
+            "long term": (lambda d: d["scenes"][6]["visual"].update(term="T" * 41),
+                          "scenes[6].visual.term: String should have at most 40 characters"),
+            "example highlight without example": (
+                lambda d: d["scenes"][6]["visual"].pop("example"),
+                "scenes[6].narration[1].highlightPart: 'example' is set, but this scene has no example"),
+            "point highlight in a comparison": (
+                lambda d: d["scenes"][5]["narration"][0].update(highlightPointIndex=0),
+                "scenes[5].narration[0].highlightPointIndex: Extra inputs are not permitted"),
+        }
+        for name, (change, expected) in cases.items():
+            with self.subTest(case=name):
+                data = with_new_templates(valid_data())
+                change(data)
+                self.assert_problem(data, expected)
+
     def test_invalid_fixture_reports_every_problem_at_once(self):
         with self.assertRaises(PlanValidationError) as caught:
             load_plan(INVALID)
@@ -173,6 +224,9 @@ class SchemaExportTests(unittest.TestCase):
             data = valid_data()
             change(data)
             self.assertFalse(validator.is_valid(data))
+
+    def test_schema_accepts_the_new_templates(self):
+        self.assertTrue(jsonschema.Draft202012Validator(json_schema()).is_valid(with_new_templates(valid_data())))
 
     def test_schema_accepts_chapters(self):
         self.assertTrue(jsonschema.Draft202012Validator(json_schema()).is_valid(with_chapters(valid_data())))

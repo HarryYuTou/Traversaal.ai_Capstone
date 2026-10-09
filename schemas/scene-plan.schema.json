@@ -38,6 +38,141 @@
       "title": "Chapter",
       "type": "object"
     },
+    "ComparisonColumn": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "maxLength": 24,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "points": {
+          "items": {
+            "maxLength": 48,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 3,
+          "minItems": 1,
+          "title": "Points",
+          "type": "array"
+        }
+      },
+      "required": [
+        "label",
+        "points"
+      ],
+      "title": "ComparisonColumn",
+      "type": "object"
+    },
+    "ComparisonLine": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "highlightSide": {
+          "anyOf": [
+            {
+              "enum": [
+                "left",
+                "right"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Highlightside"
+        }
+      },
+      "required": [
+        "id",
+        "text"
+      ],
+      "title": "ComparisonLine",
+      "type": "object"
+    },
+    "ComparisonScene": {
+      "additionalProperties": false,
+      "description": "A title and two labelled columns that contrast two things, with up to three points each.",
+      "properties": {
+        "id": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "purpose": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Purpose",
+          "type": "string"
+        },
+        "template": {
+          "const": "comparison",
+          "title": "Template",
+          "type": "string"
+        },
+        "visual": {
+          "$ref": "#/$defs/ComparisonVisual"
+        },
+        "narration": {
+          "items": {
+            "$ref": "#/$defs/ComparisonLine"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Narration",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "purpose",
+        "template",
+        "visual",
+        "narration"
+      ],
+      "title": "ComparisonScene",
+      "type": "object"
+    },
+    "ComparisonVisual": {
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "maxLength": 60,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "left": {
+          "$ref": "#/$defs/ComparisonColumn"
+        },
+        "right": {
+          "$ref": "#/$defs/ComparisonColumn"
+        }
+      },
+      "required": [
+        "title",
+        "left",
+        "right"
+      ],
+      "title": "ComparisonVisual",
+      "type": "object"
+    },
     "ConceptLine": {
       "additionalProperties": false,
       "properties": {
@@ -149,6 +284,134 @@
         "statement"
       ],
       "title": "ConceptVisual",
+      "type": "object"
+    },
+    "DefinitionLine": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "highlightPart": {
+          "anyOf": [
+            {
+              "enum": [
+                "term",
+                "definition",
+                "example"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Highlightpart"
+        }
+      },
+      "required": [
+        "id",
+        "text"
+      ],
+      "title": "DefinitionLine",
+      "type": "object"
+    },
+    "DefinitionScene": {
+      "additionalProperties": false,
+      "description": "A title, one key term, its plain-language definition and an optional example.",
+      "properties": {
+        "id": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "purpose": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Purpose",
+          "type": "string"
+        },
+        "template": {
+          "const": "definition",
+          "title": "Template",
+          "type": "string"
+        },
+        "visual": {
+          "$ref": "#/$defs/DefinitionVisual"
+        },
+        "narration": {
+          "items": {
+            "$ref": "#/$defs/DefinitionLine"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Narration",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "purpose",
+        "template",
+        "visual",
+        "narration"
+      ],
+      "title": "DefinitionScene",
+      "type": "object"
+    },
+    "DefinitionVisual": {
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "maxLength": 60,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "term": {
+          "maxLength": 40,
+          "minLength": 1,
+          "title": "Term",
+          "type": "string"
+        },
+        "definition": {
+          "maxLength": 140,
+          "minLength": 1,
+          "title": "Definition",
+          "type": "string"
+        },
+        "example": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Example"
+        }
+      },
+      "required": [
+        "title",
+        "term",
+        "definition"
+      ],
+      "title": "DefinitionVisual",
       "type": "object"
     },
     "FlowLine": {
@@ -306,7 +569,9 @@
       "items": {
         "discriminator": {
           "mapping": {
+            "comparison": "#/$defs/ComparisonScene",
             "concept": "#/$defs/ConceptScene",
+            "definition": "#/$defs/DefinitionScene",
             "flow": "#/$defs/FlowScene"
           },
           "propertyName": "template"
@@ -317,6 +582,12 @@
           },
           {
             "$ref": "#/$defs/FlowScene"
+          },
+          {
+            "$ref": "#/$defs/ComparisonScene"
+          },
+          {
+            "$ref": "#/$defs/DefinitionScene"
           }
         ]
       },
