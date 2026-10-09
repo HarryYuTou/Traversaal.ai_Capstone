@@ -17,6 +17,8 @@ optional review pass scores the script and rewrites weak lines.
 
 A third stage on the `feat/remotion-renderer` branch builds a frame-accurate
 timeline from the narration and renders the MP4 with Remotion (Node.js).
+To go from a topic to an MP4 in one command, follow the
+[quick start](docs/QUICKSTART.md).
 
 [TTS usage guide](docs/TTS_GUIDE.md) · [Script planner guide](docs/SCRIPT_GUIDE.md) · [Planner evaluation](docs/PLANNER_EVALUATION.md) · [Video renderer guide](docs/RENDERER_GUIDE.md) · [Team week-one plan](docs/WEEK_01_PLAN.md)
 
