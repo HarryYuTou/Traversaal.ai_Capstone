@@ -5,7 +5,8 @@ and audio-info.json as any TTS run, and the Kokoro model loads once per plan.
 The manifest records real sample counts. The concatenated preview track uses
 fixed pauses for listening; it is not the frame-accurate timeline. Lines whose
 text is unchanged from an earlier run with the same voice, model and speed can
-reuse that run's audio instead of being synthesized again.
+reuse that run's audio instead of being synthesized again. Names listed in
+schemas/pronunciations.json are respelled for the voice only (see pronounce.py).
 """
 
 from datetime import datetime, timezone
@@ -17,6 +18,7 @@ import tempfile
 from time import perf_counter
 
 from .planner import write_json
+from .pronounce import spoken
 from .scene_plan import dump_plan
 
 # The week-one pauses (6/3/6 frames at 30 fps): scene lead, gap between lines, scene tail.
@@ -28,11 +30,12 @@ class NarrationError(RuntimeError):
 
 
 def reusable_lines(previous_run: Path, model_revision: str, voice_id: str, speed: float) -> dict:
-    """Completed lines of an earlier run, keyed by text, if it used the same model, voice and speed."""
+    """Completed lines of an earlier run, keyed by the text the voice read, if it used the same model,
+    voice and speed."""
     manifest = json.loads((Path(previous_run) / "audio-manifest.json").read_text(encoding="utf-8"))
     same_voice = (manifest.get("status") == "completed" and manifest.get("modelRevision") == model_revision
                   and manifest.get("voiceId") == voice_id and manifest.get("speed") == speed)
-    return {block["text"]: block for block in manifest["blocks"]} if same_voice else {}
+    return {block.get("spokenText", block["text"]): block for block in manifest["blocks"]} if same_voice else {}
 
 
 def narrate_plan(plan, run_dir: Path, engine_factory, speed: float = 1.0, threads: int = 2,
@@ -75,7 +78,8 @@ def narrate_plan(plan, run_dir: Path, engine_factory, speed: float = 1.0, thread
     with tempfile.TemporaryDirectory(prefix="capstone-lines-") as temporary:
         for scene in plan.scenes:
             for line in scene.narration:
-                cached = reuse.get(line.text)
+                voice_text = spoken(line.text)
+                cached = reuse.get(voice_text)
                 if cached is not None:
                     info = _copy_line(Path(reuse_from) / Path(cached["audioPath"]).parent, audio_dir / line.id,
                                       cached["sampleCount"])
@@ -84,7 +88,7 @@ def narrate_plan(plan, run_dir: Path, engine_factory, speed: float = 1.0, thread
                         progress(f"{line.id}: {info['durationSeconds']:.2f} s (reused)")
                         continue
                 text_path = Path(temporary) / f"{line.id}.txt"
-                text_path.write_text(line.text + "\n", encoding="utf-8")
+                text_path.write_text(voice_text + "\n", encoding="utf-8")
                 try:
                     info = write_run(text_path=text_path, output_dir=audio_dir / line.id,
                                      engine_factory=shared_engine, speed=speed,
@@ -155,7 +159,8 @@ def _copy_line(source: Path, target: Path, sample_count: int):
 
 
 def _block(scene, line, info: dict, cache_hit: bool) -> dict:
-    return {"sceneId": scene.id, "narrationId": line.id, "text": line.text,
+    respelled = {"spokenText": spoken(line.text)} if spoken(line.text) != line.text else {}
+    return {"sceneId": scene.id, "narrationId": line.id, "text": line.text, **respelled,
             "audioPath": f"audio/{line.id}/narration.wav",
             "sampleRate": info["sampleRate"], "channels": info["channels"],
             "sampleCount": info["sampleCount"], "durationSeconds": info["durationSeconds"],
