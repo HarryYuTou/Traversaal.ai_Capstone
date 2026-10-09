@@ -109,5 +109,9 @@ with its default concurrency, full size (1920x1080, H.264 video and AAC audio):
 | Run | Scenes | Frames | Length | Render time | File |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Retrieval-augmented generation for business users | 5 | 2,876 | 95.9 s | 120 s (24 frames per second) | 7.4 MB |
+| How AI search engines find answers (7 chapters, reviewed) | 26 | 12,830 | 427.7 s | 528 s (24 frames per second) | 34.4 MB |
 
-The probed length of each MP4 matched its timeline within 0.01 s.
+The probed length of each MP4 matched its timeline within 0.01 s. Rendering
+runs at about 24 frames per second here, so a video takes about 1.2 times its
+own length to render. Narrating the seven-minute plan took another 4.3 minutes
+(94 lines, 396 s of speech, 4 CPU threads).
