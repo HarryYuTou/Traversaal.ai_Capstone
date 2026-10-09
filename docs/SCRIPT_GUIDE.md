@@ -130,8 +130,11 @@ clarity, accuracy, speech and highlight sync) and rewrites the lines that need
 it. Edits replace the text of existing lines only: ids, highlights and visuals
 stay, so the reviewed plan has the same structure and passes the same checks,
 and its word count must stay within the video's range. A local scan for
-symbols, abbreviations and acronyms the voice may misread is sent along as
-hints. Invalid edits get one repair request. Review a plan before narrating
+symbols and abbreviations the voice may misread is sent along as hints. The
+voice's phonemizer reads common acronyms correctly (AI, LLM, DNS, HTTPS, GPU,
+API, URL and PDF letter by letter, SQL as "sequel", NASA as a word) and reads
+numbers and "10%" as words, but it says "e.g." as "ee-jee" and "vs." as
+"viz", so the scan flags abbreviations, not acronyms. Invalid edits get one repair request. Review a plan before narrating
 it; a narrated run is refused because its audio would no longer match.
 
 ## Run outputs

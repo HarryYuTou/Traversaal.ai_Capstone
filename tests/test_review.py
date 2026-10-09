@@ -87,16 +87,15 @@ class ReviewTests(unittest.TestCase):
             write_review(self.run_dir, client)
         self.assertEqual(client.calls, [])
 
-    def test_speech_notes_flag_symbols_abbreviations_and_acronyms(self):
+    def test_speech_notes_flag_symbols_and_abbreviations(self):
         data = json.loads(VALID.read_text(encoding="utf-8"))
         data["scenes"][0]["narration"][0]["text"] = "About 90% of DNS lookups, e.g. for HTTPS sites, are cached."
         path = self.run_dir / "noisy.json"
         path.write_text(json.dumps(data), encoding="utf-8")
         notes = [note["note"] for note in speech_notes(load_plan(path)) if note["lineId"] == FIRST_LINE]
-        self.assertEqual(len(notes), 3, notes)
+        self.assertEqual(len(notes), 2, notes)
         self.assertIn("%", notes[0])
         self.assertIn("'e.g.'", notes[1])
-        self.assertIn("DNS, HTTPS", notes[2])
 
     def test_plan_command_with_review(self):
         out = self.run_dir.parent / "planned"
