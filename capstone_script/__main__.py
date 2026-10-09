@@ -101,9 +101,11 @@ def _reference_for(run_dir: Path):
 
 def _narrate(args, plan) -> int:
     manifest = narrate_plan(plan, args.out, _engine_factory(args.offline, args.threads),
-                            speed=args.speed, threads=args.threads, offline=args.offline, progress=_print)
+                            speed=args.speed, threads=args.threads, offline=args.offline, progress=_print,
+                            reuse_from=getattr(args, "reuse", None))
     print(f"Narration: {args.out.resolve() / 'audio-manifest.json'}")
-    print(f"{len(manifest['blocks'])} lines | {manifest['totalSpeechSeconds']:.1f} s of speech | "
+    reused = f"{manifest['reusedLines']} reused | " if manifest["reusedLines"] else ""
+    print(f"{len(manifest['blocks'])} lines | {reused}{manifest['totalSpeechSeconds']:.1f} s of speech | "
           f"preview {manifest['preview']['durationSeconds']:.1f} s: {manifest['preview']['audioPath']}")
     print(f"Preview: {build_preview(args.out).resolve()}")
     if getattr(args, "render", False):
@@ -152,6 +154,8 @@ def main(argv=None):
     narrate = sub.add_parser("narrate", help="Generate narration for every line of a scene plan.")
     narrate.add_argument("--plan", type=Path, required=True, help="Scene-plan JSON file")
     narrate.add_argument("--out", type=Path, required=True, help="New directory for this run")
+    narrate.add_argument("--reuse", type=Path,
+                         help="Earlier narrated run whose audio is copied for lines with unchanged text")
     _add_voice_options(narrate)
     review = sub.add_parser("review", help="Review a run's scene plan with the Claude API before narration.")
     review.add_argument("--run", type=Path, required=True, help="Run directory with scene-plan.json")
