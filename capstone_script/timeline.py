@@ -61,10 +61,8 @@ def build_timeline(plan, manifest: dict) -> dict:
             frames = math.ceil(block["sampleCount"] / samples_per_frame)
             entry = {"id": line.id, "text": line.text, "from": frame, "durationInFrames": frames,
                      "audioPath": block["audioPath"], "sampleCount": block["sampleCount"]}
-            if scene.template == "concept" and line.highlight_point_index is not None:
-                entry["highlightPointIndex"] = line.highlight_point_index
-            if scene.template == "flow" and line.highlight_node_id is not None:
-                entry["highlightNodeId"] = line.highlight_node_id
+            entry.update((name, value) for name, value in line.model_dump(by_alias=True, exclude_none=True).items()
+                         if name.startswith("highlight"))
             lines.append(entry)
             frame += frames
         frame += TAIL_FRAMES

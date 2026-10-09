@@ -2,10 +2,25 @@ import React from 'react';
 import {AbsoluteFill, Html5Audio, Sequence, staticFile} from 'remotion';
 import {Captions, ProgressBar} from './Overlays';
 import {ChapterCard, TitleCard} from './scenes/Cards';
+import {ComparisonScene} from './scenes/ComparisonScene';
 import {ConceptScene} from './scenes/ConceptScene';
+import {DefinitionScene} from './scenes/DefinitionScene';
 import {FlowScene} from './scenes/FlowScene';
 import {theme} from './theme';
-import type {Timeline} from './types';
+import type {Timeline, TimelineScene} from './types';
+
+const SceneView: React.FC<{scene: TimelineScene; label: string}> = ({scene, label}) => {
+  switch (scene.template) {
+    case 'concept':
+      return <ConceptScene scene={scene} label={label} />;
+    case 'flow':
+      return <FlowScene scene={scene} label={label} />;
+    case 'comparison':
+      return <ComparisonScene scene={scene} label={label} />;
+    case 'definition':
+      return <DefinitionScene scene={scene} label={label} />;
+  }
+};
 
 const lengthText = (timeline: Timeline) => {
   const minutes = Math.round(timeline.durationInFrames / timeline.fps / 60);
@@ -35,9 +50,7 @@ export const Explainer: React.FC<Timeline> = (timeline) => {
         const label = chapter ? `Chapter ${chapter.number} · ${chapter.title}` : timeline.title;
         return (
           <Sequence key={scene.id} from={scene.from} durationInFrames={scene.durationInFrames} name={scene.id}>
-            {scene.template === 'concept'
-              ? <ConceptScene scene={scene} label={label} />
-              : <FlowScene scene={scene} label={label} />}
+            <SceneView scene={scene} label={label} />
           </Sequence>
         );
       })}

@@ -92,12 +92,15 @@ the run's `video/` folder so `narration.wav` can be loaded.
 | `src/scenes/Cards.tsx` | Title card, and chapter cards with the chapter number, title and position |
 | `src/scenes/ConceptScene.tsx` | Title, statement and up to three points |
 | `src/scenes/FlowScene.tsx` | Two to four steps with arrows, left to right |
+| `src/scenes/ComparisonScene.tsx` | Two labelled columns with a "vs" badge between them |
+| `src/scenes/DefinitionScene.tsx` | A key term, its definition and an optional example |
 | `src/Overlays.tsx` | Captions and the progress bar with chapter marks |
 | `src/theme.ts` | Colors, font and motion timing, matching the browser preview |
 
-Points and steps appear when the narration first highlights them, the current
-one is highlighted while it is being talked about, and an item that is never
-highlighted appears just after its scene starts. Captions show the spoken line
+Points, steps, columns and examples appear when the narration first
+highlights them, the current one is highlighted while it is being talked
+about, and an item that is never highlighted appears just after its scene
+starts. Captions show the spoken line
 and stay up through the short gaps inside a scene. Every scene fades in and
 out. Fonts are system fonts, so rendering works offline.
 
@@ -110,8 +113,18 @@ with its default concurrency, full size (1920x1080, H.264 video and AAC audio):
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Retrieval-augmented generation for business users | 5 | 2,876 | 95.9 s | 120 s (24 frames per second) | 7.4 MB |
 | How AI search engines find answers (7 chapters, reviewed) | 26 | 12,830 | 427.7 s | 528 s (24 frames per second) | 34.4 MB |
+| Why AI chatbots make things up (all four templates, reviewed) | 5 | 2,684 | 89.5 s | 109 s (25 frames per second) | 7.2 MB |
 
 The probed length of each MP4 matched its timeline within 0.01 s. Rendering
 runs at about 24 frames per second here, so a video takes about 1.2 times its
 own length to render. Narrating the seven-minute plan took another 4.3 minutes
 (94 lines, 396 s of speech, 4 CPU threads).
+
+The default H.264 quality is high for flat slides. For a copy small enough to
+send (the seven-minute video drops from 34 MB to 8.6 MB at 720p), re-encode it
+with the FFmpeg that ships with Remotion:
+
+```bash
+cd renderer
+npx remotion ffmpeg -i ../runs/long-01/video.mp4 -vf scale=1280:720 -c:v libx264 -crf 30 -preset slow -tune stillimage -c:a aac -b:a 96k -movflags +faststart ../runs/long-01/video-720p.mp4
+```

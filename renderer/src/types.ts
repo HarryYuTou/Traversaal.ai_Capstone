@@ -8,10 +8,15 @@ export type TimelineLine = {
   durationInFrames: number;
   highlightPointIndex?: number;
   highlightNodeId?: string;
+  highlightSide?: 'left' | 'right';
+  highlightPart?: 'term' | 'definition' | 'example';
 };
 
 export type ConceptVisual = {title: string; statement: string; points: string[]};
 export type FlowVisual = {title: string; nodes: {id: string; label: string}[]};
+export type ComparisonColumn = {label: string; points: string[]};
+export type ComparisonVisual = {title: string; left: ComparisonColumn; right: ComparisonColumn};
+export type DefinitionVisual = {title: string; term: string; definition: string; example?: string};
 
 type SceneBase = {
   id: string;
@@ -23,7 +28,9 @@ type SceneBase = {
 
 export type TimelineScene =
   | (SceneBase & {template: 'concept'; visual: ConceptVisual})
-  | (SceneBase & {template: 'flow'; visual: FlowVisual});
+  | (SceneBase & {template: 'flow'; visual: FlowVisual})
+  | (SceneBase & {template: 'comparison'; visual: ComparisonVisual})
+  | (SceneBase & {template: 'definition'; visual: DefinitionVisual});
 
 export type TimelineChapter = {
   id: string;
