@@ -25,7 +25,7 @@ from .scene_plan import (
 MODEL = "claude-opus-5-5"
 EFFORT = "high"
 MAX_TOKENS = 16000
-PROMPT_VERSION = "scene-planner-v4"
+PROMPT_VERSION = "scene-planner-v5"
 PROMPTS = Path(__file__).resolve().parents[1] / "prompts"
 # The timeline adds short pauses around lines, so speech fills about 95% of the video.
 SPEECH_SHARE = 0.95
@@ -85,6 +85,19 @@ def make_spec(topic: str, audience: str, seconds: int, reference: Path | None = 
     return spec, reference_text
 
 
+def attach_reference_url(spec: dict, url: str, text: str, run_dir: Path) -> None:
+    """Record a downloaded reference in the spec; the text itself is saved as run_dir/reference.md."""
+    if "referenceFile" in spec:
+        raise ValueError("Use a reference file or a reference URL, not both.")
+    spec.update(referenceUrl=url, referenceFile=(Path(run_dir) / "reference.md").as_posix(),
+                referenceSha256=hashlib.sha256(text.encode("utf-8")).hexdigest())
+
+
+def save_reference(run_dir: Path, text: str) -> None:
+    if Path(run_dir).is_dir():
+        (Path(run_dir) / "reference.md").write_text(text, encoding="utf-8", newline="\n")
+
+
 def request_text(spec: dict, reference_text: str | None = None) -> str:
     seconds = spec["targetDurationSec"]
     _, target, _ = word_range(seconds)
@@ -93,7 +106,7 @@ def request_text(spec: dict, reference_text: str | None = None) -> str:
             f"Topic: {spec['topic']}\n"
             f"Audience: {spec['audience']}\n"
             f"Length: about {seconds} seconds, so about {target} words of narration in total "
-            f"(stay between {round(target * 0.9)} and {round(target * 1.1)} words).\n"
+            f"(stay between {round(target * 0.95)} and {round(target * 1.05)} words).\n"
             f"Scenes: {min_scenes} to {max_scenes}, using at least two different templates.")
     if reference_text and reference_text.strip():
         text += f"\n\nReference material:\n<reference>\n{reference_text.strip()}\n</reference>"

@@ -21,7 +21,7 @@ from .scene_plan import (
 )
 
 OUTLINE_PROMPT_VERSION = "outline-planner-v1"
-CHAPTER_PROMPT_VERSION = "chapter-planner-v1"
+CHAPTER_PROMPT_VERSION = "chapter-planner-v2"
 # Each chapter is planned like a short video of this length.
 CHAPTER_SECONDS = (40, 150)
 SECONDS_PER_CHAPTER = 75
@@ -125,7 +125,7 @@ def chapter_request(spec: dict, outline: Outline, index: int, seconds: int, scen
             f"Goal: {chapter.goal}\n"
             f"Key points, in order:\n{points}\n"
             f"Length: about {seconds} seconds, so about {target} words of narration "
-            f"(stay between {round(target * 0.9)} and {round(target * 1.1)} words).\n"
+            f"(stay between {round(target * 0.95)} and {round(target * 1.05)} words).\n"
             f"Scenes: {min_scenes} to {max_scenes}. Vary the templates when the content allows. "
             f"Use the chapter title as the plan title.\n"
             f"{position}")

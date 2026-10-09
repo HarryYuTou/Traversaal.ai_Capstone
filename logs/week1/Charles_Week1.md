@@ -79,7 +79,10 @@ Unit tests on this branch: 79 passed.
   finished videos to check the reviewer's scores.
 - Decide with the team whether to adopt, change or drop the renderer
   prototype.
-- Vary the template mix in short videos, and trim the 5–10% length overshoot.
+- Length is now centered: asking for 95–105% of the word target put real
+  speech at 98–105% of target on six re-run topics (it was 99–115%).
+- Try grounding scripts in a source with `--reference-url` and check whether
+  the reviewer's accuracy flags drop.
 
 ## How to run
 

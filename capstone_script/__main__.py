@@ -7,7 +7,8 @@ import sys
 
 from .evaluate import evaluate
 from .narrate import narrate_plan
-from .planner import load_env_file, make_spec, write_plan_run
+from .planner import attach_reference_url, load_env_file, make_spec, save_reference, write_plan_run
+from .reference import fetch_reference
 from .preview import build_preview
 from .render import render_video
 from .review import write_review
@@ -55,9 +56,17 @@ def _new_output(path: Path) -> None:
 def _write_plan(args):
     spec, reference_text = make_spec(args.topic, args.audience, args.duration, args.reference)
     _new_output(args.out)
+    if args.reference_url:
+        reference_text = fetch_reference(args.reference_url)
+        attach_reference_url(spec, args.reference_url, reference_text, args.out)
+        _print(f"Reference: {len(reference_text):,} characters from {args.reference_url}")
     load_env_file()
     client = _client()
-    plan = write_plan_run(args.out, spec, client, reference_text, progress=_print)
+    try:
+        plan = write_plan_run(args.out, spec, client, reference_text, progress=_print)
+    finally:
+        if args.reference_url:
+            save_reference(args.out, reference_text)
     summary = summarize(plan)
     cost = json.loads((args.out / "llm-response.json").read_text(encoding="utf-8"))["estimatedCostUsd"]
     print(f"Plan: {args.out.resolve() / 'scene-plan.json'}")
@@ -115,6 +124,8 @@ def _add_plan_options(parser):
     parser.add_argument("--duration", type=int, default=75,
                         help="Target video length in seconds (30-600; over 180 is planned chapter by chapter)")
     parser.add_argument("--reference", type=Path, help="Facts file the script must stay within")
+    parser.add_argument("--reference-url",
+                        help="Web page the script must stay within; its text is saved as reference.md in the run")
     parser.add_argument("--review", action="store_true",
                         help="Have Claude review the plan and rewrite weak lines before narration")
 
