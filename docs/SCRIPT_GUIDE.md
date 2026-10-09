@@ -73,7 +73,8 @@ paths, durations or frames; later stages measure those from real audio.
    program renumbers scene and line IDs and makes node IDs path-safe.
 3. The plan must pass validation and fit the length: the word target assumes
    2.6 words per second, and a plan outside 80–120% of the target words counts
-   as a problem.
+   as a problem. Every point and node must also be highlighted by at least one
+   narration line, so the visuals follow the narration.
 4. If anything fails, one repair request (`prompts/repair-scene-plan.txt`)
    lists every problem. A second failure stops the run; `llm-response.json`
    keeps both raw responses. API errors are retried by the SDK.
@@ -101,3 +102,16 @@ On Windows 11 (Ryzen 7 5800HS, two CPU threads) the fixture plan's 18 lines and
 Whole paragraphs read faster (about 2.9 words per second), so per-line timing
 is the basis for the planner's word target. At this rate the week-one plan's
 140–180 words would produce a 57–72 second video.
+
+First real planner runs (October 8, 2026, Claude Opus 5.5, effort `high`). Each
+plan passed on the first request, with no repair needed:
+
+| Topic | Target | Scenes, lines, words | Real speech | Preview | Tokens in / out | Latency |
+| --- | ---: | --- | ---: | ---: | ---: | ---: |
+| Entering a website address, with `reference-primary.md`* | 75 s | 7, 16, 195 | not narrated | — | 2,853 / 5,393 | 48 s |
+| How noise-cancelling headphones work | 75 s | 5, 16, 191 | 71.1 s | 74.2 s | 2,462 / 2,609 | 24 s |
+| Retrieval-augmented generation for business users | 90 s | 5, 18, 228 | 89.3 s | 92.6 s | 2,475 / 3,235 | 29 s |
+
+\* Prompt v1. It left some points and nodes without a highlighting line, which
+led to the coverage rule in v2. At list prices the three plans cost about
+$0.12, $0.06 and $0.07.
