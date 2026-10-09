@@ -4,6 +4,7 @@ from contextlib import redirect_stdout
 import io
 import json
 from pathlib import Path
+import shutil
 import tempfile
 import unittest
 from unittest.mock import Mock, patch
@@ -13,7 +14,7 @@ import soundfile as sf
 
 from capstone_script.__main__ import main
 from capstone_script.narrate import NarrationError, narrate_plan
-from capstone_script.scene_plan import load_plan
+from capstone_script.scene_plan import load_plan, validate_plan
 from test_planner import TOPIC, FakeClient, model_output, response
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -34,6 +35,13 @@ class WordEngine:
         yield text, (0.25 * np.sin(2 * np.pi * 440 * np.arange(samples) / 24000)).astype(np.float32)
 
 
+def edited_plan(new_text):
+    """The fixture with its first line rewritten."""
+    data = PLAN.model_dump(mode="json", by_alias=True, exclude_none=True)
+    data["scenes"][0]["narration"][0]["text"] = new_text
+    return validate_plan(data)
+
+
 class NarrateTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory(prefix="capstone-narrate-test-")
@@ -43,6 +51,43 @@ class NarrateTests(unittest.TestCase):
         versions = patch("capstone_tts.audio.version", return_value="unit-test-placeholder")
         versions.start()
         self.addCleanup(versions.stop)
+
+    def test_unchanged_lines_reuse_an_earlier_run(self):
+        narrate_plan(PLAN, self.run, Mock(return_value=WordEngine()))
+        second = Path(self.temporary.name) / "second"
+        factory = Mock(return_value=WordEngine())
+        manifest = narrate_plan(edited_plan("A brand new opening line."), second, factory, reuse_from=self.run)
+        factory.assert_called_once()
+        hits = [block["cacheHit"] for block in manifest["blocks"]]
+        self.assertEqual(hits, [False] + [True] * (len(hits) - 1))
+        self.assertEqual(manifest["reusedLines"], len(hits) - 1)
+        self.assertEqual(manifest["reusedFrom"], self.run.as_posix())
+        reused = manifest["blocks"][1]
+        self.assertEqual(reused["synthesisMs"], 0.0)
+        self.assertEqual(sf.info(second / reused["audioPath"]).frames, reused["sampleCount"])
+        self.assertTrue((second / "narration-preview.wav").exists())
+
+    def test_a_missing_earlier_line_is_synthesized_instead(self):
+        narrate_plan(PLAN, self.run, Mock(return_value=WordEngine()))
+        shutil.rmtree(self.run / "audio" / "scene-01-line-02")
+        factory = Mock(return_value=WordEngine())
+        manifest = narrate_plan(PLAN, Path(self.temporary.name) / "second", factory, reuse_from=self.run)
+        factory.assert_called_once()
+        self.assertEqual([block["cacheHit"] for block in manifest["blocks"][:3]], [True, False, True])
+
+    def test_a_fully_reused_plan_never_loads_the_model(self):
+        narrate_plan(PLAN, self.run, Mock(return_value=WordEngine()))
+        factory = Mock(return_value=WordEngine())
+        manifest = narrate_plan(PLAN, Path(self.temporary.name) / "second", factory, reuse_from=self.run)
+        factory.assert_not_called()
+        self.assertEqual(manifest["timingsMs"]["modelLoad"], 0.0)
+        self.assertTrue(all(block["cacheHit"] for block in manifest["blocks"]))
+
+    def test_a_different_speed_is_not_reused(self):
+        narrate_plan(PLAN, self.run, Mock(return_value=WordEngine()))
+        manifest = narrate_plan(PLAN, Path(self.temporary.name) / "second", Mock(return_value=WordEngine()),
+                                speed=1.2, reuse_from=self.run)
+        self.assertEqual(manifest["reusedLines"], 0)
 
     def test_every_line_gets_verified_audio_and_one_model_load(self):
         factory = Mock(return_value=WordEngine())

@@ -12,9 +12,15 @@ website are future integration work.
 
 The second module, `capstone_script`, turns a topic into a validated
 scene-by-scene script with the Claude API and voices every line with the TTS
-module.
+module. Videos of up to ten minutes are planned chapter by chapter, and an
+optional review pass scores the script and rewrites weak lines.
 
-[TTS usage guide](docs/TTS_GUIDE.md) · [Script planner guide](docs/SCRIPT_GUIDE.md) · [Team week-one plan](docs/WEEK_01_PLAN.md)
+A third stage on the `feat/remotion-renderer` branch builds a frame-accurate
+timeline from the narration and renders the MP4 with Remotion (Node.js).
+To go from a topic to an MP4 in one command, follow the
+[quick start](docs/QUICKSTART.md).
+
+[TTS usage guide](docs/TTS_GUIDE.md) · [Script planner guide](docs/SCRIPT_GUIDE.md) · [Planner evaluation](docs/PLANNER_EVALUATION.md) · [Video renderer guide](docs/RENDERER_GUIDE.md) · [Team week-one plan](docs/WEEK_01_PLAN.md)
 
 ## Quick start (macOS, Python 3.11)
 
@@ -98,8 +104,9 @@ later integration step. This report is not the complete ScenePlan schema.
 
 ```text
 capstone_tts/           CLI, Kokoro adapter, audio writer and verification
-capstone_script/       Scene plan contract, LLM planner, narration bridge, preview
-prompts/               Planner and repair prompts
+capstone_script/       Scene plan contract, LLM planner, narration bridge, preview, timeline
+renderer/              Remotion project that renders a timeline to MP4 (Node.js)
+prompts/               Planner, chapter, review and repair prompts
 schemas/               ScenePlan JSON Schema generated from the models
 fixtures/              Valid and invalid scene plans and reference facts
 examples/              English demo, abbreviations and long paragraph

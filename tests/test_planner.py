@@ -13,9 +13,11 @@ from unittest.mock import Mock, patch
 
 from capstone_script.__main__ import main
 from capstone_script.planner import (
-    MODEL, UNSUPPORTED_KEYWORDS, PlannerError, load_env_file, make_spec, normalize_ids,
-    request_text, word_range, write_plan_run,
+    MODEL, UNSUPPORTED_KEYWORDS, PlannerError, coverage_problems, length_problems, load_env_file, make_spec,
+    normalize_ids, request_text, word_range, write_plan_run,
 )
+from capstone_script.scene_plan import validate_plan
+from test_scene_plan import with_new_templates
 
 ROOT = Path(__file__).resolve().parents[1]
 VALID = json.loads((ROOT / "fixtures" / "scene-plan.valid.json").read_text(encoding="utf-8"))
@@ -142,6 +144,34 @@ class PlannerTests(unittest.TestCase):
         self.assertIn("scenes[0]: no narration line highlights point 2", repair)
         self.assertIn("scenes[3]: no narration line highlights node 'page'", repair)
 
+    def test_columns_and_examples_need_a_highlighting_line(self):
+        data = with_new_templates(copy.deepcopy(VALID))
+        data["scenes"][5]["narration"][1].pop("highlightSide")
+        data["scenes"][6]["narration"][1]["highlightPart"] = "term"
+        self.assertEqual(coverage_problems(validate_plan(data)), [
+            "scenes[5]: no narration line highlights the right column; give each column a line that sets "
+            "highlightSide",
+            "scenes[6]: no narration line highlights the example; give it a line that sets highlightPart "
+            "to 'example'",
+        ])
+
+    def test_a_plan_needs_two_different_templates(self):
+        def concepts_only(data):
+            data["scenes"] = [scene for scene in data["scenes"] if scene["template"] == "concept"]
+        plan = validate_plan(normalize_ids(model_output(concepts_only), "demo"))
+        self.assertIn("scenes: use at least two different templates", length_problems(plan, self.spec))
+
+    def test_unknown_icons_from_the_model_are_dropped_without_a_repair(self):
+        def add_icons(data):
+            data["scenes"][0]["visual"]["icon"] = "lightbulb"
+            data["scenes"][1]["visual"]["nodes"][0]["icon"] = "web-browser"
+        client = FakeClient(response(model_output(add_icons)))
+        plan = write_plan_run(self.out, self.spec, client)
+        self.assertEqual(plan.scenes[0].visual.icon, "lightbulb")
+        self.assertIsNone(plan.scenes[1].visual.nodes[0].icon)
+        self.assertIn("chosen from this list: activity, ", client.calls[0]["system"])
+        self.assertNotIn("$icons", client.calls[0]["system"])
+
     def test_second_failure_keeps_the_evidence_and_publishes_no_plan(self):
         client = FakeClient(response(model_output(broken_highlight)), response(model_output(broken_highlight)))
         with self.assertRaisesRegex(PlannerError, "router"):
@@ -185,7 +215,9 @@ class PlannerTests(unittest.TestCase):
 
     def test_length_targets_and_input_limits(self):
         self.assertEqual(word_range(75), (148, 185, 222))
-        for seconds in (29, 181):
+        self.assertEqual(make_spec("Topic", "Audience", 180)[0]["planMode"], "single")
+        self.assertEqual(make_spec("Topic", "Audience", 600)[0]["planMode"], "chapters")
+        for seconds in (29, 601):
             with self.subTest(seconds=seconds), self.assertRaises(ValueError):
                 make_spec("Topic", "Audience", seconds)
         with self.assertRaises(ValueError):

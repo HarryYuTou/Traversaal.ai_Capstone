@@ -1,0 +1,1006 @@
+{
+  "schemaVersion": "1",
+  "projectId": "how-ai-search-engines-find-answers",
+  "title": "How AI Search Engines Find Answers",
+  "scenes": [
+    {
+      "id": "scene-01",
+      "purpose": "Frames the question by contrasting classic search results with AI search answers.",
+      "template": "concept",
+      "visual": {
+        "title": "Two Ways to Search",
+        "statement": "Classic search hands you links to read, while AI search hands you a written answer.",
+        "points": [
+          "Classic search: a ranked list of links",
+          "AI search: a written answer",
+          "Answers often link to their sources"
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-01-line-01",
+          "text": "You type a question into a search box. What happens next depends on the search engine."
+        },
+        {
+          "id": "scene-01-line-02",
+          "text": "Classic search gives you a ranked list of links, and you do the reading.",
+          "highlightPointIndex": 0
+        },
+        {
+          "id": "scene-01-line-03",
+          "text": "AI search reads for you and gives back a written answer in plain sentences.",
+          "highlightPointIndex": 1
+        },
+        {
+          "id": "scene-01-line-04",
+          "text": "That answer often links to its sources, so you can see where it came from.",
+          "highlightPointIndex": 2
+        }
+      ]
+    },
+    {
+      "id": "scene-02",
+      "purpose": "Explains why it is worth understanding how an AI search answer is made.",
+      "template": "concept",
+      "visual": {
+        "title": "Why It Pays to Know How It Works",
+        "statement": "Knowing the steps behind an answer helps you judge how much to trust it.",
+        "points": []
+      },
+      "narration": [
+        {
+          "id": "scene-02-line-01",
+          "text": "But a confident answer is not always a correct one."
+        },
+        {
+          "id": "scene-02-line-02",
+          "text": "Knowing the steps behind it helps you judge how much to trust it."
+        }
+      ]
+    },
+    {
+      "id": "scene-03",
+      "purpose": "Previews the four steps the video will follow from question to answer.",
+      "template": "flow",
+      "visual": {
+        "title": "The Journey From Question to Answer",
+        "nodes": [
+          {
+            "id": "understand",
+            "label": "Understand"
+          },
+          {
+            "id": "find",
+            "label": "Find"
+          },
+          {
+            "id": "select",
+            "label": "Select"
+          },
+          {
+            "id": "write",
+            "label": "Write"
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-03-line-01",
+          "text": "In this video, we follow four steps. First, the system works out what you mean.",
+          "highlightNodeId": "understand"
+        },
+        {
+          "id": "scene-03-line-02",
+          "text": "Next, it finds pages that might help.",
+          "highlightNodeId": "find"
+        },
+        {
+          "id": "scene-03-line-03",
+          "text": "Then it selects the most useful passages.",
+          "highlightNodeId": "select"
+        },
+        {
+          "id": "scene-03-line-04",
+          "text": "Finally, it writes the answer.",
+          "highlightNodeId": "write"
+        }
+      ]
+    },
+    {
+      "id": "scene-04",
+      "purpose": "Shows that people ask in everyday language and that the system first works out what they actually want.",
+      "template": "concept",
+      "visual": {
+        "title": "You Ask the Way You Talk",
+        "statement": "Before searching, the system works out what your everyday question is really asking.",
+        "points": [
+          "Everyday words, not keywords",
+          "Working out the intent"
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-04-line-01",
+          "text": "Let's start with that very first step: understanding your question."
+        },
+        {
+          "id": "scene-04-line-02",
+          "text": "Most people don't type neat keywords. They ask the way they talk.",
+          "highlightPointIndex": 0
+        },
+        {
+          "id": "scene-04-line-03",
+          "text": "For example: what's a good easy dinner when I'm too tired to cook?",
+          "highlightPointIndex": 0
+        },
+        {
+          "id": "scene-04-line-04",
+          "text": "So the system first works out the intent, meaning what you actually want.",
+          "highlightPointIndex": 1
+        },
+        {
+          "id": "scene-04-line-05",
+          "text": "Here, you want quick, simple recipes, not a cooking class.",
+          "highlightPointIndex": 1
+        }
+      ]
+    },
+    {
+      "id": "scene-05",
+      "purpose": "Shows how a complex question gets rewritten into several smaller, simpler searches.",
+      "template": "flow",
+      "visual": {
+        "title": "One Question, Several Searches",
+        "nodes": [
+          {
+            "id": "your-question",
+            "label": "Your question"
+          },
+          {
+            "id": "train-search",
+            "label": "Train fare search"
+          },
+          {
+            "id": "flight-search",
+            "label": "Flight price search"
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-05-line-01",
+          "text": "Some questions are really several questions packed together."
+        },
+        {
+          "id": "scene-05-line-02",
+          "text": "Say you ask: is the train or a flight cheaper to Chicago?",
+          "highlightNodeId": "your-question"
+        },
+        {
+          "id": "scene-05-line-03",
+          "text": "The system rewrites this into one search for train fares.",
+          "highlightNodeId": "train-search"
+        },
+        {
+          "id": "scene-05-line-04",
+          "text": "And a second, separate search for flight prices.",
+          "highlightNodeId": "flight-search"
+        },
+        {
+          "id": "scene-05-line-05",
+          "text": "Each smaller search is easier to answer well."
+        }
+      ]
+    },
+    {
+      "id": "scene-06",
+      "purpose": "Shows how earlier messages in a conversation help the system understand a short follow-up question.",
+      "template": "concept",
+      "visual": {
+        "title": "Follow-Ups Use Earlier Messages",
+        "statement": "In a conversation, earlier messages help explain what a short follow-up means.",
+        "points": [
+          "First question sets the topic",
+          "Follow-up gets filled in"
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-06-line-01",
+          "text": "Conversations matter too. Imagine you first asked about the train.",
+          "highlightPointIndex": 0
+        },
+        {
+          "id": "scene-06-line-02",
+          "text": "Then you simply type: what about on weekends?",
+          "highlightPointIndex": 1
+        },
+        {
+          "id": "scene-06-line-03",
+          "text": "The system reads this as weekend train fares to Chicago.",
+          "highlightPointIndex": 1
+        },
+        {
+          "id": "scene-06-line-04",
+          "text": "Once your meaning is clear, it's ready to go searching."
+        }
+      ]
+    },
+    {
+      "id": "scene-07",
+      "purpose": "Shows that automated programs visit and copy web pages long before anyone asks a question.",
+      "template": "flow",
+      "visual": {
+        "title": "Crawlers Copy the Web Ahead of Time",
+        "nodes": [
+          {
+            "id": "visit",
+            "label": "Crawler visits a page"
+          },
+          {
+            "id": "copy",
+            "label": "Copies the text"
+          },
+          {
+            "id": "follow",
+            "label": "Follows links to more"
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-07-line-01",
+          "text": "So where does it look? Not the live internet, at least not at first."
+        },
+        {
+          "id": "scene-07-line-02",
+          "text": "Long before you ask, automated programs called crawlers visit web pages.",
+          "highlightNodeId": "visit"
+        },
+        {
+          "id": "scene-07-line-03",
+          "text": "A crawler copies the text of each page it lands on.",
+          "highlightNodeId": "copy"
+        },
+        {
+          "id": "scene-07-line-04",
+          "text": "Then it follows links to find more pages, building a huge stored copy of the web.",
+          "highlightNodeId": "follow"
+        }
+      ]
+    },
+    {
+      "id": "scene-08",
+      "purpose": "Explains that copied pages are organized into an index that works like a library catalog.",
+      "template": "concept",
+      "visual": {
+        "title": "The Index: A Library Catalog",
+        "statement": "Copied pages are organized into an index, so the right ones can be found fast.",
+        "points": [
+          "Like a catalog for a library",
+          "Records what each page is about",
+          "Finds pages without reading everything"
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-08-line-01",
+          "text": "But copied pages are only useful if they're organized."
+        },
+        {
+          "id": "scene-08-line-02",
+          "text": "So the pages go into an index, much like a library catalog.",
+          "highlightPointIndex": 0
+        },
+        {
+          "id": "scene-08-line-03",
+          "text": "The catalog records what each page is about and where to find it.",
+          "highlightPointIndex": 1
+        },
+        {
+          "id": "scene-08-line-04",
+          "text": "That way, the system finds matching pages fast, without reading everything.",
+          "highlightPointIndex": 2
+        }
+      ]
+    },
+    {
+      "id": "scene-09",
+      "purpose": "Shows that AI search can find pages by meaning, even when they use different words.",
+      "template": "concept",
+      "visual": {
+        "title": "Matching by Meaning, Not Just Words",
+        "statement": "Pages about the same idea can be found even when they use different words.",
+        "points": [
+          "Older way: look for exact words",
+          "Newer way: compare meanings",
+          "Cheap train fares finds budget rail tickets"
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-09-line-01",
+          "text": "Older search mostly looked for the exact words you typed.",
+          "highlightPointIndex": 0
+        },
+        {
+          "id": "scene-09-line-02",
+          "text": "AI search can also compare meanings, a technique often called semantic search.",
+          "highlightPointIndex": 1
+        },
+        {
+          "id": "scene-09-line-03",
+          "text": "Semantic simply means having to do with meaning.",
+          "highlightPointIndex": 1
+        },
+        {
+          "id": "scene-09-line-04",
+          "text": "So a search for cheap train fares can find a page about budget rail tickets.",
+          "highlightPointIndex": 2
+        },
+        {
+          "id": "scene-09-line-05",
+          "text": "The words differ, but the idea is the same.",
+          "highlightPointIndex": 2
+        }
+      ]
+    },
+    {
+      "id": "scene-10",
+      "purpose": "Explains that some systems add a fresh live web search when a topic is too recent for the index.",
+      "template": "flow",
+      "visual": {
+        "title": "Fresh Results for Recent Topics",
+        "nodes": [
+          {
+            "id": "question",
+            "label": "Your question"
+          },
+          {
+            "id": "index",
+            "label": "Check the stored index"
+          },
+          {
+            "id": "live",
+            "label": "Run a live web search"
+          },
+          {
+            "id": "combine",
+            "label": "Combine the results"
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-10-line-01",
+          "text": "But your question might be about something that happened this morning.",
+          "highlightNodeId": "question"
+        },
+        {
+          "id": "scene-10-line-02",
+          "text": "The stored index may not have it yet.",
+          "highlightNodeId": "index"
+        },
+        {
+          "id": "scene-10-line-03",
+          "text": "So some systems also run a fresh, live web search for recent topics.",
+          "highlightNodeId": "live"
+        },
+        {
+          "id": "scene-10-line-04",
+          "text": "They then combine the new results with what they found in the index.",
+          "highlightNodeId": "combine"
+        },
+        {
+          "id": "scene-10-line-05",
+          "text": "Either way, the system now has a big stack of possibly useful pages."
+        }
+      ]
+    },
+    {
+      "id": "scene-11",
+      "purpose": "Connects to the stack of pages from the last chapter and sets up the need to narrow it down.",
+      "template": "concept",
+      "visual": {
+        "title": "Too Much to Read",
+        "statement": "There is far more text than the system can use, so it must narrow things down.",
+        "points": []
+      },
+      "narration": [
+        {
+          "id": "scene-11-line-01",
+          "text": "With that big stack of pages, the system now needs to narrow things down."
+        }
+      ]
+    },
+    {
+      "id": "scene-12",
+      "purpose": "Shows that pages are split into smaller chunks of text.",
+      "template": "concept",
+      "visual": {
+        "title": "Breaking Pages into Chunks",
+        "statement": "Long pages are split into smaller pieces of text called chunks.",
+        "points": [
+          "A chunk might be a paragraph or two",
+          "Easier to find the exact answer"
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-12-line-01",
+          "text": "First, each page is split into smaller pieces of text, called chunks."
+        },
+        {
+          "id": "scene-12-line-02",
+          "text": "A chunk might be a paragraph or two.",
+          "highlightPointIndex": 0
+        },
+        {
+          "id": "scene-12-line-03",
+          "text": "Smaller pieces make it easier to spot exactly where the answer lives.",
+          "highlightPointIndex": 1
+        }
+      ]
+    },
+    {
+      "id": "scene-13",
+      "purpose": "Explains how each chunk is scored for how well it answers the question.",
+      "template": "flow",
+      "visual": {
+        "title": "Scoring Each Chunk",
+        "nodes": [
+          {
+            "id": "question",
+            "label": "Your question"
+          },
+          {
+            "id": "chunk",
+            "label": "A chunk of text"
+          },
+          {
+            "id": "score",
+            "label": "Relevance score"
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-13-line-01",
+          "text": "Next, the system compares your question with each chunk.",
+          "highlightNodeId": "question"
+        },
+        {
+          "id": "scene-13-line-02",
+          "text": "Say you asked how long to boil an egg.",
+          "highlightNodeId": "question"
+        },
+        {
+          "id": "scene-13-line-03",
+          "text": "A chunk listing boiling times matches well. One about egg history doesn't.",
+          "highlightNodeId": "chunk"
+        },
+        {
+          "id": "scene-13-line-04",
+          "text": "Each chunk gets a score showing how well it seems to answer you.",
+          "highlightNodeId": "score"
+        }
+      ]
+    },
+    {
+      "id": "scene-14",
+      "purpose": "Shows that source reliability and freshness can also affect which chunks are chosen.",
+      "template": "concept",
+      "visual": {
+        "title": "Other Signals Matter Too",
+        "statement": "Besides relevance, signals about the source can change which chunks win.",
+        "points": [
+          "Source reliability",
+          "Freshness"
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-14-line-01",
+          "text": "Relevance isn't the only factor. A chunk from a trusted, reliable source can get a boost.",
+          "highlightPointIndex": 0
+        },
+        {
+          "id": "scene-14-line-02",
+          "text": "For news or prices, fresher pages may be preferred over old ones.",
+          "highlightPointIndex": 1
+        }
+      ]
+    },
+    {
+      "id": "scene-15",
+      "purpose": "Explains that only a small set of top passages is passed on for reading.",
+      "template": "concept",
+      "visual": {
+        "title": "Only the Best Make the Cut",
+        "statement": "Just a small set of top-scoring passages is passed on to be read.",
+        "points": [
+          "From many chunks to a handful"
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-15-line-01",
+          "text": "Finally, the chunks are ranked, and only the top few are kept. These winners are called passages."
+        },
+        {
+          "id": "scene-15-line-02",
+          "text": "Like a researcher pulling a few key pages from a tall pile.",
+          "highlightPointIndex": 0
+        },
+        {
+          "id": "scene-15-line-03",
+          "text": "Those chosen passages are what the system will actually read next."
+        }
+      ]
+    },
+    {
+      "id": "scene-16",
+      "purpose": "Introduces the language model and explains in plain terms what it is.",
+      "template": "concept",
+      "visual": {
+        "title": "Meet the Language Model",
+        "statement": "A language model is a program that learned from huge amounts of text to write words.",
+        "points": [
+          "Trained on huge amounts of text",
+          "Predicts the next likely word",
+          "Writes smooth, natural sentences"
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-16-line-01",
+          "text": "Now comes the part you actually see: the answer being written."
+        },
+        {
+          "id": "scene-16-line-02",
+          "text": "This is the job of a language model."
+        },
+        {
+          "id": "scene-16-line-03",
+          "text": "It's a computer program trained on huge amounts of text, like books and web pages.",
+          "highlightPointIndex": 0
+        },
+        {
+          "id": "scene-16-line-04",
+          "text": "From all that reading, it learned to predict which word is likely to come next.",
+          "highlightPointIndex": 1
+        },
+        {
+          "id": "scene-16-line-05",
+          "text": "Predicting one word after another lets it write smooth, natural sentences.",
+          "highlightPointIndex": 2
+        }
+      ]
+    },
+    {
+      "id": "scene-17",
+      "purpose": "Shows that the model is given both the question and the chosen passages to work from.",
+      "template": "flow",
+      "visual": {
+        "title": "What the Model Is Given",
+        "nodes": [
+          {
+            "id": "question",
+            "label": "Your question"
+          },
+          {
+            "id": "passages",
+            "label": "Chosen passages"
+          },
+          {
+            "id": "language-model",
+            "label": "Language model"
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-17-line-01",
+          "text": "But the model does not answer from memory alone."
+        },
+        {
+          "id": "scene-17-line-02",
+          "text": "It is handed your question, exactly as the system understood it.",
+          "highlightNodeId": "question"
+        },
+        {
+          "id": "scene-17-line-03",
+          "text": "Alongside it come the few passages picked in the last step.",
+          "highlightNodeId": "passages"
+        },
+        {
+          "id": "scene-17-line-04",
+          "text": "The model reads both together, like a student given a question and a short stack of notes.",
+          "highlightNodeId": "language-model"
+        }
+      ]
+    },
+    {
+      "id": "scene-18",
+      "purpose": "Explains how the model combines several passages into one plain-language answer.",
+      "template": "concept",
+      "visual": {
+        "title": "One Clear Answer",
+        "statement": "The model blends several passages into a single plain-language reply.",
+        "points": [
+          "Pulls key facts together",
+          "Says repeated points once",
+          "Uses plain, everyday words"
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-18-line-01",
+          "text": "Next, the model turns those notes into one answer."
+        },
+        {
+          "id": "scene-18-line-02",
+          "text": "It pulls the key facts from each passage together.",
+          "highlightPointIndex": 0
+        },
+        {
+          "id": "scene-18-line-03",
+          "text": "If two sources say the same thing, it says it once.",
+          "highlightPointIndex": 1
+        },
+        {
+          "id": "scene-18-line-04",
+          "text": "And it rewrites dense or technical wording into plain, everyday language.",
+          "highlightPointIndex": 2
+        }
+      ]
+    },
+    {
+      "id": "scene-19",
+      "purpose": "Shows how citations link parts of the answer back to the passages they came from.",
+      "template": "flow",
+      "visual": {
+        "title": "How Citations Work",
+        "nodes": [
+          {
+            "id": "answer-sentence",
+            "label": "Answer sentence"
+          },
+          {
+            "id": "citation",
+            "label": "Citation marker"
+          },
+          {
+            "id": "source-passage",
+            "label": "Original source"
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-19-line-01",
+          "text": "Finally, the answer comes with citations, small links back to its sources."
+        },
+        {
+          "id": "scene-19-line-02",
+          "text": "Each sentence in the answer draws on one or more passages.",
+          "highlightNodeId": "answer-sentence"
+        },
+        {
+          "id": "scene-19-line-03",
+          "text": "A citation, often a small number, marks which passage that was.",
+          "highlightNodeId": "citation"
+        },
+        {
+          "id": "scene-19-line-04",
+          "text": "Tap it, and you can read the original page yourself.",
+          "highlightNodeId": "source-passage"
+        }
+      ]
+    },
+    {
+      "id": "scene-20",
+      "purpose": "Connects citations from the previous chapter to the idea that answers can still contain mistakes.",
+      "template": "concept",
+      "visual": {
+        "title": "Why Answers Can Still Be Wrong",
+        "statement": "Citations help, but mistakes can still slip into an answer.",
+        "points": []
+      },
+      "narration": [
+        {
+          "id": "scene-20-line-01",
+          "text": "Those citations are useful, but they don't make an answer automatically correct."
+        },
+        {
+          "id": "scene-20-line-02",
+          "text": "Mistakes can slip in at several points along the way."
+        }
+      ]
+    },
+    {
+      "id": "scene-21",
+      "purpose": "Shows how a bad or outdated source flows straight through into a wrong answer.",
+      "template": "flow",
+      "visual": {
+        "title": "Bad Sources In, Bad Answers Out",
+        "nodes": [
+          {
+            "id": "outdated-page",
+            "label": "Outdated or wrong page"
+          },
+          {
+            "id": "chosen-passage",
+            "label": "Chosen as a passage"
+          },
+          {
+            "id": "answer",
+            "label": "Confident wrong answer"
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-21-line-01",
+          "text": "The answer is only as good as the pages it reads. Say a page lists last year's store hours.",
+          "highlightNodeId": "outdated-page"
+        },
+        {
+          "id": "scene-21-line-02",
+          "text": "If that page gets picked as a passage, the old hours go in.",
+          "highlightNodeId": "chosen-passage"
+        },
+        {
+          "id": "scene-21-line-03",
+          "text": "The answer then repeats them, sounding completely confident.",
+          "highlightNodeId": "answer"
+        }
+      ]
+    },
+    {
+      "id": "scene-22",
+      "purpose": "Explains that the language model itself can misread sources or make unsupported claims.",
+      "template": "concept",
+      "visual": {
+        "title": "The Model Can Make Mistakes Too",
+        "statement": "Even with good sources, the writing step can go wrong.",
+        "points": [
+          "Misreading what a source says",
+          "Stating things no source supports"
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-22-line-01",
+          "text": "Even with good pages, the language model can slip up."
+        },
+        {
+          "id": "scene-22-line-02",
+          "text": "It might misread a source, like mixing up two similar numbers or names.",
+          "highlightPointIndex": 0
+        },
+        {
+          "id": "scene-22-line-03",
+          "text": "Or it might state something no source says, filling a gap with a guess.",
+          "highlightPointIndex": 1
+        }
+      ]
+    },
+    {
+      "id": "scene-23",
+      "purpose": "Warns that a citation does not prove the cited page contains the claim.",
+      "template": "concept",
+      "visual": {
+        "title": "A Citation Is Not Proof",
+        "statement": "A citation shows where the model looked, not that the claim is really there.",
+        "points": []
+      },
+      "narration": [
+        {
+          "id": "scene-23-line-01",
+          "text": "Here's the tricky part: a citation does not guarantee the claim is in the source."
+        },
+        {
+          "id": "scene-23-line-02",
+          "text": "The page might cover the topic but never say that exact thing."
+        }
+      ]
+    },
+    {
+      "id": "scene-24",
+      "purpose": "Gives the viewer simple steps for checking an important claim against its source.",
+      "template": "flow",
+      "visual": {
+        "title": "How to Check an Answer",
+        "nodes": [
+          {
+            "id": "important-claim",
+            "label": "Spot what matters"
+          },
+          {
+            "id": "open-source",
+            "label": "Tap the citation"
+          },
+          {
+            "id": "compare",
+            "label": "Find it on the page"
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-24-line-01",
+          "text": "So for anything important, like health or money, pick out the key claim.",
+          "highlightNodeId": "important-claim"
+        },
+        {
+          "id": "scene-24-line-02",
+          "text": "Tap its citation to open the original page.",
+          "highlightNodeId": "open-source"
+        },
+        {
+          "id": "scene-24-line-03",
+          "text": "Then find where the page actually says it. If you can't, treat the claim with caution.",
+          "highlightNodeId": "compare"
+        }
+      ]
+    },
+    {
+      "id": "scene-25",
+      "purpose": "Links back to source checking, then walks the viewer through the four steps from question to answer.",
+      "template": "flow",
+      "visual": {
+        "title": "From Question to Answer in Four Steps",
+        "nodes": [
+          {
+            "id": "understand",
+            "label": "Understand the question"
+          },
+          {
+            "id": "search",
+            "label": "Search the index"
+          },
+          {
+            "id": "select",
+            "label": "Pick best passages"
+          },
+          {
+            "id": "write",
+            "label": "Write cited summary"
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-25-line-01",
+          "text": "Knowing the path makes checking easier. So let's put it all together."
+        },
+        {
+          "id": "scene-25-line-02",
+          "text": "First, the system works out what you mean, often splitting it into simpler searches.",
+          "highlightNodeId": "understand"
+        },
+        {
+          "id": "scene-25-line-03",
+          "text": "Next, it searches a prepared library of pages, matching by meaning.",
+          "highlightNodeId": "search"
+        },
+        {
+          "id": "scene-25-line-04",
+          "text": "Then it narrows the results to a few useful passages.",
+          "highlightNodeId": "select"
+        },
+        {
+          "id": "scene-25-line-05",
+          "text": "Finally, a language model reads them and writes a summary with citations.",
+          "highlightNodeId": "write"
+        }
+      ]
+    },
+    {
+      "id": "scene-26",
+      "purpose": "Sums up why answers depend on their sources and summary, and how the viewer should use them.",
+      "template": "concept",
+      "visual": {
+        "title": "Good Answers Depend on Good Sources",
+        "statement": "An AI answer is only as good as its sources and its summary.",
+        "points": [
+          "Weak sources lead to weak answers",
+          "Summaries can miss key details",
+          "A starting point, not the final word"
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-26-line-01",
+          "text": "So remember the big lesson: weak or outdated pages lead to weak answers.",
+          "highlightPointIndex": 0
+        },
+        {
+          "id": "scene-26-line-02",
+          "text": "Even good sources can be summarized badly, losing key details.",
+          "highlightPointIndex": 1
+        },
+        {
+          "id": "scene-26-line-03",
+          "text": "So treat an AI answer as a starting point, not the final word.",
+          "highlightPointIndex": 2
+        },
+        {
+          "id": "scene-26-line-04",
+          "text": "Ask, then check the sources, and you'll get the best of AI search."
+        }
+      ]
+    }
+  ],
+  "chapters": [
+    {
+      "id": "chapter-01",
+      "title": "From a List of Links to a Direct Answer",
+      "sceneIds": [
+        "scene-01",
+        "scene-02",
+        "scene-03"
+      ]
+    },
+    {
+      "id": "chapter-02",
+      "title": "Step One: Figuring Out What You Mean",
+      "sceneIds": [
+        "scene-04",
+        "scene-05",
+        "scene-06"
+      ]
+    },
+    {
+      "id": "chapter-03",
+      "title": "Step Two: Searching a Giant Library of Pages",
+      "sceneIds": [
+        "scene-07",
+        "scene-08",
+        "scene-09",
+        "scene-10"
+      ]
+    },
+    {
+      "id": "chapter-04",
+      "title": "Step Three: Picking the Most Useful Passages",
+      "sceneIds": [
+        "scene-11",
+        "scene-12",
+        "scene-13",
+        "scene-14",
+        "scene-15"
+      ]
+    },
+    {
+      "id": "chapter-05",
+      "title": "Step Four: Writing the Answer",
+      "sceneIds": [
+        "scene-16",
+        "scene-17",
+        "scene-18",
+        "scene-19"
+      ]
+    },
+    {
+      "id": "chapter-06",
+      "title": "Why Answers Can Still Be Wrong",
+      "sceneIds": [
+        "scene-20",
+        "scene-21",
+        "scene-22",
+        "scene-23",
+        "scene-24"
+      ]
+    },
+    {
+      "id": "chapter-07",
+      "title": "Recap: The Path From Question to Answer",
+      "sceneIds": [
+        "scene-25",
+        "scene-26"
+      ]
+    }
+  ]
+}

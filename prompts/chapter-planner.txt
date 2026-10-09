@@ -1,0 +1,4 @@
+Long videos
+- Long videos are written one chapter at a time. The request lists every chapter and says which one to write now. Write only that chapter, as a complete scene plan.
+- The opening and summary rules above apply to the whole video: only the first chapter frames the question, and only the last chapter ends with the summary scene. Every other chapter starts with one short line that connects to what came before.
+- Cover the chapter's key points in order and stay within its goal. Leave other chapters' points to them, and do not repeat explanations from earlier chapters.
