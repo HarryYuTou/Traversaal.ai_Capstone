@@ -96,7 +96,16 @@ def _narrate(args, plan) -> int:
     print(f"{len(manifest['blocks'])} lines | {manifest['totalSpeechSeconds']:.1f} s of speech | "
           f"preview {manifest['preview']['durationSeconds']:.1f} s: {manifest['preview']['audioPath']}")
     print(f"Preview: {build_preview(args.out).resolve()}")
+    if getattr(args, "render", False):
+        _render(args.out, args.draft)
     return 0
+
+
+def _render(run_dir: Path, draft: bool) -> None:
+    info = render_video(run_dir, draft, progress=_print)
+    print(f"Video: {run_dir.resolve() / info['videoPath']}")
+    print(f"{info['width']}x{info['height']} | {info['probedSeconds']:.1f} s | "
+          f"{info['bytes'] / 1e6:.1f} MB | rendered in {info['renderSeconds']:.0f} s")
 
 
 def _add_plan_options(parser):
@@ -135,13 +144,15 @@ def main(argv=None):
     timeline.add_argument("--run", type=Path, required=True, help="Narrated run directory")
     render = sub.add_parser("render", help="Render a narrated run to MP4 with Remotion (needs Node.js).")
     render.add_argument("--run", type=Path, required=True, help="Narrated run directory")
-    render.add_argument("--draft", action="store_true", help="Render at half size (960x540), about four times faster")
+    render.add_argument("--draft", action="store_true", help="Render at half size (960x540), for quick checks")
     preview = sub.add_parser("preview", help="Rebuild preview.html for a narrated run.")
     preview.add_argument("--run", type=Path, required=True, help="Run directory with audio-manifest.json")
-    run = sub.add_parser("run", help="Topic -> scene plan -> narration in one run directory.")
+    run = sub.add_parser("run", help="Topic -> scene plan -> narration (-> video) in one run directory.")
     _add_plan_options(run)
     run.add_argument("--out", type=Path, required=True, help="New directory for this run")
     _add_voice_options(run)
+    run.add_argument("--render", action="store_true", help="Also render video.mp4 with Remotion (needs Node.js)")
+    run.add_argument("--draft", action="store_true", help="With --render: half size (960x540), for quick checks")
     args = parser.parse_args(argv)
     try:
         if args.command == "validate":
@@ -167,10 +178,7 @@ def main(argv=None):
                   f"{data['durationSeconds']:.1f} s | narration.wav, subtitles.srt, subtitles.vtt")
             return 0
         if args.command == "render":
-            info = render_video(args.run, args.draft, progress=_print)
-            print(f"Video: {args.run.resolve() / info['videoPath']}")
-            print(f"{info['width']}x{info['height']} | {info['probedSeconds']:.1f} s | "
-                  f"{info['bytes'] / 1e6:.1f} MB | rendered in {info['renderSeconds']:.0f} s")
+            _render(args.run, args.draft)
             return 0
         if args.command == "preview":
             print(f"Preview: {build_preview(args.run).resolve()}")
