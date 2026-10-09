@@ -1,0 +1,301 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "scene-plan.schema.json",
+  "$defs": {
+    "ConceptLine": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "highlightPointIndex": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Highlightpointindex"
+        }
+      },
+      "required": [
+        "id",
+        "text"
+      ],
+      "title": "ConceptLine",
+      "type": "object"
+    },
+    "ConceptScene": {
+      "additionalProperties": false,
+      "description": "A title, one core statement and up to three points.",
+      "properties": {
+        "id": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "purpose": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Purpose",
+          "type": "string"
+        },
+        "template": {
+          "const": "concept",
+          "title": "Template",
+          "type": "string"
+        },
+        "visual": {
+          "$ref": "#/$defs/ConceptVisual"
+        },
+        "narration": {
+          "items": {
+            "$ref": "#/$defs/ConceptLine"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Narration",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "purpose",
+        "template",
+        "visual",
+        "narration"
+      ],
+      "title": "ConceptScene",
+      "type": "object"
+    },
+    "ConceptVisual": {
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "maxLength": 60,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "statement": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Statement",
+          "type": "string"
+        },
+        "points": {
+          "items": {
+            "maxLength": 60,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 3,
+          "title": "Points",
+          "type": "array"
+        }
+      },
+      "required": [
+        "title",
+        "statement"
+      ],
+      "title": "ConceptVisual",
+      "type": "object"
+    },
+    "FlowLine": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "highlightNodeId": {
+          "anyOf": [
+            {
+              "maxLength": 48,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Highlightnodeid"
+        }
+      },
+      "required": [
+        "id",
+        "text"
+      ],
+      "title": "FlowLine",
+      "type": "object"
+    },
+    "FlowNode": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 24,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "title": "FlowNode",
+      "type": "object"
+    },
+    "FlowScene": {
+      "additionalProperties": false,
+      "description": "A title and two to four nodes connected in order.",
+      "properties": {
+        "id": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "purpose": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Purpose",
+          "type": "string"
+        },
+        "template": {
+          "const": "flow",
+          "title": "Template",
+          "type": "string"
+        },
+        "visual": {
+          "$ref": "#/$defs/FlowVisual"
+        },
+        "narration": {
+          "items": {
+            "$ref": "#/$defs/FlowLine"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Narration",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "purpose",
+        "template",
+        "visual",
+        "narration"
+      ],
+      "title": "FlowScene",
+      "type": "object"
+    },
+    "FlowVisual": {
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "maxLength": 60,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/FlowNode"
+          },
+          "maxItems": 4,
+          "minItems": 2,
+          "title": "Nodes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "title",
+        "nodes"
+      ],
+      "title": "FlowVisual",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Scene-by-scene script: what each scene shows and what the narrator says.",
+  "properties": {
+    "schemaVersion": {
+      "const": "1",
+      "title": "Schemaversion",
+      "type": "string"
+    },
+    "projectId": {
+      "maxLength": 48,
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "title": "Projectid",
+      "type": "string"
+    },
+    "title": {
+      "maxLength": 60,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "scenes": {
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "concept": "#/$defs/ConceptScene",
+            "flow": "#/$defs/FlowScene"
+          },
+          "propertyName": "template"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/ConceptScene"
+          },
+          {
+            "$ref": "#/$defs/FlowScene"
+          }
+        ]
+      },
+      "maxItems": 12,
+      "minItems": 1,
+      "title": "Scenes",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "projectId",
+    "title",
+    "scenes"
+  ],
+  "title": "ScenePlan",
+  "type": "object"
+}

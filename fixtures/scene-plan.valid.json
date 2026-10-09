@@ -1,0 +1,94 @@
+{
+  "schemaVersion": "1",
+  "projectId": "web-request-demo",
+  "title": "From an Address to a Web Page",
+  "scenes": [
+    {
+      "id": "scene-01",
+      "purpose": "Pose the question and preview the three steps",
+      "template": "concept",
+      "visual": {
+        "title": "What happens when you press Enter?",
+        "statement": "A page can appear in a second or two, but several steps happen first.",
+        "points": ["Find the server", "Ask for the page", "Show the result"]
+      },
+      "narration": [
+        {"id": "scene-01-line-01", "text": "You type a website address, press Enter, and a page appears almost instantly."},
+        {"id": "scene-01-line-02", "text": "Behind that moment, your computer quietly completes a short journey."},
+        {"id": "scene-01-line-03", "text": "First, it has to find the server that holds the page.", "highlightPointIndex": 0},
+        {"id": "scene-01-line-04", "text": "Next, it asks that server for the page.", "highlightPointIndex": 1},
+        {"id": "scene-01-line-05", "text": "Finally, it turns the reply into what you see.", "highlightPointIndex": 2}
+      ]
+    },
+    {
+      "id": "scene-02",
+      "purpose": "Explain how a name becomes a server address",
+      "template": "flow",
+      "visual": {
+        "title": "Step 1: Finding the server",
+        "nodes": [
+          {"id": "browser", "label": "Browser"},
+          {"id": "dns", "label": "DNS resolver"},
+          {"id": "ip", "label": "IP address"}
+        ]
+      },
+      "narration": [
+        {"id": "scene-02-line-01", "text": "Computers find each other by numbers called IP addresses, not by names.", "highlightNodeId": "browser"},
+        {"id": "scene-02-line-02", "text": "So your browser first asks a DNS resolver which number belongs to the name you typed.", "highlightNodeId": "dns"},
+        {"id": "scene-02-line-03", "text": "The resolver answers with an IP address, a bit like a phone book returning a number.", "highlightNodeId": "ip"}
+      ]
+    },
+    {
+      "id": "scene-03",
+      "purpose": "Show the request travelling to the server",
+      "template": "flow",
+      "visual": {
+        "title": "Step 2: Asking for the page",
+        "nodes": [
+          {"id": "browser", "label": "Browser"},
+          {"id": "internet", "label": "Internet"},
+          {"id": "server", "label": "Web server"}
+        ]
+      },
+      "narration": [
+        {"id": "scene-03-line-01", "text": "Now the browser opens a connection to that IP address.", "highlightNodeId": "browser"},
+        {"id": "scene-03-line-02", "text": "Its request travels across the internet in small pieces called packets.", "highlightNodeId": "internet"},
+        {"id": "scene-03-line-03", "text": "The request reaches the web server and says which page the browser wants.", "highlightNodeId": "server"}
+      ]
+    },
+    {
+      "id": "scene-04",
+      "purpose": "Show the response coming back and the page being drawn",
+      "template": "flow",
+      "visual": {
+        "title": "Step 3: Showing the result",
+        "nodes": [
+          {"id": "server", "label": "Web server"},
+          {"id": "browser", "label": "Browser"},
+          {"id": "page", "label": "Web page"}
+        ]
+      },
+      "narration": [
+        {"id": "scene-04-line-01", "text": "The server sends back a response that contains the page, written in a language called HTML.", "highlightNodeId": "server"},
+        {"id": "scene-04-line-02", "text": "The browser reads that HTML and fetches any images or styles it mentions.", "highlightNodeId": "browser"},
+        {"id": "scene-04-line-03", "text": "Then it draws everything on your screen, and the web page appears.", "highlightNodeId": "page"}
+      ]
+    },
+    {
+      "id": "scene-05",
+      "purpose": "Summarize the whole journey",
+      "template": "concept",
+      "visual": {
+        "title": "The whole journey",
+        "statement": "Find the server, ask for the page, show the result.",
+        "points": ["DNS turns names into numbers", "Requests and replies travel as packets", "The browser builds the page you see"]
+      },
+      "narration": [
+        {"id": "scene-05-line-01", "text": "So every time you press Enter, three things happen."},
+        {"id": "scene-05-line-02", "text": "DNS turns the name into an IP address.", "highlightPointIndex": 0},
+        {"id": "scene-05-line-03", "text": "Your request and the server's reply travel across the internet as packets.", "highlightPointIndex": 1},
+        {"id": "scene-05-line-04", "text": "And your browser builds the page you see, often in just a second or two.", "highlightPointIndex": 2}
+      ]
+    }
+  ]
+}
