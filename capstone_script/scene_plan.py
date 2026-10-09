@@ -1,9 +1,13 @@
 """ScenePlan: the scene-by-scene script that the planner writes.
 
-A plan says what each scene shows (one of four visual templates) and what the
+A plan says what each scene shows (one of eight visual templates) and what the
 narrator says, one short line at a time. Long plans also group their scenes
 into chapters. A plan never contains audio paths, durations or frame numbers;
 later stages measure those from real audio.
+
+The planner's prompts describe the first four templates (TEMPLATES). The
+timeline, stat, quote and map templates (EXTRA_TEMPLATES) are for plans written
+or edited by hand until the prompts cover them.
 
 The Pydantic models hold the structural rules and are exported as JSON Schema
 for the renderer. Cross-reference rules (unique IDs, valid highlights, word
@@ -21,6 +25,8 @@ from pydantic.alias_generators import to_camel
 
 SCHEMA_VERSION = "1"
 TEMPLATES = ("concept", "flow", "comparison", "definition")
+EXTRA_TEMPLATES = ("timeline", "stat", "quote", "map")
+ALL_TEMPLATES = TEMPLATES + EXTRA_TEMPLATES
 MAX_SCENES = 60
 MAX_CHAPTERS = 10
 MAX_LINES_PER_SCENE = 8
@@ -29,9 +35,11 @@ MAX_LINE_WORDS = 25
 # took 81.0 s (2.64 words/s). Whole paragraphs read faster, about 2.9 words/s.
 WORDS_PER_SECOND = 2.6
 
+SCHEMAS = Path(__file__).resolve().parents[1] / "schemas"
 # Icon names from Lucide (ISC license) that renderers can draw; see schemas/icons.json.
-ICONS = tuple(json.loads((Path(__file__).resolve().parents[1] / "schemas" / "icons.json")
-                         .read_text(encoding="utf-8")))
+ICONS = tuple(json.loads((SCHEMAS / "icons.json").read_text(encoding="utf-8")))
+# Map regions with their bounds; the renderer reads the same file to frame each map.
+MAP_REGIONS = json.loads((SCHEMAS / "map-regions.json").read_text(encoding="utf-8"))
 
 # IDs become file names (audio/<narrationId>.wav), so they must be path-safe.
 Id = Annotated[str, StringConstraints(pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", max_length=48)]
@@ -46,6 +54,14 @@ Example = Annotated[str, StringConstraints(min_length=1, max_length=100)]
 Purpose = Annotated[str, StringConstraints(min_length=1, max_length=200)]
 # A character cap the schema can express; the word limit is a semantic check.
 LineText = Annotated[str, StringConstraints(min_length=1, max_length=200)]
+DateText = Annotated[str, StringConstraints(min_length=1, max_length=20)]
+EventLabel = Annotated[str, StringConstraints(min_length=1, max_length=48)]
+Affix = Annotated[str, StringConstraints(min_length=1, max_length=12)]
+QuoteText = Annotated[str, StringConstraints(min_length=1, max_length=220)]
+Attribution = Annotated[str, StringConstraints(min_length=1, max_length=60)]
+QuoteContext = Annotated[str, StringConstraints(min_length=1, max_length=80)]
+Country = Annotated[str, StringConstraints(min_length=1, max_length=48)]
+Number = Annotated[float, Field(allow_inf_nan=False, ge=-1e12, le=1e12)]
 
 
 class _Model(BaseModel):
@@ -75,6 +91,32 @@ class DefinitionLine(_Model):
     id: Id
     text: LineText
     highlight_part: Literal["term", "definition", "example"] | None = None
+
+
+class TimelineLine(_Model):
+    id: Id
+    text: LineText
+    highlight_event_id: Id | None = None
+
+
+class StatLine(_Model):
+    id: Id
+    text: LineText
+    highlight_stat_index: Annotated[int, Field(ge=0)] | None = None
+
+
+class QuoteLine(_Model):
+    id: Id
+    text: LineText
+    # True on the line that reads the quotation aloud; the quote appears word by word as it is spoken.
+    highlight_quote: bool | None = None
+
+
+class MapLine(_Model):
+    id: Id
+    text: LineText
+    # The id of a place or an area on this scene's map.
+    highlight_id: Id | None = None
 
 
 class FlowNode(_Model):
@@ -113,6 +155,64 @@ class DefinitionVisual(_Model):
     definition: Definition
     example: Example | None = None
     icon: Id | None = None
+
+
+class TimelineEvent(_Model):
+    id: Id
+    date: DateText
+    label: EventLabel
+    icon: Id | None = None
+
+
+class TimelineVisual(_Model):
+    title: Title
+    events: list[TimelineEvent] = Field(min_length=2, max_length=5)
+
+
+class Stat(_Model):
+    value: Number
+    # Shown before and after the number, as in "$" 4 "billion" or 75 "%".
+    prefix: Affix | None = None
+    unit: Affix | None = None
+    label: Point
+    icon: Id | None = None
+
+
+class StatVisual(_Model):
+    title: Title
+    stats: list[Stat] = Field(min_length=1, max_length=3)
+    note: Statement | None = None
+
+
+class QuoteVisual(_Model):
+    title: Title
+    quote: QuoteText
+    author: Attribution
+    context: QuoteContext | None = None
+
+
+class MapArea(_Model):
+    """Countries grouped together, such as the Allies or the Axis, named with today's borders."""
+
+    id: Id
+    label: Label
+    countries: list[Country] = Field(min_length=1, max_length=40)
+
+
+class MapPlace(_Model):
+    id: Id
+    label: Label
+    lon: Annotated[float, Field(ge=-180, le=180)]
+    lat: Annotated[float, Field(ge=-80, le=84)]
+
+
+class MapVisual(_Model):
+    title: Title
+    region: Annotated[str, StringConstraints(pattern=r"^[a-z]+(?:-[a-z]+)*$", max_length=24)]
+    areas: list[MapArea] = Field(default_factory=list, max_length=3)
+    places: list[MapPlace] = Field(default_factory=list, max_length=8)
+    # Draw a line through the places in order, each leg as the narration reaches the next place.
+    route: bool = False
 
 
 class ConceptScene(_Model):
@@ -155,7 +255,48 @@ class DefinitionScene(_Model):
     narration: list[DefinitionLine] = Field(min_length=1, max_length=MAX_LINES_PER_SCENE)
 
 
-Scene = Annotated[Union[ConceptScene, FlowScene, ComparisonScene, DefinitionScene],
+class TimelineScene(_Model):
+    """A title and two to five dated events along a line, in time order."""
+
+    id: Id
+    purpose: Purpose
+    template: Literal["timeline"]
+    visual: TimelineVisual
+    narration: list[TimelineLine] = Field(min_length=1, max_length=MAX_LINES_PER_SCENE)
+
+
+class StatScene(_Model):
+    """A title and one to three large numbers that count up, each with a short label."""
+
+    id: Id
+    purpose: Purpose
+    template: Literal["stat"]
+    visual: StatVisual
+    narration: list[StatLine] = Field(min_length=1, max_length=MAX_LINES_PER_SCENE)
+
+
+class QuoteScene(_Model):
+    """A title and one short quotation with who said it."""
+
+    id: Id
+    purpose: Purpose
+    template: Literal["quote"]
+    visual: QuoteVisual
+    narration: list[QuoteLine] = Field(min_length=1, max_length=MAX_LINES_PER_SCENE)
+
+
+class MapScene(_Model):
+    """A map of one region with shaded country groups, labelled places and an optional route."""
+
+    id: Id
+    purpose: Purpose
+    template: Literal["map"]
+    visual: MapVisual
+    narration: list[MapLine] = Field(min_length=1, max_length=MAX_LINES_PER_SCENE)
+
+
+Scene = Annotated[Union[ConceptScene, FlowScene, ComparisonScene, DefinitionScene,
+                        TimelineScene, StatScene, QuoteScene, MapScene],
                   Field(discriminator="template")]
 
 
@@ -216,6 +357,14 @@ def semantic_problems(plan: ScenePlan) -> list[str]:
             for n, node_id in enumerate(node_ids):
                 if node_id in node_ids[:n]:
                     problems.append(f"{where}.visual.nodes[{n}].id: duplicate node id {node_id!r}")
+        elif scene.template == "timeline":
+            event_ids = [event.id for event in scene.visual.events]
+            for n, event_id in enumerate(event_ids):
+                if event_id in event_ids[:n]:
+                    problems.append(f"{where}.visual.events[{n}].id: duplicate event id {event_id!r}")
+        elif scene.template == "map":
+            map_ids = [area.id for area in scene.visual.areas] + [place.id for place in scene.visual.places]
+            problems += map_problems(scene.visual, where)
         for i, line in enumerate(scene.narration):
             at = f"{where}.narration[{i}]"
             if line.id in line_ids:
@@ -235,7 +384,41 @@ def semantic_problems(plan: ScenePlan) -> list[str]:
             elif scene.template == "definition":
                 if line.highlight_part == "example" and scene.visual.example is None:
                     problems.append(f"{at}.highlightPart: 'example' is set, but this scene has no example")
+            elif scene.template == "timeline":
+                if line.highlight_event_id is not None and line.highlight_event_id not in event_ids:
+                    problems.append(f"{at}.highlightEventId: {line.highlight_event_id!r} "
+                                    "is not an event in this scene")
+            elif scene.template == "stat":
+                if (line.highlight_stat_index is not None
+                        and line.highlight_stat_index >= len(scene.visual.stats)):
+                    problems.append(f"{at}.highlightStatIndex: {line.highlight_stat_index} is out of range; "
+                                    f"this scene has {len(scene.visual.stats)} numbers")
+            elif scene.template == "map":
+                if line.highlight_id is not None and line.highlight_id not in map_ids:
+                    problems.append(f"{at}.highlightId: {line.highlight_id!r} "
+                                    "is not a place or area on this map")
     return problems + icon_problems(plan) + chapter_problems(plan)
+
+
+def map_problems(visual: MapVisual, where: str) -> list[str]:
+    problems = []
+    if visual.region not in MAP_REGIONS:
+        problems.append(f"{where}.visual.region: {visual.region!r} is not a map region; "
+                        f"use one of {', '.join(MAP_REGIONS)}")
+    if not visual.areas and not visual.places:
+        problems.append(f"{where}.visual: a map needs at least one area or place")
+    ids = [area.id for area in visual.areas] + [place.id for place in visual.places]
+    problems += [f"{where}.visual: duplicate area or place id {item!r}"
+                 for n, item in enumerate(ids) if item in ids[:n]]
+    shaded = set()
+    for a, area in enumerate(visual.areas):
+        for c, country in enumerate(area.countries):
+            if country in shaded:
+                problems.append(f"{where}.visual.areas[{a}].countries[{c}]: {country!r} is already in another area")
+            shaded.add(country)
+    if visual.route and len(visual.places) < 2:
+        problems.append(f"{where}.visual.route: a route needs at least two places")
+    return problems
 
 
 def scene_icons(scene) -> list[tuple[str, str | None]]:
@@ -245,6 +428,12 @@ def scene_icons(scene) -> list[tuple[str, str | None]]:
         return [(f"visual.nodes[{n}].icon", node.icon) for n, node in enumerate(visual.nodes)]
     if scene.template == "comparison":
         return [(f"visual.{side}.icon", getattr(visual, side).icon) for side in ("left", "right")]
+    if scene.template == "timeline":
+        return [(f"visual.events[{n}].icon", event.icon) for n, event in enumerate(visual.events)]
+    if scene.template == "stat":
+        return [(f"visual.stats[{n}].icon", stat.icon) for n, stat in enumerate(visual.stats)]
+    if scene.template in ("quote", "map"):
+        return []
     return [("visual.icon", visual.icon)]
 
 
@@ -276,7 +465,7 @@ def _location(loc) -> str:
     for i, part in enumerate(loc):
         if isinstance(part, int):
             text += f"[{part}]"
-        elif part in TEMPLATES and i > 0 and isinstance(loc[i - 1], int):
+        elif part in ALL_TEMPLATES and i > 0 and isinstance(loc[i - 1], int):
             continue  # Pydantic inserts the union tag after the scene index.
         else:
             text += f".{part}" if text else str(part)

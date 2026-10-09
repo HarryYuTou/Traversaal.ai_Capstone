@@ -599,6 +599,663 @@
       ],
       "title": "FlowVisual",
       "type": "object"
+    },
+    "MapArea": {
+      "additionalProperties": false,
+      "description": "Countries grouped together, such as the Allies or the Axis, named with today's borders.",
+      "properties": {
+        "id": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 24,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "countries": {
+          "items": {
+            "maxLength": 48,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 40,
+          "minItems": 1,
+          "title": "Countries",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "countries"
+      ],
+      "title": "MapArea",
+      "type": "object"
+    },
+    "MapLine": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "highlightId": {
+          "anyOf": [
+            {
+              "maxLength": 48,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Highlightid"
+        }
+      },
+      "required": [
+        "id",
+        "text"
+      ],
+      "title": "MapLine",
+      "type": "object"
+    },
+    "MapPlace": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 24,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "lon": {
+          "maximum": 180,
+          "minimum": -180,
+          "title": "Lon",
+          "type": "number"
+        },
+        "lat": {
+          "maximum": 84,
+          "minimum": -80,
+          "title": "Lat",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "lon",
+        "lat"
+      ],
+      "title": "MapPlace",
+      "type": "object"
+    },
+    "MapScene": {
+      "additionalProperties": false,
+      "description": "A map of one region with shaded country groups, labelled places and an optional route.",
+      "properties": {
+        "id": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "purpose": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Purpose",
+          "type": "string"
+        },
+        "template": {
+          "const": "map",
+          "title": "Template",
+          "type": "string"
+        },
+        "visual": {
+          "$ref": "#/$defs/MapVisual"
+        },
+        "narration": {
+          "items": {
+            "$ref": "#/$defs/MapLine"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Narration",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "purpose",
+        "template",
+        "visual",
+        "narration"
+      ],
+      "title": "MapScene",
+      "type": "object"
+    },
+    "MapVisual": {
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "maxLength": 60,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "region": {
+          "maxLength": 24,
+          "pattern": "^[a-z]+(?:-[a-z]+)*$",
+          "title": "Region",
+          "type": "string"
+        },
+        "areas": {
+          "items": {
+            "$ref": "#/$defs/MapArea"
+          },
+          "maxItems": 3,
+          "title": "Areas",
+          "type": "array"
+        },
+        "places": {
+          "items": {
+            "$ref": "#/$defs/MapPlace"
+          },
+          "maxItems": 8,
+          "title": "Places",
+          "type": "array"
+        },
+        "route": {
+          "default": false,
+          "title": "Route",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "title",
+        "region"
+      ],
+      "title": "MapVisual",
+      "type": "object"
+    },
+    "QuoteLine": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "highlightQuote": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Highlightquote"
+        }
+      },
+      "required": [
+        "id",
+        "text"
+      ],
+      "title": "QuoteLine",
+      "type": "object"
+    },
+    "QuoteScene": {
+      "additionalProperties": false,
+      "description": "A title and one short quotation with who said it.",
+      "properties": {
+        "id": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "purpose": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Purpose",
+          "type": "string"
+        },
+        "template": {
+          "const": "quote",
+          "title": "Template",
+          "type": "string"
+        },
+        "visual": {
+          "$ref": "#/$defs/QuoteVisual"
+        },
+        "narration": {
+          "items": {
+            "$ref": "#/$defs/QuoteLine"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Narration",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "purpose",
+        "template",
+        "visual",
+        "narration"
+      ],
+      "title": "QuoteScene",
+      "type": "object"
+    },
+    "QuoteVisual": {
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "maxLength": 60,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "quote": {
+          "maxLength": 220,
+          "minLength": 1,
+          "title": "Quote",
+          "type": "string"
+        },
+        "author": {
+          "maxLength": 60,
+          "minLength": 1,
+          "title": "Author",
+          "type": "string"
+        },
+        "context": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Context"
+        }
+      },
+      "required": [
+        "title",
+        "quote",
+        "author"
+      ],
+      "title": "QuoteVisual",
+      "type": "object"
+    },
+    "Stat": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "maximum": 1000000000000.0,
+          "minimum": -1000000000000.0,
+          "title": "Value",
+          "type": "number"
+        },
+        "prefix": {
+          "anyOf": [
+            {
+              "maxLength": 12,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prefix"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "maxLength": 12,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        },
+        "label": {
+          "maxLength": 60,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "icon": {
+          "anyOf": [
+            {
+              "maxLength": 48,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
+        }
+      },
+      "required": [
+        "value",
+        "label"
+      ],
+      "title": "Stat",
+      "type": "object"
+    },
+    "StatLine": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "highlightStatIndex": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Highlightstatindex"
+        }
+      },
+      "required": [
+        "id",
+        "text"
+      ],
+      "title": "StatLine",
+      "type": "object"
+    },
+    "StatScene": {
+      "additionalProperties": false,
+      "description": "A title and one to three large numbers that count up, each with a short label.",
+      "properties": {
+        "id": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "purpose": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Purpose",
+          "type": "string"
+        },
+        "template": {
+          "const": "stat",
+          "title": "Template",
+          "type": "string"
+        },
+        "visual": {
+          "$ref": "#/$defs/StatVisual"
+        },
+        "narration": {
+          "items": {
+            "$ref": "#/$defs/StatLine"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Narration",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "purpose",
+        "template",
+        "visual",
+        "narration"
+      ],
+      "title": "StatScene",
+      "type": "object"
+    },
+    "StatVisual": {
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "maxLength": 60,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "stats": {
+          "items": {
+            "$ref": "#/$defs/Stat"
+          },
+          "maxItems": 3,
+          "minItems": 1,
+          "title": "Stats",
+          "type": "array"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        }
+      },
+      "required": [
+        "title",
+        "stats"
+      ],
+      "title": "StatVisual",
+      "type": "object"
+    },
+    "TimelineEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "date": {
+          "maxLength": 20,
+          "minLength": 1,
+          "title": "Date",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 48,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "icon": {
+          "anyOf": [
+            {
+              "maxLength": 48,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
+        }
+      },
+      "required": [
+        "id",
+        "date",
+        "label"
+      ],
+      "title": "TimelineEvent",
+      "type": "object"
+    },
+    "TimelineLine": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "highlightEventId": {
+          "anyOf": [
+            {
+              "maxLength": 48,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Highlighteventid"
+        }
+      },
+      "required": [
+        "id",
+        "text"
+      ],
+      "title": "TimelineLine",
+      "type": "object"
+    },
+    "TimelineScene": {
+      "additionalProperties": false,
+      "description": "A title and two to five dated events along a line, in time order.",
+      "properties": {
+        "id": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "purpose": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Purpose",
+          "type": "string"
+        },
+        "template": {
+          "const": "timeline",
+          "title": "Template",
+          "type": "string"
+        },
+        "visual": {
+          "$ref": "#/$defs/TimelineVisual"
+        },
+        "narration": {
+          "items": {
+            "$ref": "#/$defs/TimelineLine"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Narration",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "purpose",
+        "template",
+        "visual",
+        "narration"
+      ],
+      "title": "TimelineScene",
+      "type": "object"
+    },
+    "TimelineVisual": {
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "maxLength": 60,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "events": {
+          "items": {
+            "$ref": "#/$defs/TimelineEvent"
+          },
+          "maxItems": 5,
+          "minItems": 2,
+          "title": "Events",
+          "type": "array"
+        }
+      },
+      "required": [
+        "title",
+        "events"
+      ],
+      "title": "TimelineVisual",
+      "type": "object"
     }
   },
   "additionalProperties": false,
@@ -628,7 +1285,11 @@
             "comparison": "#/$defs/ComparisonScene",
             "concept": "#/$defs/ConceptScene",
             "definition": "#/$defs/DefinitionScene",
-            "flow": "#/$defs/FlowScene"
+            "flow": "#/$defs/FlowScene",
+            "map": "#/$defs/MapScene",
+            "quote": "#/$defs/QuoteScene",
+            "stat": "#/$defs/StatScene",
+            "timeline": "#/$defs/TimelineScene"
           },
           "propertyName": "template"
         },
@@ -644,6 +1305,18 @@
           },
           {
             "$ref": "#/$defs/DefinitionScene"
+          },
+          {
+            "$ref": "#/$defs/TimelineScene"
+          },
+          {
+            "$ref": "#/$defs/StatScene"
+          },
+          {
+            "$ref": "#/$defs/QuoteScene"
+          },
+          {
+            "$ref": "#/$defs/MapScene"
           }
         ]
       },

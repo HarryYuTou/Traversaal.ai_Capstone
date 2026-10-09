@@ -45,6 +45,25 @@
   .meaning { font-size: calc(2.4cqw * var(--fit, 1)); line-height: 1.35; }
   .example { font-size: calc(2cqw * var(--fit, 1)); line-height: 1.35; color: var(--muted); }
   .points li.on, .node.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .events, .stats { flex: 1; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 1.4cqw;
+                    align-items: center; text-align: center; }
+  .event, .stat { padding: 1.2cqw; border-radius: 1.2cqw; border: .25cqw solid transparent;
+                  transition: background .25s, border-color .25s, color .25s; }
+  .event b { display: block; font-size: calc(3.2cqw * var(--fit, 1)); }
+  .stat b { display: block; font-size: calc(6cqw * var(--fit, 1)); line-height: 1.1; }
+  .event span, .stat span { font-size: calc(1.9cqw * var(--fit, 1)); line-height: 1.3; color: var(--muted); }
+  .note, .credit small { font-size: calc(1.6cqw * var(--fit, 1)); color: var(--muted); font-style: italic; }
+  .quote { margin: 0; font-family: Georgia, "Times New Roman", serif; font-style: italic; line-height: 1.3;
+           font-size: calc(3cqw * var(--fit, 1)); padding: 1cqw 1.6cqw; border-radius: 1.2cqw;
+           border: .25cqw solid transparent; transition: background .25s, border-color .25s; }
+  .credit { font-size: calc(2.1cqw * var(--fit, 1)); font-weight: 700; color: var(--accent); }
+  .credit small { display: block; font-weight: 400; }
+  .map-items { display: flex; flex-wrap: wrap; gap: 1cqw; margin: .6cqw 0 0; padding: 0; list-style: none; }
+  .map-items li { font-size: calc(2cqw * var(--fit, 1)); padding: .8cqw 1.4cqw; border-radius: 1cqw; background: var(--bg);
+                  border: .25cqw solid transparent; transition: background .25s, border-color .25s, color .25s; }
+  .map-items li small { color: var(--muted); }
+  .event.on, .stat.on, .map-items li.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .quote.on { background: var(--accent-soft); border-color: var(--accent); }
   .column.on, .definition p.on { background: var(--accent-soft); border-color: var(--accent); }
   .node.on { transform: translateY(-.6cqw); }
   .subtitle { position: absolute; left: 6cqw; right: 6cqw; bottom: 3.2cqw; text-align: center;
@@ -143,7 +162,7 @@ function drawScene(scene) {
       columns.append(column);
     });
     slide.append(columns);
-  } else {
+  } else if (scene.template === "definition") {
     const card = el("div", "definition");
     const parts = [["term", scene.visual.term], ["meaning", scene.visual.definition, "definition"]];
     if (scene.visual.example) parts.push(["example", `For example: ${scene.visual.example}`]);
@@ -153,6 +172,46 @@ function drawScene(scene) {
       card.append(node);
     });
     slide.append(card);
+  } else if (scene.template === "timeline") {
+    const events = el("div", "events");
+    scene.visual.events.forEach(event => {
+      const box = el("div", "event");
+      box.dataset.id = event.id;
+      box.append(el("b", "", event.date), el("span", "", event.label));
+      events.append(box);
+    });
+    slide.append(events);
+  } else if (scene.template === "stat") {
+    const stats = el("div", "stats");
+    scene.visual.stats.forEach((stat, i) => {
+      const box = el("div", "stat");
+      box.dataset.index = i;
+      const number = stat.value.toLocaleString("en-US");
+      box.append(el("b", "", `${stat.prefix || ""}${number}${stat.unit ? " " + stat.unit : ""}`),
+                 el("span", "", stat.label));
+      stats.append(box);
+    });
+    slide.append(stats);
+    if (scene.visual.note) slide.append(el("p", "note", scene.visual.note));
+  } else if (scene.template === "quote") {
+    const credit = el("div", "credit", `— ${scene.visual.author}`);
+    if (scene.visual.context) credit.append(el("small", "", scene.visual.context));
+    slide.append(el("p", "quote", `“${scene.visual.quote}”`), credit);
+  } else if (scene.template === "map") {
+    slide.append(el("p", "statement", `Map: ${scene.visual.region}${scene.visual.route ? ", with a route" : ""}`));
+    const items = el("ul", "map-items");
+    scene.visual.areas.forEach(area => {
+      const item = el("li", "", area.label + " ");
+      item.dataset.id = area.id;
+      item.append(el("small", "", area.countries.join(", ")));
+      items.append(item);
+    });
+    scene.visual.places.forEach(place => {
+      const item = el("li", "", `● ${place.label}`);
+      item.dataset.id = place.id;
+      items.append(item);
+    });
+    slide.append(items);
   }
   shownScene = scene.id;
   fit();
@@ -184,6 +243,14 @@ function update() {
     column.classList.toggle("on", line !== null && column.dataset.side === line.highlightSide));
   slide.querySelectorAll(".definition p").forEach(part =>
     part.classList.toggle("on", line !== null && part.dataset.part === line.highlightPart));
+  slide.querySelectorAll(".event").forEach(box =>
+    box.classList.toggle("on", line !== null && box.dataset.id === line.highlightEventId));
+  slide.querySelectorAll(".stat").forEach(box =>
+    box.classList.toggle("on", line !== null && Number(box.dataset.index) === line.highlightStatIndex));
+  slide.querySelectorAll(".quote").forEach(quote =>
+    quote.classList.toggle("on", line !== null && line.highlightQuote === true));
+  slide.querySelectorAll(".map-items li").forEach(item =>
+    item.classList.toggle("on", line !== null && item.dataset.id === line.highlightId));
 }
 
 function tick() { update(); if (!audio.paused) requestAnimationFrame(tick); }

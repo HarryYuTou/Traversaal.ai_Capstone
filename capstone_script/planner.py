@@ -275,7 +275,7 @@ def coverage_problems(plan) -> list[str]:
             if missing:
                 problems.append(f"scenes[{s}]: no narration line highlights the {' and '.join(missing)} column; "
                                 "give each column a line that sets highlightSide")
-        elif scene.visual.example is not None:
+        elif scene.template == "definition" and scene.visual.example is not None:
             if "example" not in {line.highlight_part for line in scene.narration}:
                 problems.append(f"scenes[{s}]: no narration line highlights the example; "
                                 "give it a line that sets highlightPart to 'example'")
