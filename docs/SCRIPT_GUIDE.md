@@ -39,6 +39,9 @@ python -m capstone_script plan --topic "How does GPS work?" --duration 90 \
 # Scene plan -> narration and preview (local CPU, no API key)
 python -m capstone_script narrate --plan fixtures/scene-plan.valid.json --out runs/narration-01 --offline
 
+# Narrate an edited plan, copying the audio of every unchanged line from an earlier run
+python -m capstone_script narrate --plan edited-plan.json --out runs/narration-02 --reuse runs/narration-01 --offline
+
 # Topic -> scene plan -> narration and preview in one run directory
 python -m capstone_script run --topic "How do noise-cancelling headphones work?" --out runs/run-01 --offline
 
@@ -162,6 +165,16 @@ writes `results.json` and `results.md` with first-request pass rate, length
 against target, templates, review scores, rewritten lines, speech length and
 cost. A topic that fails is recorded and the batch continues. The first batch
 of eight topics is written up in [PLANNER_EVALUATION.md](PLANNER_EVALUATION.md).
+
+### Reusing narration
+
+`narrate --reuse <earlier run>` copies the audio of every line whose text is
+unchanged, as long as the earlier run used the same voice, model revision and
+speed, and synthesizes only the rest; the model is not even loaded when every
+line matches. Each block in `audio-manifest.json` says whether it was reused
+(`cacheHit`), and the manifest counts `reusedLines`. Re-narrating the
+unchanged seven-minute plan this way took 4 seconds instead of about 4
+minutes.
 
 ## Run outputs
 
