@@ -8,7 +8,9 @@ import sys
 from .narrate import narrate_plan
 from .planner import load_env_file, make_spec, write_plan_run
 from .preview import build_preview
+from .render import render_video
 from .review import write_review
+from .timeline import write_timeline
 from .scene_plan import PlanValidationError, dump_plan, load_plan, schema_text, summarize
 
 
@@ -129,6 +131,11 @@ def main(argv=None):
     _add_voice_options(narrate)
     review = sub.add_parser("review", help="Review a run's scene plan with the Claude API before narration.")
     review.add_argument("--run", type=Path, required=True, help="Run directory with scene-plan.json")
+    timeline = sub.add_parser("timeline", help="Write the frame timeline, aligned narration and subtitles.")
+    timeline.add_argument("--run", type=Path, required=True, help="Narrated run directory")
+    render = sub.add_parser("render", help="Render a narrated run to MP4 with Remotion (needs Node.js).")
+    render.add_argument("--run", type=Path, required=True, help="Narrated run directory")
+    render.add_argument("--draft", action="store_true", help="Render at half size (960x540), about four times faster")
     preview = sub.add_parser("preview", help="Rebuild preview.html for a narrated run.")
     preview.add_argument("--run", type=Path, required=True, help="Run directory with audio-manifest.json")
     run = sub.add_parser("run", help="Topic -> scene plan -> narration in one run directory.")
@@ -151,6 +158,19 @@ def main(argv=None):
             reference_text = _reference_for(args.run)
             load_env_file()
             _review(args.run, _client(), reference_text)
+            return 0
+        if args.command == "timeline":
+            out = write_timeline(args.run)
+            data = json.loads((out / "timeline.json").read_text(encoding="utf-8"))
+            print(f"Timeline: {out.resolve() / 'timeline.json'}")
+            print(f"{len(data['scenes'])} scenes | {data['durationInFrames']} frames at {data['fps']} fps | "
+                  f"{data['durationSeconds']:.1f} s | narration.wav, subtitles.srt, subtitles.vtt")
+            return 0
+        if args.command == "render":
+            info = render_video(args.run, args.draft, progress=_print)
+            print(f"Video: {args.run.resolve() / info['videoPath']}")
+            print(f"{info['width']}x{info['height']} | {info['probedSeconds']:.1f} s | "
+                  f"{info['bytes'] / 1e6:.1f} MB | rendered in {info['renderSeconds']:.0f} s")
             return 0
         if args.command == "preview":
             print(f"Preview: {build_preview(args.run).resolve()}")
