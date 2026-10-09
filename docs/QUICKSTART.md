@@ -89,10 +89,10 @@ the slide components in `renderer/src/scenes/`, and preview them with
 
 ## 4. Good to know
 
-- Narration is English only. Scripts come out at 104–110% of the target
-  word count, so videos run up to about 10% long
-  ([evaluation](PLANNER_EVALUATION.md)).
-- The reviewer often flags claims to double-check. Without a reference file
-  (`--reference facts.md`), fact-check a script before publishing the video.
+- Narration is English only. Real speech lands within about 5% of the
+  requested length ([evaluation](PLANNER_EVALUATION.md)).
+- The reviewer often flags claims to double-check. Give the planner a source
+  with `--reference facts.md` or `--reference-url <web page>`, or fact-check
+  the script before publishing the video.
 - More detail: [script planner guide](SCRIPT_GUIDE.md),
   [renderer guide](RENDERER_GUIDE.md), [TTS guide](TTS_GUIDE.md).
