@@ -74,14 +74,21 @@ command refuses an existing output directory.
 | `flow` | `title` (≤60), 2–4 `nodes` with `id` and `label` (≤24) | `highlightNodeId` |
 | `comparison` | `title` (≤60), `left` and `right` columns, each a `label` (≤24) and 1–3 `points` (≤48 each) | `highlightSide` (`left` or `right`) |
 | `definition` | `title` (≤60), `term` (≤40), `definition` (≤140), optional `example` (≤100) | `highlightPart` (`term`, `definition` or `example`) |
+| `timeline` | `title` (≤60), 2–5 `events` with `id`, `date` (≤20) and `label` (≤48), in time order | `highlightEventId` |
+| `stat` | `title` (≤60), 1–3 `stats`, each a number `value`, optional `prefix` and `unit` (≤12), and a `label` (≤60); optional `note` (≤120) | `highlightStatIndex` |
+| `quote` | `title` (≤60), `quote` (≤220), `author` (≤60), optional `context` (≤80) | `highlightQuote` (`true` on the line that reads the quotation) |
+| `map` | `title` (≤60), a `region` from `schemas/map-regions.json`, up to 3 `areas` (an `id`, a `label` and up to 40 country names, with today's borders), up to 8 `places` (`id`, `label`, `lon`, `lat`) and `route` (connect the places in order) | `highlightId` (a place or an area) |
 
 Every scene has an `id`, a `purpose`, a `template`, a `visual` and 1–8
 narration lines of at most 25 English words. IDs use lowercase letters, digits
 and hyphens because narration IDs become file names. Python also checks what
 JSON Schema cannot: unique scene, line and node IDs, highlights that point to
 an existing point or node, the word limit and English-only text.
-Concept and definition visuals, flow nodes and comparison columns can also
-have an optional `icon`, one of the Lucide icon names in `schemas/icons.json`
+The planner's prompts describe the first four templates only; the timeline,
+stat, quote and map templates are used by hand-written plans (see
+`examples/handwritten/`) until the prompts are extended and tested.
+Concept and definition visuals, flow nodes, comparison columns, timeline
+events and stats can also have an optional `icon`, one of the Lucide icon names in `schemas/icons.json`
 (139 icons such as `database`, `credit-card` or `calendar`). Renderers draw
 them; a plan with an icon outside the list is invalid, but the planner simply
 drops unknown icons from Claude's answer instead of asking for a repair.
@@ -90,7 +97,12 @@ A long plan also has `chapters`: each has an `id`, a `title` and the `sceneIds`
 it covers, and together they list every scene once, in order. Plans without
 chapters are unchanged. A plan holds at most 60 scenes and 10 chapters.
 `schemas/scene-plan.schema.json` is generated from the models for other
-languages; the Python check remains the reference. A plan never contains audio
+languages; the Python check remains the reference.
+
+The voice reads unknown names by English spelling rules, so a few names it gets
+wrong are respelled for the voice only in `schemas/pronunciations.json` (for
+example `Qian` is read as `Chee-en`). Captions and subtitles keep the real
+spelling, and reused audio is matched on the respelled text. A plan never contains audio
 paths, durations or frames; later stages measure those from real audio.
 
 ## How the planner works
