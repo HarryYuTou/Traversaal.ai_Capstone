@@ -15,8 +15,7 @@ from statistics import mean
 
 from .narrate import narrate_plan
 from .planner import (
-    MODEL, PROMPT_VERSION, SPEECH_SHARE, attach_reference_url, make_spec, save_reference, slug, word_range, write_json,
-    write_plan_run,
+    MODEL, PROMPT_VERSION, SPEECH_SHARE, attach_reference_url, make_spec, slug, word_range, write_json, write_plan_run,
 )
 from .reference import fetch_reference
 from .review import PROMPT_VERSION as REVIEW_PROMPT_VERSION, write_review
@@ -114,7 +113,7 @@ def markdown(results: dict) -> str:
 
 
 def evaluate(topics: list[dict], out_dir: Path, client, narrate: bool = False, engine_factory=None,
-             offline: bool = False, threads: int = 2, progress=lambda message: None) -> dict:
+             offline: bool = False, threads: int = 2, speed: float = 1.0, progress=lambda message: None) -> dict:
     """Plan and review every topic into out_dir/<nn-slug>/ and write results.json and results.md."""
     out_dir = Path(out_dir)
     if out_dir.exists():
@@ -129,29 +128,25 @@ def evaluate(topics: list[dict], out_dir: Path, client, narrate: bool = False, e
 
     runs = []
     for number, item in enumerate(topics, start=1):
-        spec, reference_text = make_spec(item["topic"], item["audience"], item["duration"])
-        run_dir = out_dir / f"{number:02d}-{slug(item['topic'], 32)}"
-        progress(f"[{number}/{len(topics)}] {item['topic']} ({item['duration']} s)")
+        run_dir = out_dir / f"{number:02d}-{slug(str(item.get('topic', 'topic')), 32)}"
+        progress(f"[{number}/{len(topics)}] {item.get('topic')} ({item.get('duration')} s)")
         try:
+            spec, reference_text = make_spec(item["topic"], item["audience"], item["duration"])
             if item.get("referenceUrl"):
                 reference_text = fetch_reference(item["referenceUrl"])
-                attach_reference_url(spec, item["referenceUrl"], reference_text, run_dir)
-            try:
-                write_plan_run(run_dir, spec, client, reference_text, progress)
-            finally:
-                if item.get("referenceUrl"):
-                    save_reference(run_dir, reference_text)
+                attach_reference_url(spec, item["referenceUrl"], reference_text)
+            write_plan_run(run_dir, spec, client, reference_text, progress)
             write_review(run_dir, client, reference_text, progress)
             if narrate and spec["planMode"] == "single":
-                narrate_plan(load_plan(run_dir / "scene-plan.json"), run_dir, shared_engine, threads=threads,
-                             offline=offline, progress=progress)
+                narrate_plan(load_plan(run_dir / "scene-plan.json"), run_dir, shared_engine, speed=speed,
+                             threads=threads, offline=offline, progress=progress)
         except Exception as exc:  # Record the failure and go on to the next topic.
             progress(f"  failed: {type(exc).__name__}: {exc}")
-            if not run_dir.exists():  # Failed before planning, for example while downloading the reference.
-                runs.append({"run": run_dir.name, "topic": spec["topic"], "audience": spec["audience"],
-                             "targetSeconds": spec["targetDurationSec"], "mode": spec["planMode"],
-                             "planStatus": "not started", "requests": 0, "repairs": 0, "planCostUsd": 0.0,
-                             "planSeconds": 0.0, "error": f"{type(exc).__name__}: {exc}"})
+            if not run_dir.exists():  # Failed before planning: a bad topic entry or an unreachable reference.
+                runs.append({"run": run_dir.name, "topic": item.get("topic"), "audience": item.get("audience"),
+                             "targetSeconds": item.get("duration"), "mode": None, "planStatus": "not started",
+                             "requests": 0, "repairs": 0, "planCostUsd": 0.0, "planSeconds": 0.0,
+                             "error": f"{type(exc).__name__}: {exc}"})
                 continue
         runs.append(run_metrics(run_dir))
     results = {"createdAt": datetime.now(timezone.utc).isoformat(), "model": MODEL,

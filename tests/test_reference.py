@@ -9,8 +9,9 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from capstone_script.__main__ import main
+from capstone_script.__main__ import _reference_for, main
 from capstone_script.evaluate import evaluate
+from capstone_script.planner import make_spec, write_plan_run
 from capstone_script.reference import fetch_reference, html_text
 from test_planner import TOPIC, FakeClient, model_output, response
 
@@ -31,6 +32,43 @@ class ReferenceTests(unittest.TestCase):
                          "DNS turns a name like example.com into an IP address.\n"
                          "- Your browser asks a resolver.\n- The resolver asks name servers.")
 
+    def test_titles_inside_skipped_parts_are_ignored(self):
+        page = "<html><head><title>Real title</title></head><body><svg><title>Search icon</title></svg><p>Text</p>"
+        self.assertEqual(html_text(page), "# Real title\nText")
+
+    def test_binary_responses_are_refused(self):
+        class Response:
+            def __init__(self):
+                self.headers = Headers()
+            def read(self, size):
+                return b"%PDF-1.7 binary"
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                return False
+
+        class Headers:
+            def get_content_charset(self):
+                return None
+            def get_content_type(self):
+                return "application/pdf"
+
+        with patch("capstone_script.reference.urlopen", return_value=Response()), \
+                self.assertRaisesRegex(ValueError, "application/pdf, not a web page or text file"):
+            fetch_reference("https://example.org/paper.pdf")
+
+    def test_a_run_keeps_its_own_copy_of_the_reference(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            facts = Path(temporary) / "facts.md"
+            facts.write_text(REFERENCE, encoding="utf-8")
+            spec, text = make_spec(TOPIC, "Students", 75, facts)
+            out = Path(temporary) / "run"
+            write_plan_run(out, spec, FakeClient(response(model_output())), text)
+            facts.unlink()  # Moving or deleting the original must not break a later review.
+            self.assertEqual(_reference_for(out), REFERENCE)
+            self.assertEqual(json.loads((out / "project-spec.json").read_text(encoding="utf-8"))["referenceCopy"],
+                             "reference.md")
+
     def test_only_web_addresses_are_fetched(self):
         with self.assertRaisesRegex(ValueError, "must start with http"):
             fetch_reference("file:///etc/passwd")
@@ -50,6 +88,14 @@ class ReferenceTests(unittest.TestCase):
             self.assertEqual(spec["referenceUrl"], "https://example.org/dns")
             self.assertEqual(spec["referenceSha256"], hashlib.sha256(REFERENCE.encode("utf-8")).hexdigest())
             self.assertIn("<reference>\nSource: https://example.org/dns", client.calls[0]["messages"][0]["content"])
+
+    def test_file_and_url_references_together_are_refused_before_downloading(self):
+        with tempfile.TemporaryDirectory() as temporary, patch("capstone_script.__main__.fetch_reference") as fetch, \
+                redirect_stdout(io.StringIO()):
+            code = main(["plan", "--topic", TOPIC, "--out", str(Path(temporary) / "run"), "--reference",
+                         "fixtures/reference-primary.md", "--reference-url", "https://example.org/dns"])
+        self.assertEqual(code, 1)
+        fetch.assert_not_called()
 
     def test_evaluation_records_a_topic_whose_reference_cannot_be_downloaded(self):
         with tempfile.TemporaryDirectory() as temporary:

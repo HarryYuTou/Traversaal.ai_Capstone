@@ -77,15 +77,12 @@ def narrate_plan(plan, run_dir: Path, engine_factory, speed: float = 1.0, thread
             for line in scene.narration:
                 cached = reuse.get(line.text)
                 if cached is not None:
-                    source = Path(reuse_from) / Path(cached["audioPath"]).parent
-                    shutil.copytree(source, audio_dir / line.id)
-                    info = json.loads((audio_dir / line.id / "audio-info.json").read_text(encoding="utf-8"))
-                    if sf.info(audio_dir / line.id / "narration.wav").frames == cached["sampleCount"]:
-                        info["timingsMs"]["phonemizationAndSynthesis"] = 0.0
+                    info = _copy_line(Path(reuse_from) / Path(cached["audioPath"]).parent, audio_dir / line.id,
+                                      cached["sampleCount"])
+                    if info is not None:
                         manifest["blocks"].append(_block(scene, line, info, cache_hit=True))
                         progress(f"{line.id}: {info['durationSeconds']:.2f} s (reused)")
                         continue
-                    shutil.rmtree(audio_dir / line.id)  # The copy does not match its record; synthesize it.
                 text_path = Path(temporary) / f"{line.id}.txt"
                 text_path.write_text(line.text + "\n", encoding="utf-8")
                 try:
@@ -139,6 +136,22 @@ def narrate_plan(plan, run_dir: Path, engine_factory, speed: float = 1.0, thread
     )
     write_json(run_dir / "audio-manifest.json", manifest)
     return manifest
+
+
+def _copy_line(source: Path, target: Path, sample_count: int):
+    """Copy an earlier line's folder and return its audio info, or None (and no folder) if it is unusable."""
+    import soundfile as sf
+
+    try:
+        shutil.copytree(source, target)
+        info = json.loads((target / "audio-info.json").read_text(encoding="utf-8"))
+        if sf.info(target / "narration.wav").frames == sample_count == info["sampleCount"]:
+            info["timingsMs"]["phonemizationAndSynthesis"] = 0.0
+            return info
+    except (OSError, ValueError, KeyError, RuntimeError):
+        pass  # Missing or damaged earlier audio: synthesize the line instead.
+    shutil.rmtree(target, ignore_errors=True)
+    return None
 
 
 def _block(scene, line, info: dict, cache_hit: bool) -> dict:
