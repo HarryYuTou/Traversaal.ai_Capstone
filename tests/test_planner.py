@@ -132,6 +132,16 @@ class PlannerTests(unittest.TestCase):
         repair = client.calls[1]["messages"][2]["content"]
         self.assertIn("the video needs 148 to 222 words. Add about", repair)
 
+    def test_points_and_nodes_without_a_highlight_are_sent_back(self):
+        def drop_highlights(data):
+            data["scenes"][0]["narration"][4].pop("highlightPointIndex")
+            data["scenes"][3]["narration"][2].pop("highlightNodeId")
+        client = FakeClient(response(model_output(drop_highlights)), response(model_output()))
+        write_plan_run(self.out, self.spec, client)
+        repair = client.calls[1]["messages"][2]["content"]
+        self.assertIn("scenes[0]: no narration line highlights point 2", repair)
+        self.assertIn("scenes[3]: no narration line highlights node 'page'", repair)
+
     def test_second_failure_keeps_the_evidence_and_publishes_no_plan(self):
         client = FakeClient(response(model_output(broken_highlight)), response(model_output(broken_highlight)))
         with self.assertRaisesRegex(PlannerError, "router"):

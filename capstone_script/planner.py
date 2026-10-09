@@ -22,7 +22,7 @@ from .scene_plan import (
 MODEL = "claude-opus-5-5"
 EFFORT = "high"
 MAX_TOKENS = 16000
-PROMPT_VERSION = "scene-planner-v1"
+PROMPT_VERSION = "scene-planner-v2"
 PROMPTS = Path(__file__).resolve().parents[1] / "prompts"
 # The timeline adds short pauses around lines, so speech fills about 95% of the video.
 SPEECH_SHARE = 0.95
@@ -148,6 +148,25 @@ def length_problems(plan, spec: dict) -> list[str]:
     return problems
 
 
+def coverage_problems(plan) -> list[str]:
+    """Every point and node on screen should be highlighted by some line."""
+    problems = []
+    for s, scene in enumerate(plan.scenes):
+        if scene.template == "flow":
+            used = {line.highlight_node_id for line in scene.narration}
+            missing = [repr(node.id) for node in scene.visual.nodes if node.id not in used]
+            if missing:
+                problems.append(f"scenes[{s}]: no narration line highlights node {', '.join(missing)}; "
+                                "give each node a line that sets highlightNodeId")
+        else:
+            used = {line.highlight_point_index for line in scene.narration}
+            missing = [str(i) for i in range(len(scene.visual.points)) if i not in used]
+            if missing:
+                problems.append(f"scenes[{s}]: no narration line highlights point {', '.join(missing)}; "
+                                "give each point a line that sets highlightPointIndex")
+    return problems
+
+
 def _review(text: str, spec: dict):
     try:
         data = json.loads(text)
@@ -157,7 +176,7 @@ def _review(text: str, spec: dict):
         plan = validate_plan(normalize_ids(data, spec["projectId"]))
     except PlanValidationError as exc:
         return None, exc.problems
-    problems = length_problems(plan, spec)
+    problems = length_problems(plan, spec) + coverage_problems(plan)
     return (None if problems else plan), problems
 
 

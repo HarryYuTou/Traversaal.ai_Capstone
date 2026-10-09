@@ -40,10 +40,10 @@ Topic -> Script and scene plan -> TTS narration -> Timeline and visuals -> Final
 
 | Check | Result |
 | --- | --- |
-| Unit tests | 56/56 passed (Harry's 20 and 36 new ones) |
+| Unit tests | 57/57 passed (Harry's 20 and 37 new ones) |
 | Fixture narration on Windows | 18 lines, 214 words, 81.0 s of speech, 84.3 s preview |
 | Preview layout | No overlap between slide content and subtitles at maximum field lengths |
-| Real Claude API plans | Not run yet; waiting for an API key |
+| Real Claude API plans | 3 topics, each valid on the first request; 75 s and 90 s targets gave 74.2 s and 92.6 s previews; $0.06–0.12 per plan |
 
 Finding: speech synthesized line by line runs at about 2.6 words per second,
 slower than whole paragraphs (2.9). The planner uses 2.6, about 185 words for a
@@ -51,7 +51,7 @@ slower than whole paragraphs (2.9). The planner uses 2.6, about 185 words for a
 
 ## Remaining work
 
-- Run the planner on real topics and tune the prompts.
+- Try more topics and audiences, including longer videos.
 - Listening review of the generated narration.
 - The frame-accurate timeline, renderer and final MP4 belong to the visuals and
   timeline work; the scene plan and audio manifest are ready as their input.
