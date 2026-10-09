@@ -11,6 +11,7 @@ What to look for
 How to edit
 - Rewrite only lines with a real problem and keep good lines unchanged. Each edit replaces the whole text of one line and keeps its id.
 - Do not add, remove or reorder lines, and do not change visuals or highlights. If a line highlights a point or node, the new text must still talk about it.
+- Do not edit a line that reads a quotation aloud (highlightQuote is true): its words must match the quotation on screen. If the quotation itself looks wrong, report it as an issue instead.
 - Every line keeps the narration rules: natural spoken English, one or two short sentences, at most 25 words, no symbols, markdown or URLs.
 - Do not make the script longer: scripts tend to run long, so when a fix needs more words, save them elsewhere and keep the total at or below the draft's.
 
