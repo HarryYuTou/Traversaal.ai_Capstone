@@ -70,6 +70,25 @@ payments). Every plan still used all four templates, in a different order
 each time, so the mix did not change; varied slides in every video may be no
 bad thing. Cost: $0.42 for the three topics.
 
+## Length calibration
+
+The first batch ran long because the planner aimed near the top of the word
+range it was given, and the review added a few words. Prompt v5 asks for
+95–105% of the target instead of 90–110%, and the reviewer (v2) may no longer
+make a script longer. The six short topics were re-run, voiced, with each
+setting:
+
+| Requested words | Drafts (of target) | Final scripts | Real speech (of speech target) | Preview (of requested length) |
+| --- | --- | --- | --- | --- |
+| 90–110% (v3, first batch) | 102–107% | 104–109% | 99–115%, mean 105.4% | 97–115%, mean 104.2% |
+| 90–100% (trial) | 95–100% | 95–99% | 93–98%, mean 95.5% | 92–97%, mean 94.5% |
+| 95–105% (v5, kept) | 101–104% | 101–103% | 98–105%, mean 100.3% | 97–106%, mean 99.5% |
+
+With v5 the spread of real lengths narrowed from 16 points to 7 and centered
+on the target. One of the six v5 plans needed a repair (a point without a
+highlighting line), and review scores did not change: mean accuracy 4.33,
+clarity 4.0, audience fit 4.5. The two re-runs cost $0.93 and $1.20.
+
 ## Limits of this batch
 
 One run per topic, so the numbers show typical behavior rather than rates

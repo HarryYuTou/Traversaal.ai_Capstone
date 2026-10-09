@@ -14,7 +14,11 @@ from pathlib import Path
 from statistics import mean
 
 from .narrate import narrate_plan
-from .planner import MODEL, PROMPT_VERSION, SPEECH_SHARE, make_spec, slug, word_range, write_json, write_plan_run
+from .planner import (
+    MODEL, PROMPT_VERSION, SPEECH_SHARE, attach_reference_url, make_spec, save_reference, slug, word_range, write_json,
+    write_plan_run,
+)
+from .reference import fetch_reference
 from .review import PROMPT_VERSION as REVIEW_PROMPT_VERSION, write_review
 from .scene_plan import load_plan, summarize, text_words
 
@@ -34,6 +38,7 @@ def run_metrics(run_dir: Path) -> dict:
     manifest = _read(run_dir / "audio-manifest.json")
     steps = Counter(attempt["step"] for attempt in llm["attempts"])
     metrics = {"run": run_dir.name, "topic": spec["topic"], "audience": spec["audience"],
+               "reference": spec.get("referenceUrl") or spec.get("referenceFile"),
                "targetSeconds": spec["targetDurationSec"], "mode": spec.get("planMode", "single"),
                "planStatus": llm["status"], "requests": len(llm["attempts"]),
                "repairs": sum(count - 1 for count in steps.values()),
@@ -128,13 +133,26 @@ def evaluate(topics: list[dict], out_dir: Path, client, narrate: bool = False, e
         run_dir = out_dir / f"{number:02d}-{slug(item['topic'], 32)}"
         progress(f"[{number}/{len(topics)}] {item['topic']} ({item['duration']} s)")
         try:
-            write_plan_run(run_dir, spec, client, reference_text, progress)
+            if item.get("referenceUrl"):
+                reference_text = fetch_reference(item["referenceUrl"])
+                attach_reference_url(spec, item["referenceUrl"], reference_text, run_dir)
+            try:
+                write_plan_run(run_dir, spec, client, reference_text, progress)
+            finally:
+                if item.get("referenceUrl"):
+                    save_reference(run_dir, reference_text)
             write_review(run_dir, client, reference_text, progress)
             if narrate and spec["planMode"] == "single":
                 narrate_plan(load_plan(run_dir / "scene-plan.json"), run_dir, shared_engine, threads=threads,
                              offline=offline, progress=progress)
         except Exception as exc:  # Record the failure and go on to the next topic.
             progress(f"  failed: {type(exc).__name__}: {exc}")
+            if not run_dir.exists():  # Failed before planning, for example while downloading the reference.
+                runs.append({"run": run_dir.name, "topic": spec["topic"], "audience": spec["audience"],
+                             "targetSeconds": spec["targetDurationSec"], "mode": spec["planMode"],
+                             "planStatus": "not started", "requests": 0, "repairs": 0, "planCostUsd": 0.0,
+                             "planSeconds": 0.0, "error": f"{type(exc).__name__}: {exc}"})
+                continue
         runs.append(run_metrics(run_dir))
     results = {"createdAt": datetime.now(timezone.utc).isoformat(), "model": MODEL,
                "promptVersions": {"planner": PROMPT_VERSION, "review": REVIEW_PROMPT_VERSION},

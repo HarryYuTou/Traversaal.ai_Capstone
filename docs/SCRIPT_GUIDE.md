@@ -32,6 +32,10 @@ python -m capstone_script plan --topic "What happens after you enter a website a
   --audience "University students with no networking background" --duration 75 \
   --reference fixtures/reference-primary.md --out runs/plan-01
 
+# Ground the script in a web page instead of a facts file; its text is saved as reference.md
+python -m capstone_script plan --topic "How does GPS work?" --duration 90 \
+  --reference-url https://en.wikipedia.org/wiki/Global_Positioning_System --out runs/plan-02
+
 # Scene plan -> narration and preview (local CPU, no API key)
 python -m capstone_script narrate --plan fixtures/scene-plan.valid.json --out runs/narration-01 --offline
 
@@ -89,7 +93,10 @@ paths, durations or frames; later stages measure those from real audio.
 ## How the planner works
 
 1. `prompts/scene-planner.txt` sets the rules; the request gives the topic,
-   audience, word target and optional reference facts.
+   audience, word target (and asks to stay within 5% of it) and optional
+   reference facts. `--reference-url` downloads a page, keeps its readable
+   text (headings, paragraphs, lists and tables, without menus, scripts or
+   footers), caps it at 20,000 characters and saves it as `reference.md`.
 2. Claude Opus 5.5 (effort `high`) answers with structured JSON output. The
    output shape is looser than the ScenePlan schema (one kind of scene whose
    template fields are all optional), because the full four-template schema
@@ -98,7 +105,8 @@ paths, durations or frames; later stages measure those from real audio.
    node IDs path-safe.
 3. The plan must pass validation and fit the length: the word target assumes
    2.6 words per second, and a plan outside 80–120% of the target words counts
-   as a problem. A plan must use at least two different templates, and every
+   as a problem. Asking for ±5% centered the real speech length on the target
+   in testing; see [PLANNER_EVALUATION.md](PLANNER_EVALUATION.md). A plan must use at least two different templates, and every
    point, node, column and example must be highlighted by at least one
    narration line, so the visuals follow the narration.
 4. If anything fails, one repair request (`prompts/repair-scene-plan.txt`)
