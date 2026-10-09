@@ -1,27 +1,31 @@
 import React from 'react';
 import {interpolateColors, useCurrentFrame, useVideoConfig} from 'remotion';
-import {theme} from '../theme';
+import {useTheme} from '../theme';
 import type {TimelineScene} from '../types';
 import {SceneFrame} from './SceneFrame';
 import {SlideIcon} from './SlideIcon';
-import {appear, highlightLevel, revealFrame} from './timing';
+import {appear, ease, highlightLevel, revealFrame} from './timing';
 
 type Props = {scene: Extract<TimelineScene, {template: 'flow'}>; label: string};
 
-const Arrow: React.FC<{progress: number}> = ({progress}) => (
-  <svg width={96} height={40} viewBox="0 0 96 40" style={{flex: '0 0 auto', opacity: progress}}>
-    <line x1={4} y1={20} x2={4 + 74 * progress} y2={20} stroke={theme.muted} strokeWidth={5} strokeLinecap="round" />
-    <path d="M 74 8 L 90 20 L 74 32" fill="none" stroke={theme.muted} strokeWidth={5} strokeLinecap="round"
-      strokeLinejoin="round" opacity={progress >= 0.95 ? 1 : 0} />
-  </svg>
-);
+const Arrow: React.FC<{progress: number}> = ({progress}) => {
+  const theme = useTheme();
+  return (
+    <svg width={96} height={40} viewBox="0 0 96 40" style={{flex: '0 0 auto', opacity: progress}}>
+      <line x1={4} y1={20} x2={4 + 74 * progress} y2={20} stroke={theme.muted} strokeWidth={5} strokeLinecap="round" />
+      <path d="M 74 8 L 90 20 L 74 32" fill="none" stroke={theme.muted} strokeWidth={5} strokeLinecap="round"
+        strokeLinejoin="round" opacity={progress >= 0.95 ? 1 : 0} />
+    </svg>
+  );
+};
 
 /** Two to four steps from left to right; each step and its arrow appear when the narration reaches it. */
 export const FlowScene: React.FC<Props> = ({scene, label}) => {
+  const theme = useTheme();
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   return (
-    <SceneFrame durationInFrames={scene.durationInFrames} label={label} title={scene.visual.title}>
+    <SceneFrame label={label} title={scene.visual.title}>
       <div style={{flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 18}}>
         {scene.visual.nodes.map((node, index) => {
           const matches = (line: {highlightNodeId?: string}) => line.highlightNodeId === node.id;
@@ -40,9 +44,9 @@ export const FlowScene: React.FC<Props> = ({scene, label}) => {
                 color: interpolateColors(level, [0, 1], [theme.ink, theme.accent]),
                 opacity: shown,
                 transform: `translateY(${(1 - shown) * 30 - level * 12}px) scale(${1 + level * 0.04})`,
-                boxShadow: `0 ${8 + level * 12}px ${20 + level * 20}px rgba(29, 36, 51, ${0.07 + level * 0.06})`,
+                boxShadow: `0 ${8 + level * 12}px ${20 + level * 20}px ${theme.shadow(0.07 + level * 0.06)}`,
               }}>
-                <SlideIcon name={node.icon} size={72}
+                <SlideIcon name={node.icon} size={72} draw={ease(frame, start, 26)}
                   color={interpolateColors(level, [0, 1], [theme.muted, theme.accent])} />
                 <span>{node.label}</span>
               </div>

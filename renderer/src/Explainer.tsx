@@ -1,12 +1,17 @@
 import React from 'react';
 import {AbsoluteFill, Html5Audio, Sequence, staticFile} from 'remotion';
+import {Backdrop, Shell} from './Backdrop';
 import {Captions, ProgressBar} from './Overlays';
 import {ChapterCard, TitleCard} from './scenes/Cards';
 import {ComparisonScene} from './scenes/ComparisonScene';
 import {ConceptScene} from './scenes/ConceptScene';
 import {DefinitionScene} from './scenes/DefinitionScene';
+import {EventTimelineScene} from './scenes/EventTimelineScene';
 import {FlowScene} from './scenes/FlowScene';
-import {theme} from './theme';
+import {MapScene} from './scenes/MapScene';
+import {QuoteScene} from './scenes/QuoteScene';
+import {StatScene} from './scenes/StatScene';
+import {ThemeContext, motion, themes} from './theme';
 import type {Timeline, TimelineScene} from './types';
 
 const SceneView: React.FC<{scene: TimelineScene; label: string}> = ({scene, label}) => {
@@ -19,6 +24,14 @@ const SceneView: React.FC<{scene: TimelineScene; label: string}> = ({scene, labe
       return <ComparisonScene scene={scene} label={label} />;
     case 'definition':
       return <DefinitionScene scene={scene} label={label} />;
+    case 'timeline':
+      return <EventTimelineScene scene={scene} label={label} />;
+    case 'stat':
+      return <StatScene scene={scene} label={label} />;
+    case 'quote':
+      return <QuoteScene scene={scene} label={label} />;
+    case 'map':
+      return <MapScene scene={scene} label={label} />;
   }
 };
 
@@ -29,33 +42,45 @@ const lengthText = (timeline: Timeline) => {
   return chapters ? `${chapters} chapters · ${length}` : length;
 };
 
-/** The whole video: title card, chapter cards, scenes, captions and progress, over one narration track. */
+type Part = {key: string; from: number; durationInFrames: number; content: React.ReactNode};
+
+/** The whole video: title card, chapter cards and scenes over a moving backdrop, with captions and progress. */
 export const Explainer: React.FC<Timeline> = (timeline) => {
+  const theme = themes[timeline.theme ?? 'light'] ?? themes.light;
   const chapters = new Map(timeline.chapters.map((chapter) => [chapter.id, chapter]));
   const lines = timeline.scenes.flatMap((scene) => scene.lines);
+  const parts: Part[] = [
+    {key: 'Title', from: 0, durationInFrames: timeline.titleFrames,
+      content: <TitleCard title={timeline.title} subtitle={lengthText(timeline)} />},
+    ...timeline.chapters.map((chapter) => ({
+      key: `Chapter ${chapter.number}`, from: chapter.from, durationInFrames: chapter.cardFrames,
+      content: <ChapterCard chapter={chapter} total={timeline.chapters.length} />,
+    })),
+    ...timeline.scenes.map((scene) => {
+      const chapter = scene.chapterId ? chapters.get(scene.chapterId) : undefined;
+      const label = chapter ? `Chapter ${chapter.number} · ${chapter.title}` : timeline.title;
+      return {key: scene.id, from: scene.from, durationInFrames: scene.durationInFrames,
+        content: <SceneView scene={scene} label={label} />};
+    }),
+  ].sort((a, b) => a.from - b.from);
   return (
-    <AbsoluteFill style={{background: theme.bg, color: theme.ink, fontFamily: theme.font}}>
-      {timeline.audio.path ? <Html5Audio src={staticFile(timeline.audio.path)} /> : null}
-      <Sequence durationInFrames={timeline.titleFrames} name="Title">
-        <TitleCard title={timeline.title} subtitle={lengthText(timeline)} />
-      </Sequence>
-      {timeline.chapters.map((chapter) => (
-        <Sequence key={chapter.id} from={chapter.from} durationInFrames={chapter.cardFrames}
-          name={`Chapter ${chapter.number}`}>
-          <ChapterCard chapter={chapter} total={timeline.chapters.length} />
-        </Sequence>
-      ))}
-      {timeline.scenes.map((scene) => {
-        const chapter = scene.chapterId ? chapters.get(scene.chapterId) : undefined;
-        const label = chapter ? `Chapter ${chapter.number} · ${chapter.title}` : timeline.title;
-        return (
-          <Sequence key={scene.id} from={scene.from} durationInFrames={scene.durationInFrames} name={scene.id}>
-            <SceneView scene={scene} label={label} />
-          </Sequence>
-        );
-      })}
-      <Captions lines={lines} />
-      <ProgressBar chapters={timeline.chapters} />
-    </AbsoluteFill>
+    <ThemeContext.Provider value={theme}>
+      <AbsoluteFill style={{background: theme.bg, color: theme.ink, fontFamily: theme.font}}>
+        <Backdrop />
+        {timeline.audio.path ? <Html5Audio src={staticFile(timeline.audio.path)} /> : null}
+        {timeline.music?.path ? <Html5Audio src={staticFile(timeline.music.path)} /> : null}
+        {parts.map((part, index) => {
+          const last = index === parts.length - 1;
+          return (
+            <Sequence key={part.key} name={part.key} from={part.from}
+              durationInFrames={part.durationInFrames + (last ? 0 : motion.overlap)}>
+              <Shell durationInFrames={part.durationInFrames} last={last}>{part.content}</Shell>
+            </Sequence>
+          );
+        })}
+        <Captions lines={lines} />
+        <ProgressBar chapters={timeline.chapters} />
+      </AbsoluteFill>
+    </ThemeContext.Provider>
   );
 };

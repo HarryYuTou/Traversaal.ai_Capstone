@@ -1,27 +1,51 @@
 import React from 'react';
-import {AbsoluteFill, interpolate, useCurrentFrame} from 'remotion';
-import {motion, theme} from '../theme';
-import {clamp} from './timing';
+import {AbsoluteFill, useCurrentFrame} from 'remotion';
+import {useTheme} from '../theme';
+import {ease} from './timing';
 
-/** Shared slide layout: a small label, the scene title and the template's content, with fade in and out. */
-export const SceneFrame: React.FC<{
-  durationInFrames: number;
-  label: string;
-  title: string;
-  children: React.ReactNode;
-}> = ({durationInFrames, label, title, children}) => {
+/** Text whose words rise into place one after another, starting `start` frames into the scene. */
+export const RisingWords: React.FC<{text: string; start?: number; stagger?: number}> = (
+  {text, start = 0, stagger = 2}) => {
   const frame = useCurrentFrame();
-  const opacity = interpolate(frame, [0, motion.enter, durationInFrames - motion.exit, durationInFrames],
-    [0, 1, 1, 0], clamp);
-  const rise = interpolate(frame, [0, motion.enter], [24, 0], clamp);
   return (
-    <AbsoluteFill style={{padding: '96px 140px 240px', opacity, transform: `translateY(${rise}px)`}}>
-      <div style={{fontSize: 26, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase',
-        color: theme.muted, marginBottom: 22}}>
-        {label}
-      </div>
-      <h1 style={{margin: 0, fontSize: 76, lineHeight: 1.12, fontWeight: 750, maxWidth: 1560}}>{title}</h1>
-      {children}
-    </AbsoluteFill>
+    <>
+      {text.split(' ').map((word, index) => {
+        const shown = ease(frame, start + index * stagger, 14);
+        return (
+          <React.Fragment key={index}>
+            {index > 0 ? ' ' : null}
+            <span style={{display: 'inline-block', opacity: shown, transform: `translateY(${(1 - shown) * 0.42}em)`}}>
+              {word}
+            </span>
+          </React.Fragment>
+        );
+      })}
+    </>
   );
 };
+
+/** The small label above a title: an accent bar that grows, then the text. */
+export const Kicker: React.FC<{text: string; start?: number; color?: string}> = ({text, start = 0, color}) => {
+  const theme = useTheme();
+  const shown = ease(useCurrentFrame(), start, 16);
+  return (
+    <div style={{display: 'flex', alignItems: 'center', gap: 18, fontSize: 26, fontWeight: 650,
+      letterSpacing: '0.08em', textTransform: 'uppercase', color: color ?? theme.muted, opacity: shown,
+      transform: `translateX(${(1 - shown) * -24}px)`}}>
+      <span style={{flex: '0 0 auto', width: 44 * shown, height: 6, borderRadius: 3, background: theme.accent}} />
+      {text}
+    </div>
+  );
+};
+
+/** Shared slide layout: a small label, the scene title and the template's content. */
+export const SceneFrame: React.FC<{label: string; title: string; children: React.ReactNode}> = (
+  {label, title, children}) => (
+  <AbsoluteFill style={{padding: '96px 140px 240px'}}>
+    <Kicker text={label} />
+    <h1 style={{margin: '22px 0 0', fontSize: 76, lineHeight: 1.12, fontWeight: 750, maxWidth: 1560}}>
+      <RisingWords text={title} start={2} />
+    </h1>
+    {children}
+  </AbsoluteFill>
+);

@@ -1,4 +1,4 @@
-import {interpolate, spring} from 'remotion';
+import {Easing, interpolate, spring} from 'remotion';
 import {motion} from '../theme';
 import type {TimelineLine} from '../types';
 
@@ -15,6 +15,10 @@ export const revealFrame = (lines: TimelineLine[], sceneFrom: number, matches: M
 /** 0 before `start`, easing to 1 over the reveal time. */
 export const appear = (frame: number, start: number, fps: number) =>
   spring({frame: frame - start, fps, config: {damping: 200}, durationInFrames: motion.reveal});
+
+/** 0 before `start`, then an ease-out rise to 1 over `length` frames. */
+export const ease = (frame: number, start: number, length: number) =>
+  interpolate(frame, [start, start + length], [0, 1], {...clamp, easing: Easing.out(Easing.cubic)});
 
 /**
  * How strongly an item is highlighted, from 0 to 1. A highlight starts with the line that sets it

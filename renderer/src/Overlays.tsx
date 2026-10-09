@@ -1,7 +1,7 @@
 import React from 'react';
 import {interpolate, useCurrentFrame, useVideoConfig} from 'remotion';
 import {clamp} from './scenes/timing';
-import {theme} from './theme';
+import {useTheme} from './theme';
 import type {TimelineChapter, TimelineLine} from './types';
 
 // Lines closer together than this (the 3-frame gap inside a scene) share one caption box without blinking.
@@ -11,8 +11,11 @@ const FADE_FRAMES = 4;
 const end = (line: TimelineLine) => line.from + line.durationInFrames;
 
 /** The spoken line as a caption, synced to the narration track. */
-export const Captions: React.FC<{lines: TimelineLine[]}> = ({lines}) => {
+export const Captions: React.FC<{lines: TimelineLine[]}> = ({lines: all}) => {
+  const theme = useTheme();
   const frame = useCurrentFrame();
+  // A line that reads a quotation aloud is already on screen word by word, so it gets no caption.
+  const lines = all.filter((line) => !line.highlightQuote);
   let index = -1;
   lines.forEach((line, i) => {
     if (line.from <= frame) {
@@ -42,6 +45,7 @@ export const Captions: React.FC<{lines: TimelineLine[]}> = ({lines}) => {
 
 /** A thin bar along the bottom edge with a mark where each chapter starts. */
 export const ProgressBar: React.FC<{chapters: TimelineChapter[]}> = ({chapters}) => {
+  const theme = useTheme();
   const frame = useCurrentFrame();
   const {durationInFrames} = useVideoConfig();
   const share = (value: number) => `${(100 * value) / durationInFrames}%`;
