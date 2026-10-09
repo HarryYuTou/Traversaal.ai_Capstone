@@ -1,6 +1,6 @@
 """Reference URL tests: text extraction and the plan command, with the download patched out."""
 
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 import hashlib
 import io
 import json
@@ -91,7 +91,7 @@ class ReferenceTests(unittest.TestCase):
 
     def test_file_and_url_references_together_are_refused_before_downloading(self):
         with tempfile.TemporaryDirectory() as temporary, patch("capstone_script.__main__.fetch_reference") as fetch, \
-                redirect_stdout(io.StringIO()):
+                redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
             code = main(["plan", "--topic", TOPIC, "--out", str(Path(temporary) / "run"), "--reference",
                          "fixtures/reference-primary.md", "--reference-url", "https://example.org/dns"])
         self.assertEqual(code, 1)
