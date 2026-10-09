@@ -10,7 +10,7 @@ from .narrate import narrate_plan
 from .planner import attach_reference_url, load_env_file, make_spec, write_plan_run
 from .reference import fetch_reference
 from .preview import build_preview
-from .render import render_video
+from .render import THEMES, render_video
 from .review import write_review
 from .timeline import write_timeline
 from .scene_plan import PlanValidationError, dump_plan, load_plan, schema_text, summarize
@@ -108,18 +108,25 @@ def _narrate(args, plan) -> int:
           f"preview {manifest['preview']['durationSeconds']:.1f} s: {manifest['preview']['audioPath']}")
     print(f"Preview: {build_preview(args.out).resolve()}")
     if getattr(args, "render", False):
-        _render(args.out, args.draft, args.share)
+        _render(args.out, args)
     return 0
 
 
-def _render(run_dir: Path, draft: bool, share: bool) -> None:
-    info = render_video(run_dir, draft, share, progress=_print)
+def _render(run_dir: Path, args) -> None:
+    info = render_video(run_dir, args.draft, args.share, progress=_print, theme=args.theme,
+                        music=not args.no_music)
     print(f"Video: {run_dir.resolve() / info['videoPath']}")
     print(f"{info['width']}x{info['height']} | {info['probedSeconds']:.1f} s | "
           f"{info['bytes'] / 1e6:.1f} MB | rendered in {info['renderSeconds']:.0f} s")
     if "shareCopy" in info:
         print(f"Sharing copy: {run_dir.resolve() / info['shareCopy']['path']} "
               f"({info['shareCopy']['bytes'] / 1e6:.1f} MB)")
+
+
+def _add_look_options(parser):
+    parser.add_argument("--theme", choices=THEMES, default="light",
+                        help="Look of the video: light slides, or night, a darker documentary style")
+    parser.add_argument("--no-music", action="store_true", help="Leave out the synthesized music bed")
 
 
 def _add_plan_options(parser):
@@ -164,6 +171,7 @@ def main(argv=None):
     render.add_argument("--run", type=Path, required=True, help="Narrated run directory")
     render.add_argument("--draft", action="store_true", help="Render at half size (960x540), for quick checks")
     render.add_argument("--share", action="store_true", help="Also write video-720p.mp4, a smaller copy for sharing")
+    _add_look_options(render)
     evaluation = sub.add_parser("evaluate", help="Plan and review a list of topics and summarize the results.")
     evaluation.add_argument("--topics", type=Path, required=True,
                             help="JSON list of {topic, audience, duration}, such as fixtures/evaluation-topics.json")
@@ -180,6 +188,7 @@ def main(argv=None):
     run.add_argument("--render", action="store_true", help="Also render video.mp4 with Remotion (needs Node.js)")
     run.add_argument("--draft", action="store_true", help="With --render: half size (960x540), for quick checks")
     run.add_argument("--share", action="store_true", help="With --render: also write a 720p copy for sharing")
+    _add_look_options(run)
     args = parser.parse_args(argv)
     try:
         if args.command == "validate":
@@ -205,7 +214,7 @@ def main(argv=None):
                   f"{data['durationSeconds']:.1f} s | narration.wav, subtitles.srt, subtitles.vtt")
             return 0
         if args.command == "render":
-            _render(args.run, args.draft, args.share)
+            _render(args.run, args)
             return 0
         if args.command == "evaluate":
             topics = json.loads(args.topics.read_text(encoding="utf-8"))

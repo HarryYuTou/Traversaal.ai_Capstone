@@ -41,6 +41,7 @@ python -m capstone_script timeline --run runs/narration-01
 python -m capstone_script render --run runs/narration-01
 python -m capstone_script render --run runs/narration-01 --draft   # 960x540, quicker
 python -m capstone_script render --run runs/narration-01 --share   # also video-720p.mp4 for sharing
+python -m capstone_script render --run runs/narration-01 --theme night --no-music   # darker look, no music bed
 
 # Check a few frames as PNG files without rendering the whole video
 cd renderer
@@ -100,18 +101,49 @@ the run's `video/` folder so `narration.wav` can be loaded.
 | `src/scenes/FlowScene.tsx` | Two to four steps with arrows, left to right |
 | `src/scenes/ComparisonScene.tsx` | Two labelled columns with a "vs" badge between them |
 | `src/scenes/DefinitionScene.tsx` | A key term, its definition and an optional example |
+| `src/scenes/EventTimelineScene.tsx` | Two to five dated events on a line that draws itself, with the current event highlighted |
+| `src/scenes/StatScene.tsx` | One to three large numbers that count up, with labels and an optional note |
+| `src/scenes/QuoteScene.tsx` | A quotation in serif type whose words light up as it is read, then who said it |
+| `src/scenes/MapScene.tsx` | A full-frame map grid of one region with pins, an optional route drawn leg by leg, and country groups |
+| `src/Backdrop.tsx` | The moving background, and the push transition between cards and scenes |
 | `src/scenes/SlideIcon.tsx` | The optional icon of a slide, node or column, from Lucide (ISC license) |
 | `src/Overlays.tsx` | Captions and the progress bar with chapter marks |
-| `src/theme.ts` | Colors, font and motion timing, matching the browser preview |
+| `src/theme.ts` | The `light` and `night` themes (colors, fonts) and motion timing |
 
 Points, steps, columns and examples appear when the narration first
 highlights them, the current one is highlighted while it is being talked
 about, and an item that is never highlighted appears just after its scene
 starts. Icons take the highlight color with
-their item, and a concept slide without points shows its statement and icon
-larger so the slide does not look half empty. Captions show the spoken line
-and stay up through the short gaps inside a scene. Every scene fades in and
-out. Fonts are system fonts, so rendering works offline.
+their item and sketch themselves in stroke by stroke, and a concept slide
+without points shows its statement and icon larger so the slide does not look
+half empty. Titles rise in word by word. Captions show the spoken line and stay
+up through the short gaps inside a scene, except while a quotation is read
+aloud, since the quote is already on screen. Each card and scene slides in from
+the right while the previous one slides out to the left, overlapping by 14
+frames, over a backdrop of slowly drifting light. Fonts are system fonts, so
+rendering works offline.
+
+## Themes and music
+
+`--theme light` (the default) keeps the look of the browser preview;
+`--theme night` is a darker, documentary style with a gold accent. Both are in
+`src/theme.ts`, and every component reads the current one with `useTheme()`.
+
+Unless `--no-music` is given, `render` also writes `video/music.wav`, a quiet
+music bed synthesized by `capstone_script/music.py`: slow pad chords over a
+soft bass, a few bell notes and a synthetic reverb, generated with numpy from a
+fixed seed, so there is nothing to download or license. The bed sits about
+6 dB below the narration's average loudness during the title and chapter
+cards and ducks another 12 dB, starting a moment before each line, while the
+narrator speaks. The theme and the music choice go into `video/props.json`
+(the timeline plus those two settings), which is what Remotion receives;
+`timeline.json` itself is unchanged. `node scripts/stills.mjs` accepts either
+file.
+
+The map template draws its region on a latitude and longitude grid, with the
+places, route and country-group labels from the plan. It does not draw
+country borders or coastlines yet, because that needs map data that is not
+installed (for example the `world-atlas` package, from Natural Earth).
 
 ## Measured results
 

@@ -1,9 +1,11 @@
 """Narrated run -> MP4, using the Remotion project in renderer/.
 
-The run's timeline is built first if it does not exist yet. The Remotion
-command line then renders the Explainer composition with the timeline as its
-input props and the run's video folder as the public folder, which is where
-the renderer reads narration.wav. Rendering needs Node.js and `npm install` in
+The run's timeline is built first if it does not exist yet, and so is the
+music bed (video/music.wav) unless music is turned off. The Remotion command
+line then renders the Explainer composition with video/props.json (the
+timeline plus the theme and music choice) as its input props and the run's
+video folder as the public folder, which is where the renderer reads
+narration.wav and music.wav. Rendering needs Node.js and `npm install` in
 renderer/; the first render also downloads a headless Chrome for Remotion.
 """
 
@@ -13,11 +15,13 @@ import shutil
 import subprocess
 from time import perf_counter
 
+from .music import write_music
 from .planner import write_json
 from .timeline import VIDEO_DIR, write_timeline
 
 RENDERER = Path(__file__).resolve().parents[1] / "renderer"
 REMOTION_CLI = RENDERER / "node_modules" / "@remotion" / "cli" / "remotion-cli.js"
+THEMES = ("light", "night")
 
 
 class RenderError(RuntimeError):
@@ -63,14 +67,34 @@ def probe_seconds(video: Path) -> float:
     return float(result.stdout.strip().splitlines()[-1])
 
 
-def render_video(run_dir: Path, draft: bool = False, share: bool = False, progress=lambda message: None) -> dict:
+def render_props(timeline_path: Path, theme: str = "light", music: bool = True,
+                 progress=lambda message: None) -> Path:
+    """Write video/props.json: the timeline plus the theme and, unless turned off, the music bed."""
+    if theme not in THEMES:
+        raise ValueError(f"Unknown theme {theme!r}; use one of {', '.join(THEMES)}.")
+    video_dir = timeline_path.parent
+    timeline = json.loads(timeline_path.read_text(encoding="utf-8"))
+    if music and not (video_dir / "music.wav").exists():
+        progress("Composing the music bed...")
+        write_music(video_dir, timeline)
+    props = {**timeline, "theme": theme, "music": {"path": "music.wav"} if music else None}
+    path = video_dir / "props.json"
+    write_json(path, props)
+    return path
+
+
+def render_video(run_dir: Path, draft: bool = False, share: bool = False, progress=lambda message: None,
+                 theme: str = "light", music: bool = True) -> dict:
     """Render video.mp4 (or video-draft.mp4 at half size) into run_dir and describe it in video-info.json.
 
     A full render also writes thumbnail.png from the title card; `share` adds video-720p.mp4, a smaller
-    copy for uploads and email.
+    copy for uploads and email. `theme` picks the look (light or night) and `music` adds the
+    synthesized music bed under the narration.
     """
     if draft and share:
         raise ValueError("--share makes a 720p copy of a full render; a draft is already smaller than that.")
+    if theme not in THEMES:
+        raise ValueError(f"Unknown theme {theme!r}; use one of {', '.join(THEMES)}.")
     run_dir = Path(run_dir).resolve()
     name = "video-draft" if draft else "video"
     output = run_dir / f"{name}.mp4"
@@ -81,7 +105,8 @@ def render_video(run_dir: Path, draft: bool = False, share: bool = False, progre
         progress("Building the frame timeline, aligned narration and subtitles...")
         write_timeline(run_dir)
     timeline = json.loads(timeline_path.read_text(encoding="utf-8"))
-    command = render_command(timeline_path, output, draft)
+    props_path = render_props(timeline_path, theme, music, progress)
+    command = render_command(props_path, output, draft)
     progress(f"Rendering {timeline['durationInFrames']} frames with Remotion...")
     started = perf_counter()
     result = subprocess.run(command, cwd=RENDERER)
@@ -94,11 +119,11 @@ def render_video(run_dir: Path, draft: bool = False, share: bool = False, progre
             "width": round(timeline["width"] * scale), "height": round(timeline["height"] * scale),
             "fps": timeline["fps"], "frames": timeline["durationInFrames"],
             "expectedSeconds": timeline["durationSeconds"], "probedSeconds": duration,
-            "bytes": output.stat().st_size, "renderSeconds": round(seconds, 1),
+            "bytes": output.stat().st_size, "renderSeconds": round(seconds, 1), "theme": theme, "music": music,
             "subtitles": [f"{VIDEO_DIR}/subtitles.srt", f"{VIDEO_DIR}/subtitles.vtt"]}
     if not draft:
         progress("Rendering the thumbnail...")
-        if subprocess.run(still_command(timeline_path, run_dir / "thumbnail.png"), cwd=RENDERER).returncode == 0:
+        if subprocess.run(still_command(props_path, run_dir / "thumbnail.png"), cwd=RENDERER).returncode == 0:
             info["thumbnail"] = "thumbnail.png"
     if share:
         progress("Encoding a 720p copy for sharing...")
