@@ -45,6 +45,12 @@ class RenderCommandTests(unittest.TestCase):
                 self.assertRaisesRegex(RenderError, "npm install"):
             render_command(TIMELINE, OUTPUT)
 
+    def test_a_draft_cannot_get_a_sharing_copy(self):
+        with tempfile.TemporaryDirectory() as temporary, patch("capstone_script.render.subprocess.run") as run, \
+                self.assertRaisesRegex(ValueError, "a draft is already smaller"):
+            render_video(Path(temporary), draft=True, share=True)
+        run.assert_not_called()
+
     def test_existing_video_is_refused_before_rendering(self):
         with tempfile.TemporaryDirectory() as temporary:
             (Path(temporary) / "video.mp4").write_bytes(b"")

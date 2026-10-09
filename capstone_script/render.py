@@ -69,6 +69,8 @@ def render_video(run_dir: Path, draft: bool = False, share: bool = False, progre
     A full render also writes thumbnail.png from the title card; `share` adds video-720p.mp4, a smaller
     copy for uploads and email.
     """
+    if draft and share:
+        raise ValueError("--share makes a 720p copy of a full render; a draft is already smaller than that.")
     run_dir = Path(run_dir).resolve()
     name = "video-draft" if draft else "video"
     output = run_dir / f"{name}.mp4"
@@ -100,7 +102,7 @@ def render_video(run_dir: Path, draft: bool = False, share: bool = False, progre
             info["thumbnail"] = "thumbnail.png"
     if share:
         progress("Encoding a 720p copy for sharing...")
-        copy = run_dir / f"{name}-720p.mp4"
+        copy = run_dir / "video-720p.mp4"
         subprocess.run(share_command(output, copy), cwd=RENDERER, check=True)
         info["shareCopy"] = {"path": copy.name, "bytes": copy.stat().st_size}
     write_json(run_dir / f"{name}-info.json", info)
