@@ -180,10 +180,10 @@
     {"id": "s16", "purpose": "Tell how the secret of silk reached Byzantium.", "template": "concept",
      "visual": {"title": "The great silk heist",
                 "statement": "Around 552 AD, a Byzantine historian wrote, monks smuggled silkworm eggs to Constantinople.",
-                "points": ["Eggs hidden in canes", "Byzantine silk workshops", "China's monopoly ends"], "icon": "key"},
+                "points": ["Silkworm eggs smuggled west", "Byzantine silk workshops", "China's monopoly ends"], "icon": "key"},
      "narration": [
        {"id": "s16-l1", "text": "The secret finally slipped out in the sixth century."},
-       {"id": "s16-l2", "text": "According to the historian Procopius, monks smuggled silkworm eggs to Constantinople inside hollow canes.", "highlightPointIndex": 0},
+       {"id": "s16-l2", "text": "According to the historian Procopius, monks smuggled silkworm eggs from Central Asia to Constantinople.", "highlightPointIndex": 0},
        {"id": "s16-l3", "text": "The emperor Justinian soon had silk workshops of his own.", "highlightPointIndex": 1},
        {"id": "s16-l4", "text": "China's monopoly was over, but the routes stayed busy.", "highlightPointIndex": 2}]},
     {"id": "s17", "purpose": "Introduce ideas as the routes' biggest cargo.", "template": "concept",

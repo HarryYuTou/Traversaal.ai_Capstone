@@ -28,6 +28,7 @@ export const StatScene: React.FC<Props> = ({scene, label}) => {
   const {stats, note} = scene.visual;
   const size = SIZES[stats.length - 1];
   const noteShown = ease(frame, 30, 20);
+  const anyIcon = stats.some((stat) => stat.icon);
   return (
     <SceneFrame label={label} title={scene.visual.title}>
       <div style={{flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-around', gap: 40}}>
@@ -41,10 +42,15 @@ export const StatScene: React.FC<Props> = ({scene, label}) => {
           return (
             <div key={index} style={{flex: '1 1 0', display: 'flex', flexDirection: 'column', alignItems: 'center',
               textAlign: 'center', opacity: shown, transform: `translateY(${(1 - shown) * 30}px) scale(${1 + 0.04 * level})`}}>
-              <SlideIcon name={stat.icon} size={Math.round(size * 0.42)} draw={ease(frame, start, 28)}
-                color={interpolateColors(level, [0, 1], [theme.muted, theme.accent])} />
+              {/* A stat without an icon keeps the icon's space when its neighbours have one, so numbers line up. */}
+              {stat.icon || anyIcon ? (
+                <div style={{height: Math.round(size * 0.42), display: 'flex', alignItems: 'center'}}>
+                  <SlideIcon name={stat.icon} size={Math.round(size * 0.42)} draw={ease(frame, start, 28)}
+                    color={interpolateColors(level, [0, 1], [theme.muted, theme.accent])} />
+                </div>
+              ) : null}
               <div style={{display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: size * 0.06,
-                marginTop: stat.icon ? 18 : 0, color, fontWeight: 800, lineHeight: 1, whiteSpace: 'nowrap'}}>
+                marginTop: anyIcon ? 18 : 0, color, fontWeight: 800, lineHeight: 1, whiteSpace: 'nowrap'}}>
                 {stat.prefix ? <span style={{fontSize: size * 0.62}}>{stat.prefix}</span> : null}
                 <span style={{fontSize: size, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em'}}>
                   {format(stat.value * count, decimalsOf(stat.value))}
