@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import sys
 
+from .evaluate import evaluate
 from .narrate import narrate_plan
 from .planner import load_env_file, make_spec, write_plan_run
 from .preview import build_preview
@@ -145,6 +146,13 @@ def main(argv=None):
     render = sub.add_parser("render", help="Render a narrated run to MP4 with Remotion (needs Node.js).")
     render.add_argument("--run", type=Path, required=True, help="Narrated run directory")
     render.add_argument("--draft", action="store_true", help="Render at half size (960x540), for quick checks")
+    evaluation = sub.add_parser("evaluate", help="Plan and review a list of topics and summarize the results.")
+    evaluation.add_argument("--topics", type=Path, required=True,
+                            help="JSON list of {topic, audience, duration}, such as fixtures/evaluation-topics.json")
+    evaluation.add_argument("--out", type=Path, required=True, help="New directory for the evaluation")
+    evaluation.add_argument("--narrate", action="store_true",
+                            help="Also voice plans of up to 180 seconds to measure real speech length")
+    _add_voice_options(evaluation)
     preview = sub.add_parser("preview", help="Rebuild preview.html for a narrated run.")
     preview.add_argument("--run", type=Path, required=True, help="Run directory with audio-manifest.json")
     run = sub.add_parser("run", help="Topic -> scene plan -> narration (-> video) in one run directory.")
@@ -179,6 +187,16 @@ def main(argv=None):
             return 0
         if args.command == "render":
             _render(args.run, args.draft)
+            return 0
+        if args.command == "evaluate":
+            topics = json.loads(args.topics.read_text(encoding="utf-8"))
+            load_env_file()
+            results = evaluate(topics, args.out, _client(), args.narrate, _engine_factory(args.offline, args.threads),
+                               args.offline, args.threads, progress=_print)
+            summary = results["summary"]
+            print(f"Results: {args.out.resolve() / 'results.md'}")
+            print(f"{summary['planned']} of {summary['topics']} planned | first request passed "
+                  f"{summary['firstRequestPassRate']:.0%} | API about ${summary['costUsd']:.2f}")
             return 0
         if args.command == "preview":
             print(f"Preview: {build_preview(args.run).resolve()}")

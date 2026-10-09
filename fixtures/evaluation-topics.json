@@ -1,0 +1,10 @@
+[
+  {"topic": "How do vaccines train the immune system?", "audience": "Curious adults with no science background", "duration": 90},
+  {"topic": "What is compound interest and why does it matter?", "audience": "High school students", "duration": 60},
+  {"topic": "How does GPS know where you are?", "audience": "Curious adults with no technical background", "duration": 120},
+  {"topic": "What is a large language model?", "audience": "Business professionals with no technical background", "duration": 180},
+  {"topic": "How do credit card payments work behind the scenes?", "audience": "Small business owners", "duration": 90},
+  {"topic": "Why do we have leap years?", "audience": "Middle school students", "duration": 60},
+  {"topic": "How does a search engine decide which pages to show first?", "audience": "Marketing professionals with no technical background", "duration": 300},
+  {"topic": "What really happens to the things we recycle?", "audience": "Curious adults", "duration": 300}
+]

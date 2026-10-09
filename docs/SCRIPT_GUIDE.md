@@ -44,6 +44,9 @@ python -m capstone_script plan --topic "How AI search engines find answers" --du
 # Review an existing plan before narrating it (Claude API)
 python -m capstone_script review --run runs/plan-01
 
+# Plan and review a list of topics and summarize the results (Claude API)
+python -m capstone_script evaluate --topics fixtures/evaluation-topics.json --out runs/eval-01 --narrate --offline
+
 # Rebuild preview.html, or regenerate the JSON Schema after changing the models
 python -m capstone_script preview --run runs/narration-01
 python -m capstone_script schema
@@ -130,9 +133,21 @@ clarity, accuracy, speech and highlight sync) and rewrites the lines that need
 it. Edits replace the text of existing lines only: ids, highlights and visuals
 stay, so the reviewed plan has the same structure and passes the same checks,
 and its word count must stay within the video's range. A local scan for
-symbols, abbreviations and acronyms the voice may misread is sent along as
-hints. Invalid edits get one repair request. Review a plan before narrating
+symbols and abbreviations the voice may misread is sent along as hints. The
+voice's phonemizer reads common acronyms correctly (AI, LLM, DNS, HTTPS, GPU,
+API, URL and PDF letter by letter, SQL as "sequel", NASA as a word) and reads
+numbers and "10%" as words, but it says "e.g." as "ee-jee" and "vs." as
+"viz", so the scan flags abbreviations, not acronyms. Invalid edits get one repair request. Review a plan before narrating
 it; a narrated run is refused because its audio would no longer match.
+
+### Evaluation
+
+`evaluate` runs `plan --review` for every topic in a JSON list (topic,
+audience, duration), optionally voices the plans of up to three minutes, and
+writes `results.json` and `results.md` with first-request pass rate, length
+against target, templates, review scores, rewritten lines, speech length and
+cost. A topic that fails is recorded and the batch continues. The first batch
+of eight topics is written up in [PLANNER_EVALUATION.md](PLANNER_EVALUATION.md).
 
 ## Run outputs
 

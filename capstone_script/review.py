@@ -3,8 +3,8 @@
 The reviewer reads the whole plan the way the audience will hear it and returns
 scores, the issues it found and replacement text for individual lines. Edits
 keep every id, highlight and visual, so a reviewed plan has the same structure
-as its draft and still passes the same checks. A quick local scan for symbols,
-abbreviations and acronyms the voice may misread is sent along as hints.
+as its draft and still passes the same checks. A quick local scan for symbols
+and abbreviations the voice may misread is sent along as hints.
 Reviews run before narration; a narrated run keeps the plan it was voiced from.
 """
 
@@ -30,8 +30,9 @@ Note = Annotated[str, StringConstraints(min_length=1, max_length=300)]
 Location = Annotated[str, StringConstraints(min_length=1, max_length=60)]
 
 SYMBOLS = re.compile(r"[%&/+=@#<>~^*_|\\$€£()\[\]{}]")
+# The voice reads common acronyms (AI, DNS, HTTPS, API, SQL) correctly, but says "e.g." as "ee-jee"
+# and "vs." as "viz", so abbreviations are flagged and acronyms are not.
 ABBREVIATIONS = re.compile(r"\b(?:e\.g|i\.e|etc|vs|approx|incl|esp)\.", re.IGNORECASE)
-ACRONYMS = re.compile(r"\b[A-Z][A-Z0-9]*[A-Z][A-Z0-9]*s?\b")
 
 
 class Scores(_Model):
@@ -63,7 +64,7 @@ class Review(_Model):
 
 
 def speech_notes(plan) -> list[dict]:
-    """Spots the narration voice may misread: symbols, abbreviations and acronyms."""
+    """Spots the narration voice may misread: symbols and abbreviations."""
     notes = []
     for scene in plan.scenes:
         for line in scene.narration:
@@ -73,9 +74,6 @@ def speech_notes(plan) -> list[dict]:
                 found.append(f"symbols {' '.join(symbols)} are not spoken as intended; write them as words")
             for abbreviation in ABBREVIATIONS.findall(line.text):
                 found.append(f"abbreviation {abbreviation!r} may be read letter by letter; write it out")
-            acronyms = sorted(set(ACRONYMS.findall(line.text)))
-            if acronyms:
-                found.append(f"check how the voice says {', '.join(acronyms)}; spell out or rephrase if unclear")
             notes += [{"lineId": line.id, "note": note} for note in found]
     return notes
 
