@@ -7,15 +7,20 @@ messages, examples, and progress logs in English.
 
 The first working module is **local English text-to-speech on CPU**. It reads a
 UTF-8 text file and produces a verified narration WAV and a JSON report. This is
-the audio foundation for the team's video pipeline; the LLM, timeline, renderer,
-and website are future integration work.
+the audio foundation for the team's video pipeline; the timeline, renderer, and
+website are future integration work.
 
-[TTS usage guide](docs/TTS_GUIDE.md) · [Team week-one plan](docs/WEEK_01_PLAN.md)
+The second module, `capstone_script`, turns a topic into a validated
+scene-by-scene script with the Claude API and voices every line with the TTS
+module.
+
+[TTS usage guide](docs/TTS_GUIDE.md) · [Script planner guide](docs/SCRIPT_GUIDE.md) · [Team week-one plan](docs/WEEK_01_PLAN.md)
 
 ## Quick start (macOS, Python 3.11)
 
 Run these commands from the repository folder. The validated machine is Apple
-Silicon with macOS 15.1. Other operating systems have not yet been verified.
+Silicon with macOS 15.1. Windows 11 was also verified
+([record](docs/TTS_WINDOWS_REPRODUCTION.md)); other systems have not been.
 The `brew` command requires [Homebrew](https://brew.sh/); install it first if
 it is missing, or skip that line if Python 3.11 is already installed.
 
@@ -93,6 +98,10 @@ later integration step. This report is not the complete ScenePlan schema.
 
 ```text
 capstone_tts/           CLI, Kokoro adapter, audio writer and verification
+capstone_script/       Scene plan contract, LLM planner, narration bridge, preview
+prompts/               Planner and repair prompts
+schemas/               ScenePlan JSON Schema generated from the models
+fixtures/              Valid and invalid scene plans and reference facts
 examples/              English demo, abbreviations and long paragraph
 tests/                 Offline unit tests using synthetic audio
 requirements.in        Direct dependency decisions
