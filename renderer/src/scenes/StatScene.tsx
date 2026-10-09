@@ -10,6 +10,8 @@ type Props = {scene: Extract<TimelineScene, {template: 'stat'}>; label: string};
 
 const SIZES = [230, 172, 136];
 const COUNT_FRAMES = 42;
+const ROW_WIDTH = 1640;
+const GAP = 40;
 
 // As many decimals as the plan wrote, so 2.5 counts up as 0.0 ... 2.5 and 70 as whole numbers.
 const decimalsOf = (value: number) => {
@@ -19,6 +21,18 @@ const decimalsOf = (value: number) => {
 
 const format = (value: number, decimals: number) =>
   value.toLocaleString('en-US', {minimumFractionDigits: decimals, maximumFractionDigits: decimals});
+
+/**
+ * The largest font size, up to `size`, at which the finished number with its prefix and unit fits its
+ * column. Widths are estimated from character counts, so long values such as 999,999,999,999 shrink
+ * instead of pushing their neighbours off the slide.
+ */
+const fittedSize = (text: string, prefix: string | undefined, unit: string | undefined, size: number, columns: number) => {
+  const column = (ROW_WIDTH - GAP * (columns - 1)) / columns;
+  const ems = text.length * 0.6 + (prefix ? prefix.length * 0.62 * 0.62 + 0.06 : 0)
+    + (unit ? unit.length * 0.36 * 0.58 + 0.06 : 0);
+  return Math.min(size, Math.floor(column / ems));
+};
 
 /** One to three large numbers; each counts up from zero when the narration reaches it. */
 export const StatScene: React.FC<Props> = ({scene, label}) => {
@@ -31,7 +45,7 @@ export const StatScene: React.FC<Props> = ({scene, label}) => {
   const anyIcon = stats.some((stat) => stat.icon);
   return (
     <SceneFrame label={label} title={scene.visual.title}>
-      <div style={{flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-around', gap: 40}}>
+      <div style={{flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-around', gap: GAP}}>
         {stats.map((stat, index) => {
           const matches = (line: {highlightStatIndex?: number}) => line.highlightStatIndex === index;
           const start = revealFrame(scene.lines, scene.from, matches, 10 + index * 14);
@@ -39,6 +53,7 @@ export const StatScene: React.FC<Props> = ({scene, label}) => {
           const count = ease(frame, start, COUNT_FRAMES);
           const level = highlightLevel(scene.lines, scene.from, frame, matches);
           const color = interpolateColors(level, [0, 1], [theme.ink, theme.accent]);
+          const digits = fittedSize(format(stat.value, decimalsOf(stat.value)), stat.prefix, stat.unit, size, stats.length);
           return (
             <div key={index} style={{flex: '1 1 0', display: 'flex', flexDirection: 'column', alignItems: 'center',
               textAlign: 'center', opacity: shown, transform: `translateY(${(1 - shown) * 30}px) scale(${1 + 0.04 * level})`}}>
@@ -51,11 +66,11 @@ export const StatScene: React.FC<Props> = ({scene, label}) => {
               ) : null}
               <div style={{display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: size * 0.06,
                 marginTop: anyIcon ? 18 : 0, color, fontWeight: 800, lineHeight: 1, whiteSpace: 'nowrap'}}>
-                {stat.prefix ? <span style={{fontSize: size * 0.62}}>{stat.prefix}</span> : null}
-                <span style={{fontSize: size, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em'}}>
+                {stat.prefix ? <span style={{fontSize: digits * 0.62}}>{stat.prefix}</span> : null}
+                <span style={{fontSize: digits, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em'}}>
                   {format(stat.value * count, decimalsOf(stat.value))}
                 </span>
-                {stat.unit ? <span style={{fontSize: size * 0.36, fontWeight: 700}}>{stat.unit}</span> : null}
+                {stat.unit ? <span style={{fontSize: Math.max(30, digits * 0.36), fontWeight: 700}}>{stat.unit}</span> : null}
               </div>
               <div style={{width: 120 + 120 * level, height: 8, borderRadius: 4, margin: '26px 0 22px',
                 background: interpolateColors(level, [0, 1], [theme.line, theme.accent])}} />
