@@ -15,7 +15,7 @@ scene-by-scene script with the Claude API and voices every line with the TTS
 module. Videos of up to ten minutes are planned chapter by chapter, and an
 optional review pass scores the script and rewrites weak lines.
 
-[TTS usage guide](docs/TTS_GUIDE.md) · [Script planner guide](docs/SCRIPT_GUIDE.md) · [Team week-one plan](docs/WEEK_01_PLAN.md)
+[TTS usage guide](docs/TTS_GUIDE.md) · [Script planner guide](docs/SCRIPT_GUIDE.md) · [Planner evaluation](docs/PLANNER_EVALUATION.md) · [Team week-one plan](docs/WEEK_01_PLAN.md)
 
 ## Quick start (macOS, Python 3.11)
 

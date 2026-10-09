@@ -49,12 +49,37 @@ Finding: speech synthesized line by line runs at about 2.6 words per second,
 slower than whole paragraphs (2.9). The planner uses 2.6, about 185 words for a
 75-second video; the week-one plan's 140–180 words would give 57–72 seconds.
 
+## Update, October 9: longer videos, review and evaluation
+
+- **Long videos.** Videos of up to ten minutes are planned chapter by chapter:
+  an outline first, then each chapter with the outline and the end of the
+  previous chapter as context. A seven-minute script on how AI search engines
+  find answers (7 chapters, 26 scenes) passed on the first request for $0.46.
+- **Script review.** A second request scores the script and rewrites weak
+  lines without changing ids, highlights or visuals. On the seven-minute
+  script it fixed 7 lines, including a recap line that nearly repeated a line
+  from two chapters earlier.
+- **Two more slide templates.** `comparison` (two labelled columns) and
+  `definition` (a key term, its definition and an example), with the same
+  highlight and coverage rules as the first two.
+- **Evaluation.** Eight topics from 60 seconds to five minutes all passed on
+  the first request. Final scripts were 104–110% of the word target, real
+  speech was 99–115% of target, and the batch cost $1.92
+  ([PLANNER_EVALUATION.md](../../docs/PLANNER_EVALUATION.md)).
+- **Renderer prototype for the team.** The separate `feat/remotion-renderer`
+  branch adds a frame-accurate timeline and a Remotion renderer that outputs
+  the MP4; the seven-minute video rendered in about nine minutes on a laptop.
+  It is a proposal for the visuals and assembly owners and is not merged.
+
+Unit tests on this branch: 79 passed.
+
 ## Remaining work
 
-- Try more topics and audiences, including longer videos.
-- Listening review of the generated narration.
-- The frame-accurate timeline, renderer and final MP4 belong to the visuals and
-  timeline work; the scene plan and audio manifest are ready as their input.
+- Listening review of the narration, and a short human rating of a few
+  finished videos to check the reviewer's scores.
+- Decide with the team whether to adopt, change or drop the renderer
+  prototype.
+- Vary the template mix in short videos, and trim the 5–10% length overshoot.
 
 ## How to run
 
