@@ -12,11 +12,11 @@ export type TimelineLine = {
   highlightPart?: 'term' | 'definition' | 'example';
 };
 
-export type ConceptVisual = {title: string; statement: string; points: string[]};
-export type FlowVisual = {title: string; nodes: {id: string; label: string}[]};
-export type ComparisonColumn = {label: string; points: string[]};
+export type ConceptVisual = {title: string; statement: string; points: string[]; icon?: string};
+export type FlowVisual = {title: string; nodes: {id: string; label: string; icon?: string}[]};
+export type ComparisonColumn = {label: string; points: string[]; icon?: string};
 export type ComparisonVisual = {title: string; left: ComparisonColumn; right: ComparisonColumn};
-export type DefinitionVisual = {title: string; term: string; definition: string; example?: string};
+export type DefinitionVisual = {title: string; term: string; definition: string; example?: string; icon?: string};
 
 type SceneBase = {
   id: string;

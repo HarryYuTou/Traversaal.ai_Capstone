@@ -3,6 +3,7 @@ import {interpolateColors, useCurrentFrame, useVideoConfig} from 'remotion';
 import {theme} from '../theme';
 import type {TimelineScene} from '../types';
 import {SceneFrame} from './SceneFrame';
+import {SlideIcon} from './SlideIcon';
 import {appear, highlightLevel, revealFrame} from './timing';
 
 type Props = {scene: Extract<TimelineScene, {template: 'flow'}>; label: string};
@@ -31,7 +32,8 @@ export const FlowScene: React.FC<Props> = ({scene, label}) => {
             <React.Fragment key={node.id}>
               {index > 0 ? <Arrow progress={appear(frame, start - 6, fps)} /> : null}
               <div style={{
-                flex: '0 1 340px', minHeight: 190, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flex: '0 1 340px', minHeight: 190, display: 'flex', flexDirection: 'column', gap: 18,
+                alignItems: 'center', justifyContent: 'center',
                 textAlign: 'center', fontSize: 40, lineHeight: 1.25, fontWeight: 650, padding: '36px 30px',
                 borderRadius: 26, border: `5px solid ${interpolateColors(level, [0, 1], [theme.line, theme.accent])}`,
                 background: interpolateColors(level, [0, 1], [theme.card, theme.accentSoft]),
@@ -40,7 +42,9 @@ export const FlowScene: React.FC<Props> = ({scene, label}) => {
                 transform: `translateY(${(1 - shown) * 30 - level * 12}px) scale(${1 + level * 0.04})`,
                 boxShadow: `0 ${8 + level * 12}px ${20 + level * 20}px rgba(29, 36, 51, ${0.07 + level * 0.06})`,
               }}>
-                {node.label}
+                <SlideIcon name={node.icon} size={72}
+                  color={interpolateColors(level, [0, 1], [theme.muted, theme.accent])} />
+                <span>{node.label}</span>
               </div>
             </React.Fragment>
           );

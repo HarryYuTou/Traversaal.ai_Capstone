@@ -3,6 +3,7 @@ import {interpolateColors, useCurrentFrame, useVideoConfig} from 'remotion';
 import {theme} from '../theme';
 import type {TimelineScene} from '../types';
 import {SceneFrame} from './SceneFrame';
+import {SlideIcon} from './SlideIcon';
 import {appear, highlightLevel, revealFrame} from './timing';
 
 type Props = {scene: Extract<TimelineScene, {template: 'comparison'}>; label: string};
@@ -38,8 +39,10 @@ export const ComparisonScene: React.FC<Props> = ({scene, label}) => {
                   opacity: shown[index], transform: `translateY(${(1 - shown[index]) * 30 - level * 10}px)`,
                   boxShadow: `0 ${8 + level * 12}px ${20 + level * 20}px rgba(29, 36, 51, ${0.07 + level * 0.06})`,
                 }}>
-                  <div style={{fontSize: 46, fontWeight: 750, marginBottom: 26,
-                    color: interpolateColors(level, [0, 1], [theme.ink, theme.accent])}}>
+                  <div style={{fontSize: 46, fontWeight: 750, marginBottom: 26, display: 'flex', alignItems: 'center',
+                    gap: 20, color: interpolateColors(level, [0, 1], [theme.ink, theme.accent])}}>
+                    <SlideIcon name={column.icon} size={56}
+                      color={interpolateColors(level, [0, 1], [theme.muted, theme.accent])} />
                     {column.label}
                   </div>
                   {column.points.map((point) => (

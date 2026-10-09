@@ -3,6 +3,7 @@ import {interpolateColors, useCurrentFrame, useVideoConfig} from 'remotion';
 import {theme} from '../theme';
 import type {TimelineScene} from '../types';
 import {SceneFrame} from './SceneFrame';
+import {SlideIcon} from './SlideIcon';
 import {appear, highlightLevel, revealFrame} from './timing';
 
 type Props = {scene: Extract<TimelineScene, {template: 'definition'}>; label: string};
@@ -24,7 +25,9 @@ export const DefinitionScene: React.FC<Props> = ({scene, label}) => {
   return (
     <SceneFrame durationInFrames={scene.durationInFrames} label={label} title={scene.visual.title}>
       <div style={{marginTop: 40, display: 'flex', flexDirection: 'column', gap: 22, maxWidth: 1560}}>
-        <div style={{...box('term'), alignSelf: 'flex-start', marginLeft: -34}}>
+        <div style={{...box('term'), alignSelf: 'flex-start', marginLeft: -34, display: 'flex', alignItems: 'center',
+          gap: 28}}>
+          <SlideIcon name={scene.visual.icon} size={88} color={theme.accent} />
           <span style={{fontSize: 92, lineHeight: 1.05, fontWeight: 800, color: theme.accent}}>
             {scene.visual.term}
           </span>

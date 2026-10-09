@@ -94,13 +94,16 @@ the run's `video/` folder so `narration.wav` can be loaded.
 | `src/scenes/FlowScene.tsx` | Two to four steps with arrows, left to right |
 | `src/scenes/ComparisonScene.tsx` | Two labelled columns with a "vs" badge between them |
 | `src/scenes/DefinitionScene.tsx` | A key term, its definition and an optional example |
+| `src/scenes/SlideIcon.tsx` | The optional icon of a slide, node or column, from Lucide (ISC license) |
 | `src/Overlays.tsx` | Captions and the progress bar with chapter marks |
 | `src/theme.ts` | Colors, font and motion timing, matching the browser preview |
 
 Points, steps, columns and examples appear when the narration first
 highlights them, the current one is highlighted while it is being talked
 about, and an item that is never highlighted appears just after its scene
-starts. Captions show the spoken line
+starts. Icons take the highlight color with
+their item, and a concept slide without points shows its statement and icon
+larger so the slide does not look half empty. Captions show the spoken line
 and stay up through the short gaps inside a scene. Every scene fades in and
 out. Fonts are system fonts, so rendering works offline.
 

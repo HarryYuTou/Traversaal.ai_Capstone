@@ -3,6 +3,7 @@ import {interpolateColors, useCurrentFrame, useVideoConfig} from 'remotion';
 import {theme} from '../theme';
 import type {TimelineScene} from '../types';
 import {SceneFrame} from './SceneFrame';
+import {SlideIcon} from './SlideIcon';
 import {appear, highlightLevel, revealFrame} from './timing';
 
 type Props = {scene: Extract<TimelineScene, {template: 'concept'}>; label: string};
@@ -12,11 +13,23 @@ export const ConceptScene: React.FC<Props> = ({scene, label}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   const {points} = scene.visual;
+  const lone = points.length === 0;
   return (
     <SceneFrame durationInFrames={scene.durationInFrames} label={label} title={scene.visual.title}>
-      <p style={{margin: '30px 0 0', fontSize: 44, lineHeight: 1.35, color: theme.muted, maxWidth: 1500}}>
-        {scene.visual.statement}
-      </p>
+      {/* Without points, the statement and icon grow and fill the slide instead of leaving it half empty. */}
+      <div style={{display: 'flex', alignItems: 'center', gap: lone ? 52 : 36, marginTop: 30,
+        flex: lone ? 1 : undefined, paddingBottom: lone ? 40 : 0}}>
+        {scene.visual.icon ? (
+          <div style={{flex: '0 0 auto', width: lone ? 210 : 132, height: lone ? 210 : 132, borderRadius: lone ? 48 : 32,
+            background: theme.accentSoft, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+            <SlideIcon name={scene.visual.icon} size={lone ? 120 : 76} color={theme.accent} />
+          </div>
+        ) : null}
+        <p style={{margin: 0, fontSize: lone ? 56 : 44, lineHeight: 1.35, color: lone ? theme.ink : theme.muted,
+          maxWidth: 1400}}>
+          {scene.visual.statement}
+        </p>
+      </div>
       {points.length > 0 ? (
         <div style={{display: 'grid', gridTemplateColumns: `repeat(${points.length}, minmax(0, 1fr))`, gap: 32,
           marginTop: 52}}>
