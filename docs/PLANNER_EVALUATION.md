@@ -59,6 +59,17 @@ by the reviewer to the draft before its edits.
   prices. Planning took 26–44 s for one request and 138–164 s for five
   chapters.
 
+## Prompt v4 check
+
+Prompt v4 adds optional icons and asks for templates chosen by content
+rather than a fixed mix. Re-running topics 2, 5 and 6 with it: all three
+passed on the first request at 104–110% of the word target, and each scene
+got fitting icons (for example `piggy-bank`, `percent` and `trending-up` for
+compound interest; `credit-card`, `landmark` and `shield-check` for card
+payments). Every plan still used all four templates, in a different order
+each time, so the mix did not change; varied slides in every video may be no
+bad thing. Cost: $0.42 for the three topics.
+
 ## Limits of this batch
 
 One run per topic, so the numbers show typical behavior rather than rates

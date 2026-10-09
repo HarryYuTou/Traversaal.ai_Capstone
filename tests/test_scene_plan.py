@@ -191,6 +191,17 @@ class ScenePlanTests(unittest.TestCase):
                 change(data)
                 self.assert_problem(data, expected)
 
+    def test_icons_come_from_the_shared_list(self):
+        data = with_new_templates(valid_data())
+        data["scenes"][0]["visual"]["icon"] = "lightbulb"
+        data["scenes"][1]["visual"]["nodes"][0]["icon"] = "laptop"
+        data["scenes"][5]["visual"]["left"]["icon"] = "brain"
+        data["scenes"][6]["visual"]["icon"] = "database"
+        validate_plan(data)
+        data["scenes"][1]["visual"]["nodes"][1]["icon"] = "magnifier"
+        self.assert_problem(data, "scenes[1].visual.nodes[1].icon: 'magnifier' is not an available icon; "
+                                  "see schemas/icons.json")
+
     def test_invalid_fixture_reports_every_problem_at_once(self):
         with self.assertRaises(PlanValidationError) as caught:
             load_plan(INVALID)

@@ -73,6 +73,12 @@ narration lines of at most 25 English words. IDs use lowercase letters, digits
 and hyphens because narration IDs become file names. Python also checks what
 JSON Schema cannot: unique scene, line and node IDs, highlights that point to
 an existing point or node, the word limit and English-only text.
+Concept and definition visuals, flow nodes and comparison columns can also
+have an optional `icon`, one of the Lucide icon names in `schemas/icons.json`
+(139 icons such as `database`, `credit-card` or `calendar`). Renderers draw
+them; a plan with an icon outside the list is invalid, but the planner simply
+drops unknown icons from Claude's answer instead of asking for a repair.
+
 A long plan also has `chapters`: each has an `id`, a `title` and the `sceneIds`
 it covers, and together they list every scene once, in order. Plans without
 chapters are unchanged. A plan holds at most 60 scenes and 10 chapters.
