@@ -5,22 +5,27 @@ AI explainer video generation — Capstone project.
 Project language: English. Write project documentation, code comments, command-line
 messages, examples, and progress logs in English.
 
-The first working module is **local English text-to-speech on CPU**. It reads a
-UTF-8 text file and produces a verified narration WAV and a JSON report. This is
-the audio foundation for the team's video pipeline; the timeline, renderer, and
-website are future integration work.
+The local video pipeline turns a topic, audience, and target length into an
+English explainer MP4. `capstone_script` creates a validated script with the
+Claude API, optionally reviews it, synthesizes narration with local CPU TTS,
+and builds a frame-accurate timeline for the Remotion renderer. Target lengths
+range from 30 seconds to ten minutes; videos over three minutes are planned
+chapter by chapter.
 
-The second module, `capstone_script`, turns a topic into a validated
-scene-by-scene script with the Claude API and voices every line with the TTS
-module. Videos of up to ten minutes are planned chapter by chapter, and an
-optional review pass scores the script and rewrites weak lines.
+**Traversaal Studio (Frontend-v1)** adds a browser workspace for the brief,
+setup checks, generation progress, video playback, and downloads. It runs on
+this computer at `127.0.0.1:8000`, with durable local jobs and one generation
+worker. The built-in sample uses an existing script with real TTS and rendering
+and needs no Claude key; a new topic uses the configured Claude API. Follow the
+[web studio guide](docs/WEB_STUDIO.md) to install and start it. This version does
+not include accounts, a history browser, or public deployment.
 
-A third stage on the `feat/remotion-renderer` branch builds a frame-accurate
-timeline from the narration and renders the MP4 with Remotion (Node.js).
-To go from a topic to an MP4 in one command, follow the
-[quick start](docs/QUICKSTART.md).
+For command-line topic-to-video generation, follow the
+[quick start](docs/QUICKSTART.md). The standalone **local English text-to-speech
+on CPU** module also remains available: it reads a UTF-8 text file and writes a
+verified narration WAV and JSON report, as described below.
 
-[TTS usage guide](docs/TTS_GUIDE.md) · [Script planner guide](docs/SCRIPT_GUIDE.md) · [Planner evaluation](docs/PLANNER_EVALUATION.md) · [Video renderer guide](docs/RENDERER_GUIDE.md) · [Team week-one plan](docs/WEEK_01_PLAN.md)
+[Web studio guide](docs/WEB_STUDIO.md) · [TTS usage guide](docs/TTS_GUIDE.md) · [Script planner guide](docs/SCRIPT_GUIDE.md) · [Planner evaluation](docs/PLANNER_EVALUATION.md) · [Video renderer guide](docs/RENDERER_GUIDE.md) · [Team week-one plan](docs/WEEK_01_PLAN.md)
 
 ## Quick start (macOS, Python 3.11)
 
@@ -95,16 +100,18 @@ Key `audio-info.json` fields:
 | `timingsMs.totalThroughAudioVerification` | Function time up to verified audio, excluding CLI startup/final JSON publication |
 | `listeningReview` | `pending`: automated checks do not prove pronunciation quality |
 
-For future video integration, use `sampleCount / sampleRate` for duration.
+For video integration, use `sampleCount / sampleRate` for duration.
 `chunks` are model chunk boundaries, **not subtitle or sentence timings**.
-Scene IDs, sentence-level audio, frame padding and the timeline belong to a
-later integration step. This report is not the complete ScenePlan schema.
+`capstone_script` adds scene IDs, sentence-level audio, frame padding, and the
+timeline. This standalone TTS report is not the complete ScenePlan schema.
 
 ## Structure
 
 ```text
 capstone_tts/           CLI, Kokoro adapter, audio writer and verification
 capstone_script/       Scene plan contract, LLM planner, narration bridge, preview, timeline
+capstone_web/          Local HTTP API, saved jobs and pipeline worker
+web/                   React/TypeScript browser workspace (separate from the renderer)
 renderer/              Remotion project that renders a timeline to MP4 (Node.js)
 prompts/               Planner, chapter, review and repair prompts
 schemas/               ScenePlan JSON Schema generated from the models
@@ -141,11 +148,13 @@ Harry's completed work is recorded in [the week-one log](logs/week1/Harry_Week1.
 - **Torch deprecation warnings:** warnings from the upstream model may appear;
   successful output and `doctor` are the functional checks.
 
-Inputs are plain English narration, up to 20,000 characters per run. Chinese,
-SSML, voice cloning, background music and video export are not implemented.
-The fixed environment was validated on one Mac, not a second teammate's
-machine. Keep `.venv/`, `.cache/`, `runs/`, credentials and large model files
-out of commits. Dependencies and model retain their upstream licenses.
+Standalone TTS inputs are plain English narration, up to 20,000 characters per
+run. Chinese, SSML, and voice cloning are not implemented. Background music and
+video export are provided by `capstone_script` and the web studio. The TTS
+verification records cover macOS and a teammate's Windows environment; they do
+not establish verification of the web studio on both systems. Keep `.venv/`,
+`.cache/`, `runs/`, credentials and large model files out of commits.
+Dependencies and model retain their upstream licenses.
 
 ## Upstream references
 
