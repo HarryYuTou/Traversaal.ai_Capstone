@@ -84,16 +84,14 @@ narration lines of at most 25 English words. IDs use lowercase letters, digits
 and hyphens because narration IDs become file names. Python also checks what
 JSON Schema cannot: unique scene, line and node IDs, highlights that point to
 an existing point or node, the word limit and English-only text.
-The planner's prompt describes all eight templates, and its loose output
-shape, id clean-up, icon filter and coverage check (every event, number, place
-and area gets a highlighting line; a quote scene has a line that reads the
-quotation) cover the four newer ones too. This has only been tested offline
-with a fake client: before relying on it, run a few real plans to confirm that
-structured outputs still accept the larger output shape (about twice the
-size of the four-template one) and that the model picks the new templates
-well. Without reference material, the prompt allows only famous, widely
-documented dates and numbers, and only quotations it can give word for word;
-the reviewer never rewrites a line that reads a quotation.
+The planner's prompt describes all eight templates, and its output shape, id
+clean-up, icon filter and coverage check (every event, number, place and area
+gets a highlighting line; a quote scene has a line that reads the quotation)
+cover the four newer ones too. This has only been tested offline with a fake
+client: before relying on it, run a real plan to confirm that the model picks
+the new templates well. Without reference material, the prompt allows only
+famous, widely documented dates and numbers, and only quotations it can give
+word for word; the reviewer never rewrites a line that reads a quotation.
 Concept and definition visuals, flow nodes, comparison columns, timeline
 events and stats can also have an optional `icon`, one of the Lucide icon names in `schemas/icons.json`
 (139 icons such as `database`, `credit-card` or `calendar`). Renderers draw
@@ -120,12 +118,20 @@ paths, durations or frames; later stages measure those from real audio.
    text (headings, paragraphs, lists and tables, without menus, scripts or
    footers) and caps it at 20,000 characters. Every run with a reference saves
    its own copy as `reference.md`.
-2. Claude Opus 5.5 (effort `high`) answers with structured JSON output. The
-   output shape is looser than the ScenePlan schema (one kind of scene whose
-   template fields are all optional), because the full four-template schema
-   compiles to a grammar the API rejects as too large; validation then applies
-   each template's rules. The program renumbers scene and line IDs and makes
-   node IDs path-safe.
+2. Claude Opus 5.5 (effort `high`) answers with structured JSON output in its
+   own output shape, not the ScenePlan schema: the full schema, a union of
+   scene types, was already rejected as too large to compile with four types,
+   and structured outputs accept at most 24 optional and 16 union-typed (`anyOf`,
+   which is how an optional `| None` field is written) parameters per request.
+   So every scene has one kind of `visual` with a `title` and one part per
+   template (`visual.flow` for a flow scene, and so on), each narration line
+   has one `highlight` text whose meaning depends on the template (a point or
+   number position such as `"0"`, an id, `left`/`right`, `term`/`definition`/
+   `example`, or `quote`), and optional texts such as icons take `""` for
+   "none". That is 8 optional and no union-typed parameters; a test keeps every
+   request schema under both limits. The program turns the answer into a
+   ScenePlan, renumbers scene and line IDs and makes node IDs path-safe, and
+   validation then applies each template's rules.
 3. The plan must pass validation and fit the length: the word target assumes
    2.6 words per second, and a plan outside 80–120% of the target words counts
    as a problem. Asking for ±5% centered the real speech length on the target
@@ -133,7 +139,8 @@ paths, durations or frames; later stages measure those from real audio.
    point, node, column and example must be highlighted by at least one
    narration line, so the visuals follow the narration.
 4. If anything fails, one repair request (`prompts/repair-scene-plan.txt`)
-   lists every problem. A second failure stops the run; `llm-response.json`
+   lists every problem, named by the output shape's fields (such as
+   `scenes[2].visual.timeline.events[0].label`). A second failure stops the run; `llm-response.json`
    keeps both raw responses. API errors are retried by the SDK.
 
 ### Long videos

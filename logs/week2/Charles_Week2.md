@@ -101,6 +101,31 @@ of each, one under the union-type limit, so adding any optional field to it
 will also break planning. Next: regroup the new fields under the limits, test
 offline, run one real plan, then open the PR.
 
+## Update, October 16: planner output within the API limits
+
+PR #5 brought the eight-template planner into main on October 15 with the
+33-field shape above, so by the documented limits `run`, `plan` and the web
+studio's own-topic mode would have had every planner request rejected. The fix on
+`fix/planner-output-limits` changes only the shape the model writes, not the
+ScenePlan:
+
+- Each visual has a title and one part per template, such as `visual.flow`
+  for a flow scene, and the model fills only its scene's part.
+- Each narration line has one `highlight`: a point or number position such as
+  "0", a node, event, place or area id, "left" or "right", "term",
+  "definition" or "example", or "quote".
+- Optional texts such as icons, a definition's example or a stat's unit take
+  "" instead of null, so no field is nullable.
+
+That is 8 optional and no union-typed parameters (limits 24 and 16). The
+program turns the answer into a ScenePlan, and repair requests name the
+fields the model wrote, such as `scenes[2].visual.timeline.events[0].label`. A
+new test keeps the plan, outline and review schemas under both limits, and a
+round trip through the new shape keeps every template's plan unchanged.
+Offline, 155 of 157 tests pass (the same 2 Windows-only web tests fail). One
+real planner run is still needed to confirm the API accepts the shape and the
+model uses it well.
+
 ## Validation results
 
 | Check | Result |
@@ -112,8 +137,8 @@ offline, run one real plan, then open the PR.
 
 ## Remaining work
 
-- Regroup the planner's output shape under the structured-output limits and
-  run one real plan before merging `feat/planner-visual-templates`.
+- One real planner run with the new output shape (October 16 update), then
+  a few real topics to see how well the model uses the new templates.
 - Web studio on Windows: the worker clean-up calls `os.killpg` and
   `signal.SIGKILL`, which exist only on macOS and Linux, so stopping a job on
   Windows would raise an error (noted for Harry).

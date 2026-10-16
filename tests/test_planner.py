@@ -13,8 +13,8 @@ from unittest.mock import Mock, patch
 
 from capstone_script.__main__ import main
 from capstone_script.planner import (
-    MODEL, UNSUPPORTED_KEYWORDS, PlannerError, coverage_problems, length_problems, load_env_file, make_spec,
-    normalize_ids, request_text, word_range, write_plan_run,
+    HIGHLIGHT_FIELDS, MODEL, UNSUPPORTED_KEYWORDS, PlannerError, coverage_problems, length_problems,
+    load_env_file, make_spec, normalize_ids, request_text, word_range, write_plan_run,
 )
 from capstone_script.scene_plan import validate_plan
 from test_scene_plan import with_new_templates
@@ -24,8 +24,37 @@ VALID = json.loads((ROOT / "fixtures" / "scene-plan.valid.json").read_text(encod
 TOPIC = "What happens after you enter a website address?"
 
 
-def model_output(change=None):
-    """The valid fixture as a model might return it: placeholder ids and an unsafe node id."""
+# Fields the output shape requires where a ScenePlan may leave them out.
+PART_DEFAULTS = {"concept": {"points": [], "icon": ""}, "definition": {"example": "", "icon": ""},
+                 "stat": {"note": ""}, "quote": {"context": ""}, "map": {"areas": [], "places": [], "route": False}}
+ITEM_DEFAULTS = {"nodes": {"icon": ""}, "left": {"icon": ""}, "right": {"icon": ""}, "events": {"icon": ""},
+                 "stats": {"prefix": "", "unit": "", "icon": ""}}
+
+
+def as_model_output(plan):
+    """ScenePlan data in the planner's output shape: one visual part per scene, one highlight per line."""
+    data = copy.deepcopy(plan)
+    for scene in data["scenes"]:
+        template, visual = scene["template"], scene["visual"]
+        part = {**PART_DEFAULTS.get(template, {}), **{key: value for key, value in visual.items() if key != "title"}}
+        for key, defaults in ITEM_DEFAULTS.items():
+            items = part.get(key)
+            for item in items if isinstance(items, list) else [items] if isinstance(items, dict) else []:
+                for name, value in defaults.items():
+                    item.setdefault(name, value)
+        scene["visual"] = {"title": visual["title"], template: part}
+        for line in scene["narration"]:
+            highlight = ""
+            for field in HIGHLIGHT_FIELDS.values():
+                if field in line:
+                    value = line.pop(field)
+                    highlight = "quote" if value is True else "" if value is False or value is None else str(value)
+            line["highlight"] = highlight
+    return data
+
+
+def model_plan(change=None):
+    """The valid fixture as a model might plan it: placeholder ids and an unsafe node id."""
     data = copy.deepcopy(VALID)
     data["projectId"] = "placeholder"
     for s, scene in enumerate(data["scenes"], start=1):
@@ -37,6 +66,11 @@ def model_output(change=None):
     if change:
         change(data)
     return data
+
+
+def model_output(change=None):
+    """model_plan as the model returns it, in the planner's output shape."""
+    return as_model_output(model_plan(change))
 
 
 def response(data=None, text=None, stop_reason="end_turn", stop_details=None):
@@ -121,7 +155,7 @@ class PlannerTests(unittest.TestCase):
         write_plan_run(self.out, self.spec, client)
         messages = client.calls[1]["messages"]
         self.assertEqual([m["role"] for m in messages], ["user", "assistant", "user"])
-        self.assertIn("'router' is not a node in this scene", messages[2]["content"])
+        self.assertIn("scenes[2].narration[0].highlight: 'router' is not a node in this scene", messages[2]["content"])
         self.assertEqual(len(self.saved("llm-response.json")["attempts"]), 2)
         self.assertTrue((self.out / "scene-plan.json").exists())
 
@@ -149,16 +183,15 @@ class PlannerTests(unittest.TestCase):
         data["scenes"][5]["narration"][1].pop("highlightSide")
         data["scenes"][6]["narration"][1]["highlightPart"] = "term"
         self.assertEqual(coverage_problems(validate_plan(data)), [
-            "scenes[5]: no narration line highlights the right column; give each column a line that sets "
-            "highlightSide",
-            "scenes[6]: no narration line highlights the example; give it a line that sets highlightPart "
-            "to 'example'",
+            "scenes[5]: no narration line highlights the right column; give each column a line whose "
+            "highlight is \"left\" or \"right\"",
+            "scenes[6]: no narration line highlights the example; give it a line whose highlight is \"example\"",
         ])
 
     def test_a_plan_needs_two_different_templates(self):
         def concepts_only(data):
             data["scenes"] = [scene for scene in data["scenes"] if scene["template"] == "concept"]
-        plan = validate_plan(normalize_ids(model_output(concepts_only), "demo"))
+        plan = validate_plan(normalize_ids(model_plan(concepts_only), "demo"))
         self.assertIn("scenes: use at least two different templates", length_problems(plan, self.spec))
 
     def test_unknown_icons_from_the_model_are_dropped_without_a_repair(self):
@@ -224,7 +257,7 @@ class PlannerTests(unittest.TestCase):
             make_spec("   ", "Audience", 75)
 
     def test_normalized_node_ids_keep_their_highlights(self):
-        scene = normalize_ids(model_output(), "demo")["scenes"][1]
+        scene = normalize_ids(model_plan(), "demo")["scenes"][1]
         self.assertEqual(scene["visual"]["nodes"][1]["id"], "dns")
         self.assertEqual(scene["narration"][1]["highlightNodeId"], "dns")
         self.assertEqual(scene["narration"][1]["id"], "scene-02-line-02")
