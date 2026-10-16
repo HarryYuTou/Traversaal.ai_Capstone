@@ -137,7 +137,7 @@
      "narration": [
        {"id": "s13-l1", "text": "On July 20, Eagle separated from Columbia and began its descent."},
        {"id": "s13-l2", "text": "The final powered descent lasted about twelve minutes, and it did not go to plan."},
-       {"id": "s13-l3", "text": "The computer flashed alarms the crew had never seen in training.", "highlightPointIndex": 0},
+       {"id": "s13-l3", "text": "The computer flashed alarm codes the crew did not recognize.", "highlightPointIndex": 0},
        {"id": "s13-l4", "text": "The planned landing spot turned out to be strewn with boulders.", "highlightPointIndex": 1},
        {"id": "s13-l5", "text": "And the fuel kept running down.", "highlightPointIndex": 2}]},
     {"id": "s14", "purpose": "Explain the 1202 alarm.", "template": "definition",

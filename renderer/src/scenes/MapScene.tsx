@@ -63,7 +63,7 @@ const graticule = (project: (lon: number, lat: number) => Point) => {
   return parts.join(' ');
 };
 
-type Label = {x: number; y: number; anchor: 'start' | 'middle' | 'end'};
+type Label = {x: number; y: number; anchor: 'start' | 'middle' | 'end'; crowded: boolean};
 
 /**
  * Where each place's label goes: right of its pin if that is free, otherwise left, above or below,
@@ -76,14 +76,18 @@ const placeLabels = (points: Point[], texts: string[], width: number, size: numb
   return points.map(([x, y], index) => {
     const w = texts[index].length * size * 0.56;
     const options: [Label, [number, number, number, number]][] = [
-      [{x: x + 22, y: y + 12, anchor: 'start'}, [x + 22, y - size * 0.7, x + 22 + w, y + size * 0.4]],
-      [{x: x - 22, y: y + 12, anchor: 'end'}, [x - 22 - w, y - size * 0.7, x - 22, y + size * 0.4]],
-      [{x, y: y - 26, anchor: 'middle'}, [x - w / 2, y - 26 - size * 0.9, x + w / 2, y - 22]],
-      [{x, y: y + 26 + size * 0.8, anchor: 'middle'}, [x - w / 2, y + 24, x + w / 2, y + 30 + size]],
+      [{x: x + 22, y: y + 12, anchor: 'start', crowded: false}, [x + 22, y - size * 0.7, x + 22 + w, y + size * 0.4]],
+      [{x: x - 22, y: y + 12, anchor: 'end', crowded: false}, [x - 22 - w, y - size * 0.7, x - 22, y + size * 0.4]],
+      [{x, y: y - 26, anchor: 'middle', crowded: false}, [x - w / 2, y - 26 - size * 0.9, x + w / 2, y - 22]],
+      [{x, y: y + 26 + size * 0.8, anchor: 'middle', crowded: false}, [x - w / 2, y + 24, x + w / 2, y + 30 + size]],
     ];
-    const [label, box] = options.find(([, candidate]) => !overlaps(candidate)) ?? options[0];
-    taken.push(box);
-    return label;
+    const free = options.find(([, candidate]) => !overlaps(candidate));
+    if (!free) {
+      // No free spot: the label shows only while the narration is on this place.
+      return {...options[0][0], crowded: true};
+    }
+    taken.push(free[1]);
+    return free[0];
   });
 };
 
@@ -151,7 +155,7 @@ export const MapScene: React.FC<Props> = ({scene, label}) => {
                 ) : null}
                 <circle cx={x} cy={y} r={(10 + 4 * level) * (0.4 + 0.6 * shown)} fill={theme.accent}
                   stroke={theme.backdrop[1]} strokeWidth={4} />
-                <text x={spot.x} y={spot.y} textAnchor={spot.anchor} fill={theme.ink}
+                <text x={spot.x} y={spot.y} textAnchor={spot.anchor} fill={theme.ink} opacity={spot.crowded ? level : 1}
                   fontSize={34 + 6 * level} fontWeight={level > 0.5 ? 800 : 650} stroke={theme.backdrop[1]}
                   strokeWidth={8} strokeLinejoin="round" paintOrder="stroke">
                   {place.label}
@@ -167,9 +171,8 @@ export const MapScene: React.FC<Props> = ({scene, label}) => {
         <h1 style={{margin: '22px 0 0', fontSize: 76, lineHeight: 1.12, fontWeight: 750, maxWidth: 1560}}>
           <RisingWords text={scene.visual.title} start={2} />
         </h1>
-      </div>
       {areas.length > 0 ? (
-        <div style={{position: 'absolute', left: 140, right: 140, top: places.length ? 300 : 360, display: 'flex',
+        <div style={{marginTop: places.length ? 22 : 56, display: 'flex', flexWrap: 'wrap',
           flexDirection: places.length ? 'row' : 'column', gap: places.length ? 24 : 30}}>
           {areas.map((area, index) => {
             const {shown, level} = areaStates[index];
@@ -192,6 +195,7 @@ export const MapScene: React.FC<Props> = ({scene, label}) => {
           })}
         </div>
       ) : null}
+      </div>
     </AbsoluteFill>
   );
 };

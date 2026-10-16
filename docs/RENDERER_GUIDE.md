@@ -166,3 +166,23 @@ own length to render. Narrating the seven-minute plan took another 4.3 minutes
 
 The default H.264 quality is high for flat slides; `--share` makes the
 smaller 720p copy described above.
+
+The five hand-written storyboards in `examples/handwritten/` were rendered on
+the same laptop with `--theme night --share`, so with the moving backdrop,
+transitions and music bed:
+
+| Video | Scenes | Frames | Length | Render time | File | 720p copy |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| The Silk Road | 25 | 15,711 | 523.7 s | 828 s (19.0 frames per second) | 100.3 MB | 20.2 MB |
+| How World War II Reshaped the World | 24 | 15,133 | 504.4 s | 783 s (19.3 frames per second) | 95.3 MB | 19.4 MB |
+| The First Emperor | 23 | 14,649 | 488.3 s | 752 s (19.5 frames per second) | 83.5 MB | 18.4 MB |
+| The Day the Dinosaurs Died* | 23 | 14,217 | 473.9 s | 808 s (17.6 frames per second) | 83.1 MB | 18.1 MB |
+| Apollo 11 | 24 | 14,201 | 473.4 s | 703 s (20.2 frames per second) | 88.5 MB | 18.4 MB |
+
+\* Rendered while another video was being re-encoded on the same CPU.
+
+Every probed length matched its timeline within 0.02 s. The moving backdrop
+and gradients cost about 20 percent of the render speed and more than double
+the file size of the plain slides. The `--share` copies are still near 20 MB;
+for an upload limit around 10 MB, re-encoding at CRF 37 with mono 48 kbps
+audio gave 8.7 to 9.7 MB copies that still look clean.
