@@ -26,7 +26,7 @@ from .scene_plan import (
 MODEL = "claude-opus-5-5"
 EFFORT = "high"
 MAX_TOKENS = 16000
-PROMPT_VERSION = "scene-planner-v5"
+PROMPT_VERSION = "scene-planner-v6"
 PROMPTS = Path(__file__).resolve().parents[1] / "prompts"
 # The timeline adds short pauses around lines, so speech fills about 95% of the video.
 SPEECH_SHARE = 0.95
@@ -43,6 +43,14 @@ UNSUPPORTED_KEYWORDS = {"minLength", "maxLength", "minimum", "maximum", "exclusi
                         "default", "title", "discriminator", "$schema", "$id"}
 FATAL_STOPS = {"refusal": "the model declined the request",
                "max_tokens": "the response hit the output limit before the plan was complete"}
+# Optional ScenePlan fields that the output shape requires, with "" meaning "none".
+OPTIONAL_TEXT = ("icon", "example", "prefix", "unit", "note", "context")
+# The ScenePlan field that a narration line's highlight fills, by template.
+HIGHLIGHT_FIELDS = {"concept": "highlightPointIndex", "flow": "highlightNodeId", "comparison": "highlightSide",
+                    "definition": "highlightPart", "timeline": "highlightEventId", "stat": "highlightStatIndex",
+                    "quote": "highlightQuote", "map": "highlightId"}
+HIGHLIGHT_WORDS = {"comparison": ("left", "right"), "definition": ("term", "definition", "example"),
+                   "quote": ("quote",)}
 
 
 class PlannerError(RuntimeError):
@@ -123,32 +131,80 @@ def structured_schema(schema: dict) -> dict:
     return clean(schema)
 
 
+# The planner's output shape. Structured outputs accept at most 24 optional and 16 union-typed
+# parameters per request (anyOf, which is how `| None` is written, counts as both), so nothing here
+# is nullable: fields a ScenePlan may leave out are required and take "" for "none", and each visual
+# has one optional part per template. from_model_output turns the result into ScenePlan data.
 class _OutputLine(_Model):
     id: str
     text: str
-    highlight_point_index: int | None = None
-    highlight_node_id: str | None = None
-    highlight_side: Literal["left", "right"] | None = None
-    highlight_part: Literal["term", "definition", "example"] | None = None
-    highlight_event_id: str | None = None
-    highlight_stat_index: int | None = None
-    highlight_quote: bool | None = None
-    highlight_id: str | None = None
+    # What the line points at on screen, or "": a point or number position such as "0", a node,
+    # event, place or area id, "left" or "right", "term", "definition" or "example", or "quote".
+    highlight: str
+
+
+class _OutputConcept(_Model):
+    statement: str
+    points: list[str]
+    icon: str
+
+
+class _OutputNode(_Model):
+    id: str
+    label: str
+    icon: str
+
+
+class _OutputFlow(_Model):
+    nodes: list[_OutputNode]
+
+
+class _OutputColumn(_Model):
+    label: str
+    points: list[str]
+    icon: str
+
+
+class _OutputComparison(_Model):
+    left: _OutputColumn
+    right: _OutputColumn
+
+
+class _OutputDefinition(_Model):
+    term: str
+    definition: str
+    example: str
+    icon: str
 
 
 class _OutputEvent(_Model):
     id: str
     date: str
     label: str
-    icon: str | None = None
+    icon: str
+
+
+class _OutputTimeline(_Model):
+    events: list[_OutputEvent]
 
 
 class _OutputStat(_Model):
     value: float
-    prefix: str | None = None
-    unit: str | None = None
+    prefix: str
+    unit: str
     label: str
-    icon: str | None = None
+    icon: str
+
+
+class _OutputStats(_Model):
+    stats: list[_OutputStat]
+    note: str
+
+
+class _OutputQuote(_Model):
+    quote: str
+    author: str
+    context: str
 
 
 class _OutputArea(_Model):
@@ -164,39 +220,24 @@ class _OutputPlace(_Model):
     lat: float
 
 
-class _OutputNode(_Model):
-    id: str
-    label: str
-    icon: str | None = None
-
-
-class _OutputColumn(_Model):
-    label: str
-    points: list[str]
-    icon: str | None = None
+class _OutputMap(_Model):
+    region: str
+    areas: list[_OutputArea]
+    places: list[_OutputPlace]
+    route: bool
 
 
 class _OutputVisual(_Model):
     title: str
-    statement: str | None = None
-    points: list[str] | None = None
-    nodes: list[_OutputNode] | None = None
-    left: _OutputColumn | None = None
-    right: _OutputColumn | None = None
-    term: str | None = None
-    definition: str | None = None
-    example: str | None = None
-    icon: str | None = None
-    events: list[_OutputEvent] | None = None
-    stats: list[_OutputStat] | None = None
-    note: str | None = None
-    quote: str | None = None
-    author: str | None = None
-    context: str | None = None
-    region: str | None = None
-    areas: list[_OutputArea] | None = None
-    places: list[_OutputPlace] | None = None
-    route: bool | None = None
+    # Optional but not nullable: a scene fills only its own template's part and leaves out the rest.
+    concept: _OutputConcept = None
+    flow: _OutputFlow = None
+    comparison: _OutputComparison = None
+    definition: _OutputDefinition = None
+    timeline: _OutputTimeline = None
+    stat: _OutputStats = None
+    quote: _OutputQuote = None
+    map: _OutputMap = None
 
 
 class _OutputScene(_Model):
@@ -215,12 +256,14 @@ class _OutputPlan(_Model):
 
 
 def output_schema() -> dict:
-    """A loose ScenePlan shape for structured outputs.
+    """The planner's output shape as a schema for structured outputs.
 
-    The real schema, a union of four scene types, compiles to a grammar the API rejects as too
-    large. This shape has one kind of scene whose template fields are all optional; validate_plan
-    then applies each template's rules, and any problem goes back in the repair request. Chapters
-    are left out because the program builds them.
+    The real ScenePlan schema, a union of scene types, compiled to a grammar the API rejected as
+    too large when it had only four. This shape has one kind of scene whose visual holds one part
+    per template;
+    from_model_output turns it into ScenePlan data, validate_plan then applies each template's
+    rules, and any problem goes back in the repair request. Chapters are left out because the
+    program builds them.
     """
     return structured_schema(_OutputPlan.model_json_schema(by_alias=True))
 
@@ -246,13 +289,83 @@ def drop_unknown_icons(data):
     return data
 
 
-def drop_nulls(data):
-    """Remove null values, which the loose output shape allows for fields a template does not use."""
+def drop_empty_text(data):
+    """Remove optional text fields set to "", the output shape's way of leaving them out."""
     if isinstance(data, dict):
-        return {key: drop_nulls(value) for key, value in data.items() if value is not None}
+        return {key: drop_empty_text(value) for key, value in data.items()
+                if not (key in OPTIONAL_TEXT and value == "")}
     if isinstance(data, list):
-        return [drop_nulls(item) for item in data]
+        return [drop_empty_text(item) for item in data]
     return data
+
+
+def highlight_value(template: str, highlight):
+    """The ScenePlan value of a line's highlight, or None for ""; ValueError says what is wrong."""
+    if not isinstance(highlight, str):
+        raise ValueError("must be text")
+    highlight = highlight.strip()
+    if not highlight:
+        return None
+    if template in ("concept", "stat"):
+        if not (highlight.isascii() and highlight.isdigit()):
+            noun = "point" if template == "concept" else "number"
+            raise ValueError(f"{highlight!r} is not a {noun} position; use \"0\", \"1\" or \"2\", or \"\" for none")
+        return int(highlight)
+    if template in HIGHLIGHT_WORDS:
+        words = HIGHLIGHT_WORDS[template]
+        if highlight not in words:
+            raise ValueError(f"{highlight!r} cannot be highlighted in a {template} scene; use "
+                             + ", ".join(f'"{word}"' for word in words) + ' or ""')
+        return True if template == "quote" else highlight
+    return highlight  # A node, event, place or area id; validation checks that it exists.
+
+
+def from_model_output(data):
+    """Turn the planner's output shape into ScenePlan data; return (data, problems).
+
+    A visual keeps its title and the fields of its template's part, optional text set to "" is
+    left out, and each line's highlight becomes its template's highlight field. Problems name the
+    output shape's fields, so a repair request matches what the model wrote.
+    """
+    if not isinstance(data, dict) or not isinstance(data.get("scenes"), list):
+        return data, []
+    data, problems = copy.deepcopy(data), []
+    for s, scene in enumerate(data["scenes"]):
+        if not isinstance(scene, dict) or scene.get("template") not in TEMPLATES:
+            continue
+        template, visual = scene["template"], scene.get("visual")
+        if isinstance(visual, dict):
+            part = visual.get(template)
+            if not isinstance(part, dict):
+                problems.append(f"scenes[{s}].visual.{template}: a {template} scene needs this part; fill it, "
+                                "or set the template to the one whose part you filled")
+                part = {}
+            scene["visual"] = {"title": visual.get("title"), **drop_empty_text(part)}
+        lines = scene.get("narration")
+        for i, line in enumerate(lines if isinstance(lines, list) else []):
+            if not isinstance(line, dict) or "highlight" not in line:
+                continue
+            try:
+                value = highlight_value(template, line.pop("highlight"))
+            except ValueError as exc:
+                problems.append(f"scenes[{s}].narration[{i}].highlight: {exc}")
+                continue
+            if value is not None:
+                line[HIGHLIGHT_FIELDS[template]] = value
+    return data, problems
+
+
+def output_terms(problem: str, data) -> str:
+    """Name a ScenePlan problem's location as the output shape does, such as visual.flow.nodes."""
+    problem = re.sub(r"\.highlight[A-Z]\w*", ".highlight", problem)
+    match = re.match(r"scenes\[(\d+)\]\.visual\b(?!\.title\b)", problem)
+    scenes = data.get("scenes") if isinstance(data, dict) else None
+    if match and isinstance(scenes, list) and int(match.group(1)) < len(scenes):
+        scene = scenes[int(match.group(1))]
+        template = scene.get("template") if isinstance(scene, dict) else None
+        if template in TEMPLATES:
+            problem = f"{problem[:match.end()]}.{template}{problem[match.end():]}"
+    return problem
 
 
 def normalize_ids(data, project_id: str):
@@ -309,45 +422,45 @@ def coverage_problems(plan) -> list[str]:
             missing = [repr(node.id) for node in scene.visual.nodes if node.id not in used]
             if missing:
                 problems.append(f"scenes[{s}]: no narration line highlights node {', '.join(missing)}; "
-                                "give each node a line that sets highlightNodeId")
+                                "give each node a line whose highlight is its id")
         elif scene.template == "concept":
             used = {line.highlight_point_index for line in scene.narration}
             missing = [str(i) for i in range(len(scene.visual.points)) if i not in used]
             if missing:
                 problems.append(f"scenes[{s}]: no narration line highlights point {', '.join(missing)}; "
-                                "give each point a line that sets highlightPointIndex")
+                                "give each point a line whose highlight is its position, counting from \"0\"")
         elif scene.template == "comparison":
             used = {line.highlight_side for line in scene.narration}
             missing = [side for side in ("left", "right") if side not in used]
             if missing:
                 problems.append(f"scenes[{s}]: no narration line highlights the {' and '.join(missing)} column; "
-                                "give each column a line that sets highlightSide")
+                                "give each column a line whose highlight is \"left\" or \"right\"")
         elif scene.template == "definition" and scene.visual.example is not None:
             if "example" not in {line.highlight_part for line in scene.narration}:
                 problems.append(f"scenes[{s}]: no narration line highlights the example; "
-                                "give it a line that sets highlightPart to 'example'")
+                                "give it a line whose highlight is \"example\"")
         elif scene.template == "timeline":
             used = {line.highlight_event_id for line in scene.narration}
             missing = [repr(event.id) for event in scene.visual.events if event.id not in used]
             if missing:
                 problems.append(f"scenes[{s}]: no narration line highlights event {', '.join(missing)}; "
-                                "give each event a line that sets highlightEventId")
+                                "give each event a line whose highlight is its id")
         elif scene.template == "stat":
             used = {line.highlight_stat_index for line in scene.narration}
             missing = [str(i) for i in range(len(scene.visual.stats)) if i not in used]
             if missing:
                 problems.append(f"scenes[{s}]: no narration line highlights number {', '.join(missing)}; "
-                                "give each number a line that sets highlightStatIndex")
+                                "give each number a line whose highlight is its position, counting from \"0\"")
         elif scene.template == "quote":
             if not any(line.highlight_quote for line in scene.narration):
                 problems.append(f"scenes[{s}]: no narration line reads the quotation; give one line the "
-                                "quotation's exact words and set highlightQuote to true")
+                                "quotation's exact words and the highlight \"quote\"")
         elif scene.template == "map":
             used = {line.highlight_id for line in scene.narration}
             missing = [repr(item.id) for item in [*scene.visual.areas, *scene.visual.places] if item.id not in used]
             if missing:
                 problems.append(f"scenes[{s}]: no narration line highlights {', '.join(missing)}; "
-                                "give each place and area a line that sets highlightId")
+                                "give each place and area a line whose highlight is its id")
     return problems
 
 
@@ -364,11 +477,15 @@ def review_plan(text: str, spec: dict, require_templates: bool = True):
     data, problems = parse_json(text)
     if problems:
         return None, problems
+    data, problems = from_model_output(data)
+    # A visual without its template's part also fails validation; the missing part is reported once.
+    partless = tuple(problem.split(":", 1)[0] for problem in problems if ".visual." in problem)
     try:
-        plan = validate_plan(normalize_ids(drop_unknown_icons(drop_nulls(data)), spec["projectId"]))
+        plan = validate_plan(normalize_ids(drop_unknown_icons(data), spec["projectId"]))
     except PlanValidationError as exc:
-        return None, exc.problems
-    problems = length_problems(plan, spec, require_templates) + coverage_problems(plan)
+        found = [output_terms(problem, data) for problem in exc.problems]
+        return None, problems + [problem for problem in found if not problem.startswith(partless)]
+    problems += length_problems(plan, spec, require_templates) + coverage_problems(plan)
     return (None if problems else plan), problems
 
 

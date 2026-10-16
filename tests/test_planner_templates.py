@@ -4,12 +4,31 @@ import copy
 import json
 import unittest
 
+from capstone_script.long_form import Outline
 from capstone_script.planner import (
-    UNSUPPORTED_KEYWORDS, coverage_problems, drop_unknown_icons, normalize_ids, output_schema, planner_prompt,
+    UNSUPPORTED_KEYWORDS, _OutputPlan, coverage_problems, drop_unknown_icons, from_model_output, normalize_ids,
+    output_schema, planner_prompt, review_plan, structured_schema,
 )
-from capstone_script.review import apply_edits
-from capstone_script.scene_plan import MAP_REGIONS, TEMPLATES, validate_plan
+from capstone_script.review import Review, apply_edits
+from capstone_script.scene_plan import MAP_REGIONS, TEMPLATES, dump_plan, validate_plan
+from test_planner import VALID, as_model_output
+from test_scene_plan import with_new_templates
 from test_visual_templates import all_scenes
+
+# Structured outputs accept at most this many optional and union-typed (anyOf) parameters per
+# request; see "Schema complexity limits" in Claude's structured-outputs documentation.
+MAX_OPTIONAL, MAX_UNION = 24, 16
+
+
+def complexity(schema):
+    """(optional, union-typed) parameter counts across a schema and its definitions."""
+    optional = union = 0
+    for node in [schema, *schema.get("$defs", {}).values()]:
+        required = set(node.get("required", ()))
+        for name, prop in (node.get("properties") or {}).items():
+            optional += name not in required
+            union += "anyOf" in prop or isinstance(prop.get("type"), list)
+    return optional, union
 
 
 def keywords(node):
@@ -30,12 +49,53 @@ class PlannerTemplateTests(unittest.TestCase):
     def test_output_shape_offers_every_template_and_its_fields(self):
         schema = output_schema()
         self.assertFalse(keywords(schema) & set(UNSUPPORTED_KEYWORDS))
+        self.assertEqual(set(schema["$defs"]["_OutputVisual"]["properties"]), {"title", *TEMPLATES})
+        self.assertEqual(set(schema["$defs"]["_OutputLine"]["properties"]), {"id", "text", "highlight"})
         text = json.dumps(schema)
-        for template in TEMPLATES:
-            self.assertIn(f'"{template}"', text)
-        for field in ("events", "stats", "quote", "author", "region", "areas", "places", "route",
-                      "highlightEventId", "highlightStatIndex", "highlightQuote", "highlightId"):
+        for field in ("events", "stats", "quote", "author", "region", "areas", "places", "route"):
             self.assertIn(f'"{field}"', text)
+
+    def test_every_request_schema_stays_within_the_structured_output_limits(self):
+        schemas = {"plan": output_schema(), "outline": structured_schema(Outline.model_json_schema(by_alias=True)),
+                   "review": structured_schema(Review.model_json_schema(by_alias=True))}
+        for name, schema in schemas.items():
+            with self.subTest(schema=name):
+                optional, union = complexity(schema)
+                self.assertLessEqual(optional, MAX_OPTIONAL)
+                self.assertLessEqual(union, MAX_UNION)
+
+    def test_every_template_survives_the_output_shape(self):
+        for plan in (with_new_templates(copy.deepcopy(VALID)), all_scenes()):
+            output = as_model_output(plan)
+            _OutputPlan.model_validate(output)  # What structured outputs would let the model write.
+            back, problems = from_model_output(output)
+            self.assertEqual(problems, [])
+            for line in (line for scene in plan["scenes"] for line in scene["narration"]):
+                if line.get("highlightQuote") is False:
+                    del line["highlightQuote"]  # Means the same as leaving it out, which the shape does.
+            self.assertEqual(dump_plan(validate_plan(back)), dump_plan(validate_plan(plan)))
+
+    def test_a_highlight_the_template_cannot_use_is_sent_back(self):
+        output = as_model_output(all_scenes())
+        output["scenes"][1]["narration"][0]["highlight"] = "first"
+        output["scenes"][2]["narration"][0]["highlight"] = "yes"
+        self.assertEqual(from_model_output(output)[1], [
+            "scenes[1].narration[0].highlight: 'first' is not a number position; use \"0\", \"1\" or \"2\", "
+            "or \"\" for none",
+            "scenes[2].narration[0].highlight: 'yes' cannot be highlighted in a quote scene; use \"quote\" or \"\"",
+        ])
+
+    def test_problems_name_the_fields_the_model_wrote(self):
+        output = as_model_output(all_scenes())
+        output["scenes"][0]["visual"]["timeline"]["events"][0]["label"] = "x" * 60
+        output["scenes"][3]["visual"]["stat"] = output["scenes"][3]["visual"].pop("map")
+        plan, problems = review_plan(json.dumps(output), {"projectId": "new-templates", "targetDurationSec": 120})
+        self.assertIsNone(plan)
+        self.assertEqual(problems, [
+            "scenes[3].visual.map: a map scene needs this part; fill it, or set the template to the one whose "
+            "part you filled",
+            "scenes[0].visual.timeline.events[0].label: String should have at most 48 characters",
+        ])
 
     def test_prompt_describes_the_new_templates_and_lists_the_regions(self):
         prompt = planner_prompt()
