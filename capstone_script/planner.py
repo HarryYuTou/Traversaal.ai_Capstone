@@ -19,7 +19,8 @@ from time import perf_counter
 from typing import Literal
 
 from .scene_plan import (
-    ICONS, TEMPLATES, WORDS_PER_SECOND, PlanValidationError, _Model, dump_plan, summarize, validate_plan,
+    ICONS, MAP_REGIONS, TEMPLATES, WORDS_PER_SECOND, PlanValidationError, _Model, dump_plan, summarize,
+    validate_plan,
 )
 
 MODEL = "claude-opus-5-5"
@@ -129,6 +130,38 @@ class _OutputLine(_Model):
     highlight_node_id: str | None = None
     highlight_side: Literal["left", "right"] | None = None
     highlight_part: Literal["term", "definition", "example"] | None = None
+    highlight_event_id: str | None = None
+    highlight_stat_index: int | None = None
+    highlight_quote: bool | None = None
+    highlight_id: str | None = None
+
+
+class _OutputEvent(_Model):
+    id: str
+    date: str
+    label: str
+    icon: str | None = None
+
+
+class _OutputStat(_Model):
+    value: float
+    prefix: str | None = None
+    unit: str | None = None
+    label: str
+    icon: str | None = None
+
+
+class _OutputArea(_Model):
+    id: str
+    label: str
+    countries: list[str]
+
+
+class _OutputPlace(_Model):
+    id: str
+    label: str
+    lon: float
+    lat: float
 
 
 class _OutputNode(_Model):
@@ -154,6 +187,16 @@ class _OutputVisual(_Model):
     definition: str | None = None
     example: str | None = None
     icon: str | None = None
+    events: list[_OutputEvent] | None = None
+    stats: list[_OutputStat] | None = None
+    note: str | None = None
+    quote: str | None = None
+    author: str | None = None
+    context: str | None = None
+    region: str | None = None
+    areas: list[_OutputArea] | None = None
+    places: list[_OutputPlace] | None = None
+    route: bool | None = None
 
 
 class _OutputScene(_Model):
@@ -183,9 +226,9 @@ def output_schema() -> dict:
 
 
 def planner_prompt() -> str:
-    """The scene planner's system prompt with the list of available icons filled in."""
+    """The scene planner's system prompt with the available icons and map regions filled in."""
     return Template((PROMPTS / "scene-planner.txt").read_text(encoding="utf-8")).safe_substitute(
-        icons=", ".join(ICONS))
+        icons=", ".join(ICONS), regions=", ".join(MAP_REGIONS))
 
 
 def drop_unknown_icons(data):
@@ -194,7 +237,8 @@ def drop_unknown_icons(data):
         visual = scene.get("visual") if isinstance(scene, dict) else None
         if not isinstance(visual, dict):
             continue
-        holders = [visual, *(node for node in visual.get("nodes") or [] if isinstance(node, dict)),
+        holders = [visual, *(item for key in ("nodes", "events", "stats")
+                             for item in visual.get(key) or [] if isinstance(item, dict)),
                    *(visual[side] for side in ("left", "right") if isinstance(visual.get(side), dict))]
         for holder in holders:
             if holder.get("icon") not in ICONS:
@@ -222,16 +266,19 @@ def normalize_ids(data, project_id: str):
             continue
         scene["id"] = f"scene-{s:02d}"
         visual = scene.get("visual")
-        if scene.get("template") == "flow" and isinstance(visual, dict) and isinstance(visual.get("nodes"), list):
-            for node in visual["nodes"]:
-                if isinstance(node, dict) and isinstance(node.get("id"), str):
-                    node["id"] = slug(node["id"])
+        if isinstance(visual, dict):
+            for key in ("nodes", "events", "areas", "places"):
+                items = visual.get(key)
+                for item in items if isinstance(items, list) else []:
+                    if isinstance(item, dict) and isinstance(item.get("id"), str):
+                        item["id"] = slug(item["id"])
         if isinstance(scene.get("narration"), list):
             for n, line in enumerate(scene["narration"], start=1):
                 if isinstance(line, dict):
                     line["id"] = f"scene-{s:02d}-line-{n:02d}"
-                    if isinstance(line.get("highlightNodeId"), str):
-                        line["highlightNodeId"] = slug(line["highlightNodeId"])
+                    for key in ("highlightNodeId", "highlightEventId", "highlightId"):
+                        if isinstance(line.get(key), str):
+                            line[key] = slug(line[key])
     return data
 
 
@@ -279,6 +326,28 @@ def coverage_problems(plan) -> list[str]:
             if "example" not in {line.highlight_part for line in scene.narration}:
                 problems.append(f"scenes[{s}]: no narration line highlights the example; "
                                 "give it a line that sets highlightPart to 'example'")
+        elif scene.template == "timeline":
+            used = {line.highlight_event_id for line in scene.narration}
+            missing = [repr(event.id) for event in scene.visual.events if event.id not in used]
+            if missing:
+                problems.append(f"scenes[{s}]: no narration line highlights event {', '.join(missing)}; "
+                                "give each event a line that sets highlightEventId")
+        elif scene.template == "stat":
+            used = {line.highlight_stat_index for line in scene.narration}
+            missing = [str(i) for i in range(len(scene.visual.stats)) if i not in used]
+            if missing:
+                problems.append(f"scenes[{s}]: no narration line highlights number {', '.join(missing)}; "
+                                "give each number a line that sets highlightStatIndex")
+        elif scene.template == "quote":
+            if not any(line.highlight_quote for line in scene.narration):
+                problems.append(f"scenes[{s}]: no narration line reads the quotation; give one line the "
+                                "quotation's exact words and set highlightQuote to true")
+        elif scene.template == "map":
+            used = {line.highlight_id for line in scene.narration}
+            missing = [repr(item.id) for item in [*scene.visual.areas, *scene.visual.places] if item.id not in used]
+            if missing:
+                problems.append(f"scenes[{s}]: no narration line highlights {', '.join(missing)}; "
+                                "give each place and area a line that sets highlightId")
     return problems
 
 

@@ -5,10 +5,6 @@ narrator says, one short line at a time. Long plans also group their scenes
 into chapters. A plan never contains audio paths, durations or frame numbers;
 later stages measure those from real audio.
 
-The planner's prompts describe the first four templates (TEMPLATES). The
-timeline, stat, quote and map templates (EXTRA_TEMPLATES) are for plans written
-or edited by hand until the prompts cover them.
-
 The Pydantic models hold the structural rules and are exported as JSON Schema
 for the renderer. Cross-reference rules (unique IDs, valid highlights, word
 limits, English text) are checked in Python by `semantic_problems`. JSON Schema
@@ -24,9 +20,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, Validation
 from pydantic.alias_generators import to_camel
 
 SCHEMA_VERSION = "1"
-TEMPLATES = ("concept", "flow", "comparison", "definition")
-EXTRA_TEMPLATES = ("timeline", "stat", "quote", "map")
-ALL_TEMPLATES = TEMPLATES + EXTRA_TEMPLATES
+TEMPLATES = ("concept", "flow", "comparison", "definition", "timeline", "stat", "quote", "map")
 MAX_SCENES = 60
 MAX_CHAPTERS = 10
 MAX_LINES_PER_SCENE = 8
@@ -465,7 +459,7 @@ def _location(loc) -> str:
     for i, part in enumerate(loc):
         if isinstance(part, int):
             text += f"[{part}]"
-        elif part in ALL_TEMPLATES and i > 0 and isinstance(loc[i - 1], int):
+        elif part in TEMPLATES and i > 0 and isinstance(loc[i - 1], int):
             continue  # Pydantic inserts the union tag after the scene index.
         else:
             text += f".{part}" if text else str(part)

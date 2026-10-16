@@ -107,7 +107,9 @@ def apply_edits(plan, edits) -> object:
     texts = {edit.line_id: edit.text for edit in edits}
     for scene in data["scenes"]:
         for line in scene["narration"]:
-            line["text"] = texts.get(line["id"], line["text"])
+            # A line that reads a quotation keeps its words, so the spoken quote matches the one on screen.
+            if not line.get("highlightQuote"):
+                line["text"] = texts.get(line["id"], line["text"])
     return validate_plan(data)
 
 

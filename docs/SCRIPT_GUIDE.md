@@ -84,9 +84,16 @@ narration lines of at most 25 English words. IDs use lowercase letters, digits
 and hyphens because narration IDs become file names. Python also checks what
 JSON Schema cannot: unique scene, line and node IDs, highlights that point to
 an existing point or node, the word limit and English-only text.
-The planner's prompts describe the first four templates only; the timeline,
-stat, quote and map templates are used by hand-written plans (see
-`examples/handwritten/`) until the prompts are extended and tested.
+The planner's prompt describes all eight templates, and its loose output
+shape, id clean-up, icon filter and coverage check (every event, number, place
+and area gets a highlighting line; a quote scene has a line that reads the
+quotation) cover the four newer ones too. This has only been tested offline
+with a fake client: before relying on it, run a few real plans to confirm that
+structured outputs still accept the larger output shape (about twice the
+size of the four-template one) and that the model picks the new templates
+well. Without reference material, the prompt allows only famous, widely
+documented dates and numbers, and only quotations it can give word for word;
+the reviewer never rewrites a line that reads a quotation.
 Concept and definition visuals, flow nodes, comparison columns, timeline
 events and stats can also have an optional `icon`, one of the Lucide icon names in `schemas/icons.json`
 (139 icons such as `database`, `credit-card` or `calendar`). Renderers draw
