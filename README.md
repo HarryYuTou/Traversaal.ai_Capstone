@@ -13,12 +13,13 @@ range from 30 seconds to ten minutes; videos over three minutes are planned
 chapter by chapter.
 
 **Traversaal Studio (Frontend-v1)** adds a browser workspace for the brief,
-setup checks, generation progress, video playback, and downloads. It runs on
-this computer at `127.0.0.1:8000`, with durable local jobs and one generation
-worker. The built-in sample uses an existing script with real TTS and rendering
-and needs no Claude key; a new topic uses the configured Claude API. Follow the
-[web studio guide](docs/WEB_STUDIO.md) to install and start it. This version does
-not include accounts, a history browser, or public deployment.
+setup checks, generation progress, video playback, and downloads, with local
+sign-in accounts and a per-account video history. It runs on this computer at
+`127.0.0.1:8000`, with durable local jobs and one generation worker. The
+built-in sample uses an existing script with real TTS and rendering and needs
+no Claude key; a new topic uses the configured Claude API. Follow the
+[web studio guide](docs/WEB_STUDIO.md) to install and start it. This version
+does not include public deployment.
 
 For command-line topic-to-video generation, follow the
 [quick start](docs/QUICKSTART.md). The standalone **local English text-to-speech

@@ -91,7 +91,7 @@ class JobStore:
             os.fsync(handle.fileno())
         temporary.replace(directory / "job.json")
 
-    def create(self, request):
+    def create(self, request, owner=None):
         with self.lock:
             if sum(job["status"] in ACTIVE for job in self.jobs.values()) >= 8:
                 raise RequestError("The local queue is full. Wait for a job to finish.", "queue_full", 429)
@@ -99,7 +99,7 @@ class JobStore:
             job = {"id": uuid4().hex, "status": "queued", "stage": "queued",
                    "message": "Queued. Jobs run one at a time on this computer.",
                    "createdAt": timestamp, "updatedAt": timestamp, "request": copy.deepcopy(request),
-                   "error": None, "result": None}
+                   "error": None, "result": None, "owner": owner}
             self._write(job)
             self.jobs[job["id"]] = job
             return copy.deepcopy(job)
@@ -108,6 +108,12 @@ class JobStore:
         with self.lock:
             job = self.jobs.get(job_id)
             return copy.deepcopy(job) if job is not None else None
+
+    def list(self, owner):
+        """Return one owner's jobs, newest first. Jobs saved without an owner are not listed."""
+        with self.lock:
+            jobs = [job for job in self.jobs.values() if owner is not None and job.get("owner") == owner]
+            return copy.deepcopy(sorted(jobs, key=lambda job: job["createdAt"], reverse=True))
 
     def update(self, job_id, **values):
         with self.lock:

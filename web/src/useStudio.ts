@@ -1,19 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError, isActive, type Health, type Job, type VideoRequest } from './api';
 
-const ACTIVE_JOB_KEY = 'traversaal.studio.current-job.v1';
+// Scoped by account so a second person on the same browser never restores someone else's task.
+export const activeJobKey = (userId: string) => `traversaal.studio.current-job.v2.${userId}`;
 
-function storedJob(): string | null {
-  try { return localStorage.getItem(ACTIVE_JOB_KEY); } catch { return null; }
-}
-function rememberJob(id: string | null) {
-  try {
-    if (id) localStorage.setItem(ACTIVE_JOB_KEY, id);
-    else localStorage.removeItem(ACTIVE_JOB_KEY);
-  } catch { /* A private browser can still generate and play a video. */ }
-}
-
-export function useStudio() {
+export function useStudio(userId: string) {
+  const key = activeJobKey(userId);
+  const storedJob = useCallback((): string | null => {
+    try { return localStorage.getItem(key); } catch { return null; }
+  }, [key]);
+  const rememberJob = useCallback((id: string | null) => {
+    try {
+      if (id) localStorage.setItem(key, id);
+      else localStorage.removeItem(key);
+    } catch { /* A private browser can still generate and play a video. */ }
+  }, [key]);
   const [health, setHealth] = useState<Health | null>(null);
   const [healthError, setHealthError] = useState('');
   const [checking, setChecking] = useState(true);
@@ -61,7 +62,7 @@ export function useStudio() {
     };
     void restore();
     return () => { stopped = true; clearTimeout(timer); };
-  }, []);
+  }, [storedJob, rememberJob]);
 
   useEffect(() => {
     if (!job || !isActive(job)) return;
@@ -90,7 +91,7 @@ export function useStudio() {
     };
     timer = setTimeout(poll, 1000);
     return () => { stopped = true; clearTimeout(timer); };
-  }, [job?.id, job?.status]);
+  }, [job?.id, job?.status, rememberJob]);
 
   const submit = useCallback(async (input: VideoRequest) => {
     if (submittingRef.current || isActive(job) || restoring) return;
@@ -111,7 +112,7 @@ export function useStudio() {
       submittingRef.current = false;
       setSubmitting(false);
     }
-  }, [job, restoring, checkHealth]);
+  }, [job, restoring, checkHealth, rememberJob]);
 
   const reset = useCallback(() => {
     if (isActive(job) || submittingRef.current || restoring) return;
@@ -120,7 +121,19 @@ export function useStudio() {
     setJob(null);
     setSubmitError('');
     setConnectionError('');
-  }, [job, restoring]);
+  }, [job, restoring, rememberJob]);
 
-  return { health, healthError, checking, checkHealth, job, restoring, submitting, submitError, connectionError, submit, reset };
+  /** Show a job from history in the workspace; refused while another job is still being created. */
+  const open = useCallback((selected: Job) => {
+    if (selected.id === job?.id) return true;
+    if (isActive(job) || submittingRef.current || restoring) return false;
+    generation.current += 1;
+    rememberJob(selected.id);
+    setJob(selected);
+    setSubmitError('');
+    setConnectionError('');
+    return true;
+  }, [job, restoring, rememberJob]);
+
+  return { health, healthError, checking, checkHealth, job, restoring, submitting, submitError, connectionError, submit, reset, open };
 }
