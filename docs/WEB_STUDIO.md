@@ -309,6 +309,17 @@ it incurs API usage. Do not substitute mock-test results for either check.
   two jobs (one finished, one stopped) in History, **Open** in the workspace,
   and a second account seeing no jobs and getting 404 for the first account's
   job and video. No real video was generated in this check.
+- Real run on the same machine afterwards, with the locked Python 3.11
+  environment, Node 22, and the renderer installed: signed in, chose
+  **Try a sample** in the browser, and job `3ccbe879e9804fed9eecb4e015d4eda9`
+  completed real Kokoro CPU narration (18 of 18 lines) and a full Light-theme
+  render with music: 1920 × 1080, 87.509 seconds, 11,805,904 bytes. The video
+  played in the browser. History listed it with its thumbnail, and the MP4 and
+  subtitle downloads worked for its owner. A second account saw no jobs and got
+  404 for the job and its video, and a signed-out request got 401. After a
+  server restart the account signed in again and History still listed the
+  video. Topic generation was not run because no Claude credential was
+  configured.
 
 ## Troubleshooting
 
