@@ -12,6 +12,7 @@ import threading
 import unittest
 from unittest.mock import Mock, patch
 
+from capstone_web.accounts import AccountStore, hash_password, validate_credentials, verify_password
 from capstone_web.health import SAMPLE, api_key_available, health
 from capstone_web.jobs import EVENT_PREFIX, INTERRUPTED, JobRunner, JobStore, RequestError, WorkerError, validate_request
 from capstone_web.server import LocalServer, byte_range
@@ -302,10 +303,12 @@ class HttpTests(unittest.TestCase):
         self.store = JobStore(self.root / "runs/web")
         self.runner = Mock()
         self.readiness = Mock(return_value=ready())
+        self.accounts = AccountStore(self.root / "runs/web/accounts.sqlite3", iterations=1000)
         self.server = LocalServer(("127.0.0.1", 0), root=self.root, store=self.store,
-                                  runner=self.runner, readiness=self.readiness)
+                                  runner=self.runner, readiness=self.readiness, accounts=self.accounts)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
+        self.cookie = self.sign_up("alice")
 
     def tearDown(self):
         self.server.shutdown()
@@ -313,15 +316,23 @@ class HttpTests(unittest.TestCase):
         self.thread.join()
         self.temporary.cleanup()
 
-    def call(self, method, path, body=None, headers=None):
+    def call(self, method, path, body=None, headers=None, cookie=True):
         connection = http.client.HTTPConnection("127.0.0.1", self.server.server_port, timeout=3)
         if isinstance(body, dict):
             body = json.dumps(body)
-        connection.request(method, path, body=body, headers={"Content-Type": "application/json", **(headers or {})})
+        session = {"Cookie": self.cookie if cookie is True else cookie} if cookie else {}
+        connection.request(method, path, body=body,
+                           headers={"Content-Type": "application/json", **session, **(headers or {})})
         response = connection.getresponse()
         status, response_headers, data = response.status, dict(response.getheaders()), response.read()
         connection.close()
         return status, response_headers, data
+
+    def sign_up(self, username, password="correct horse"):
+        status, headers, _ = self.call("POST", "/api/auth/register",
+                                       {"username": username, "password": password}, cookie=False)
+        self.assertEqual(status, 201)
+        return headers["Set-Cookie"].split(";")[0]
 
     def test_submit_get_health_and_reload_saved_job(self):
         status, _, data = self.call("GET", "/api/health")
@@ -362,7 +373,7 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(self.call("POST", "/api/jobs", request_body(), {"Origin": "http://localhost:5173"})[0], 202)
 
     def completed_job(self):
-        job = self.store.create(request_body(draft=True))
+        job = self.store.create(request_body(draft=True), owner=self.accounts.session_user(self.cookie.split("=", 1)[1])["id"])
         output = self.store.directory / job["id"] / "output"
         output.mkdir()
         (output / "video-draft.mp4").write_bytes(b"0123456789")
@@ -389,8 +400,77 @@ class HttpTests(unittest.TestCase):
         base = self.completed_job()
         for path in (base + ".env", base + "../job.json", base + "%2E%2E/worker.log", "/%2E%2E/.env"):
             self.assertEqual(self.call("GET", path)[0], 404)
-        job = self.store.create(request_body())
+        job = self.store.create(request_body(), owner=json.loads(self.call("GET", "/api/auth/me")[2])["user"]["id"])
         self.assertEqual(self.call("GET", f"/api/jobs/{job['id']}/files/video.mp4")[0], 409)
+
+    def test_api_requires_a_session_but_the_site_and_sign_in_do_not(self):
+        for method, path in (("GET", "/api/health"), ("GET", "/api/jobs"), ("POST", "/api/jobs"),
+                             ("GET", "/api/auth/me"), ("GET", "/api/jobs/" + "a" * 32)):
+            status, _, data = self.call(method, path, request_body() if method == "POST" else None, cookie=False)
+            self.assertEqual((status, json.loads(data)["error"]["code"]), (401, "not_signed_in"))
+        self.assertEqual(self.call("GET", "/api/health", cookie="traversaal_session=forged")[0], 401)
+        self.assertEqual(self.call("GET", "/api/health", cookie='traversaal_session="bad\\')[0], 401)
+        self.runner.submit.assert_not_called()
+        self.assertEqual(self.call("GET", "/studio", cookie=False)[0], 404)  # frontend not built, not 401
+
+    def test_register_login_logout_and_cookie_attributes(self):
+        status, headers, data = self.call("POST", "/api/auth/register",
+                                          {"username": "Bob", "password": "long password"}, cookie=False)
+        self.assertEqual(status, 201)
+        self.assertEqual(json.loads(data)["user"]["username"], "Bob")
+        for attribute in ("HttpOnly", "SameSite=Strict", "Path=/", "Max-Age=1209600"):
+            self.assertIn(attribute, headers["Set-Cookie"])
+        self.assertNotIn("password", data.decode())
+        taken = self.call("POST", "/api/auth/register", {"username": "bob", "password": "another password"}, cookie=False)
+        self.assertEqual((taken[0], json.loads(taken[2])["error"]["code"]), (409, "username_taken"))
+        for password in ("wrong password", "LONG PASSWORD"):
+            status, headers, data = self.call("POST", "/api/auth/login", {"username": "bob", "password": password}, cookie=False)
+            self.assertEqual((status, json.loads(data)["error"]["code"]), (401, "invalid_credentials"))
+            self.assertNotIn("Set-Cookie", headers)
+        unknown = self.call("POST", "/api/auth/login", {"username": "nobody", "password": "long password"}, cookie=False)
+        self.assertEqual(json.loads(unknown[2])["error"]["message"], json.loads(data)["error"]["message"])
+        status, headers, _ = self.call("POST", "/api/auth/login", {"username": "BOB", "password": "long password"}, cookie=False)
+        self.assertEqual(status, 200)
+        cookie = headers["Set-Cookie"].split(";")[0]
+        self.assertEqual(json.loads(self.call("GET", "/api/auth/me", cookie=cookie)[2])["user"]["username"], "Bob")
+        status, headers, _ = self.call("POST", "/api/auth/logout", cookie=cookie)
+        self.assertEqual(status, 200)
+        self.assertIn("Max-Age=0", headers["Set-Cookie"])
+        self.assertEqual(self.call("GET", "/api/auth/me", cookie=cookie)[0], 401)
+        # Signing out one browser leaves the other session working.
+        self.assertEqual(self.call("GET", "/api/auth/me")[0], 200)
+
+    def test_sign_in_rejects_bad_input_and_cross_site_requests(self):
+        for body in ({"username": "ab", "password": "long password"}, {"username": "bad name", "password": "long password"},
+                     {"username": "carol", "password": "short"}, {"username": "carol", "password": "x" * 129},
+                     {"username": "carol"}, {"username": "carol", "password": "long password", "admin": True}, []):
+            self.assertEqual(self.call("POST", "/api/auth/register", body, cookie=False)[0], 400)
+        self.assertEqual(self.call("POST", "/api/auth/register", {"username": "carol", "password": "long password"},
+                                   {"Origin": "https://attacker.example"}, cookie=False)[0], 403)
+        self.assertEqual(self.call("POST", "/api/auth/login", {"username": "alice", "password": "correct horse"},
+                                   {"Sec-Fetch-Site": "cross-site"}, cookie=False)[0], 403)
+
+    def test_history_lists_only_your_jobs_newest_first(self):
+        first = json.loads(self.call("POST", "/api/jobs", request_body(topic="First"))[2])
+        second = json.loads(self.call("POST", "/api/jobs", request_body(topic="Second"))[2])
+        bob = self.sign_up("bob")
+        bobs = json.loads(self.call("POST", "/api/jobs", request_body(topic="Bob's"), cookie=bob)[2])
+        self.store.create(request_body(topic="Saved before accounts existed"))
+        status, _, data = self.call("GET", "/api/jobs")
+        self.assertEqual(status, 200)
+        self.assertEqual([job["id"] for job in json.loads(data)["jobs"]], [second["id"], first["id"]])
+        self.assertEqual([job["id"] for job in json.loads(self.call("GET", "/api/jobs", cookie=bob)[2])["jobs"]], [bobs["id"]])
+        self.assertEqual(first["owner"], json.loads(self.call("GET", "/api/auth/me")[2])["user"]["id"])
+
+    def test_another_accounts_job_and_media_look_missing(self):
+        base = self.completed_job()
+        job_id = base.split("/")[3]
+        self.assertEqual(self.call("GET", base + "video.mp4")[0], 200)
+        bob = self.sign_up("bob")
+        for path in ("/api/jobs/" + job_id, base + "video.mp4", base + "video.mp4?download=1", base + "subtitles.vtt"):
+            status, _, data = self.call("GET", path, cookie=bob)
+            self.assertEqual((status, json.loads(data)["error"]["code"]), (404, "job_not_found"))
+        self.assertEqual(self.call("GET", base + "video.mp4", cookie=False)[0], 401)
 
     def test_static_frontend_and_missing_build(self):
         self.assertEqual(self.call("GET", "/")[0], 404)
@@ -399,6 +479,50 @@ class HttpTests(unittest.TestCase):
         (dist / "index.html").write_text("<main>Studio</main>")
         self.assertEqual(self.call("GET", "/")[2], b"<main>Studio</main>")
         self.assertEqual(self.call("GET", "/studio")[2], b"<main>Studio</main>")
+
+
+class AccountTests(unittest.TestCase):
+    def test_passwords_are_salted_and_verified_in_constant_form(self):
+        first, second = hash_password("same password", 1000), hash_password("same password", 1000)
+        self.assertNotEqual(first, second)
+        self.assertNotIn("same password", first)
+        self.assertTrue(verify_password("same password", first))
+        self.assertFalse(verify_password("Same password", first))
+        for stored in ("", "md5$1$00$00", "pbkdf2_sha256$x$00$00", "pbkdf2_sha256$1000$zz$00"):
+            self.assertFalse(verify_password("same password", stored))
+
+    def test_credentials_are_trimmed_and_limited(self):
+        self.assertEqual(validate_credentials({"username": " dana.k ", "password": "  spaced  "}), ("dana.k", "  spaced  "))
+        for body in ({"username": "d" * 33, "password": "long password"}, {"username": "dana", "password": 12345678},
+                     {"username": "dañ", "password": "long password"}):
+            with self.subTest(body=body), self.assertRaises(RequestError):
+                validate_credentials(body)
+
+    def test_sessions_survive_restart_expire_and_store_only_hashes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "accounts.sqlite3"
+            accounts = AccountStore(path, iterations=1000)
+            user = accounts.register("erin", "long password")
+            token = accounts.create_session(user["id"])
+            self.assertEqual(AccountStore(path, iterations=1000).session_user(token), user)
+            self.assertNotIn(token.encode(), path.read_bytes())
+            self.assertIsNone(accounts.authenticate("erin", "wrong password"))
+            self.assertIsNone(accounts.authenticate("nobody", "long password"))
+            self.assertEqual(accounts.authenticate("ERIN", "long password"), user)
+            with patch("capstone_web.accounts.now", return_value="9999-01-01T00:00:00+00:00"):
+                self.assertIsNone(accounts.session_user(token))
+            accounts.end_session(token)
+            self.assertIsNone(accounts.session_user(token))
+            self.assertIsNone(accounts.session_user(None))
+
+    def test_jobs_keep_their_owner_across_restarts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = JobStore(directory)
+            job = store.create(request_body(), owner="u1")
+            store.create(request_body(), owner="u2")
+            restarted = JobStore(directory)
+            self.assertEqual([saved["id"] for saved in restarted.list("u1")], [job["id"]])
+            self.assertEqual(restarted.list(None), [])
 
 
 class WorkerTests(unittest.TestCase):

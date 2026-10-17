@@ -32,6 +32,7 @@ export type Job = {
     bytes: number;
   };
 };
+export type User = { id: string; username: string; createdAt: string };
 export type Health = {
   status: 'ok';
   liveReady: boolean;
@@ -47,6 +48,12 @@ export class ApiError extends Error {
   }
 }
 
+let signedOut: (() => void) | null = null;
+/** Called when the server says the session has ended, so the app can return to sign-in. */
+export function onSignedOut(handler: (() => void) | null) {
+  signedOut = handler;
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   let response: Response;
   try {
@@ -59,13 +66,21 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     throw new ApiError('The studio cannot reach the generation service. Check that it is running, then try again.', 0);
   }
   const body = await response.json().catch(() => null);
+  if (response.status === 401 && !path.startsWith('/auth/')) signedOut?.();
   if (!response.ok || !body) {
     throw new ApiError(body?.error?.message || 'The generation service did not return a valid response.', response.status, body?.error?.code);
   }
   return body as T;
 }
 
+const credentials = (username: string, password: string) => ({ method: 'POST', body: JSON.stringify({ username, password }) });
+
 export const api = {
+  me: () => request<{ user: User }>('/auth/me').then((body) => body.user),
+  login: (username: string, password: string) => request<{ user: User }>('/auth/login', credentials(username, password)).then((body) => body.user),
+  register: (username: string, password: string) => request<{ user: User }>('/auth/register', credentials(username, password)).then((body) => body.user),
+  logout: () => request<{ user: null }>('/auth/logout', { method: 'POST' }).then(() => undefined),
+  jobs: () => request<{ jobs: Job[] }>('/jobs').then((body) => body.jobs),
   health: () => request<Health>('/health'),
   createJob: (input: VideoRequest) => request<Job>('/jobs', { method: 'POST', body: JSON.stringify(input) }),
   job: (id: string) => request<Job>(`/jobs/${encodeURIComponent(id)}`),

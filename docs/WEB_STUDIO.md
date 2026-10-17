@@ -5,10 +5,11 @@ pipeline. Enter a topic, audience, and target length, follow the generation
 stages, then play or download the finished MP4. A built-in sample provides a
 way to exercise real narration and rendering without making a Claude request.
 
-This version runs on one computer at `127.0.0.1`. It has no login, account
-isolation, history page, or public deployment configuration. Saved local jobs
-and restoration of the most recent job are implemented; a multi-user video
-service remains later work.
+This version runs on one computer at `127.0.0.1`. Each person signs in with a
+local account, and a **History** page lists every video that account has made.
+Accounts and jobs are stored on the computer running the server. There is no
+public deployment configuration yet; see [Accounts and history](#accounts-and-history)
+for what would change before hosting it.
 
 ## Install and start
 
@@ -76,12 +77,45 @@ The image shown before completion is an illustrative preview. It is not a
 live frame from the renderer. The workspace reports stages rather than an
 estimated overall completion percentage.
 
-Refreshing the page reconnects to the most recently remembered job in that
-browser. The brief and job ID are stored in browser local storage; task
-status and media remain on the server's disk. Closing the browser does not
+Refreshing the page reconnects to the most recently remembered job for the
+signed-in account in that browser. The brief and job ID are stored in
+browser local storage under the account's ID; task status and media remain
+on the server's disk. Closing the browser does not
 stop generation while the local server remains running. Different browser
 origins, such as the development and built-site ports, have separate local
 storage.
+
+## Accounts and history
+
+The first page asks you to sign in or create an account. A username has 3–32
+letters, numbers, dots, dashes, or underscores and is not case-sensitive for
+sign-in; a password has 8–128 characters. Creating an account signs you in.
+
+- **Storage:** accounts live in `runs/web/accounts.sqlite3` (ignored by Git).
+  Passwords are stored only as salted PBKDF2-HMAC-SHA256 hashes with 600,000
+  iterations, using Python's standard library. No outside sign-in service is
+  used.
+- **Sessions:** signing in sets an `HttpOnly`, `SameSite=Strict` cookie that
+  lasts 14 days. The database keeps only a SHA-256 hash of each session token.
+  **Sign out** ends that browser's session; other browsers stay signed in.
+  When a session ends, the next request returns the page to sign-in.
+- **Ownership:** every new job records its owner's account ID. Job status,
+  media, and the job list are served only to the owner. Another account's job
+  ID answers exactly like a missing one (404).
+- **History:** the **History** tab lists your jobs, newest first, with status,
+  date, length, and any failure message. **Open** shows a job in the video
+  workspace (not available for other jobs while one is being created),
+  **MP4** downloads a finished video, and **Try again** submits a stopped job's
+  brief as a new job. Rows refresh while a job is in progress.
+- **Jobs from before accounts:** jobs saved by an earlier version have no owner
+  and are not listed for anyone. Their files remain under `runs/web/`.
+
+Anyone who can reach the server can create an account. Before hosting it
+beyond `127.0.0.1`, serve it over HTTPS and add `Secure` to the session
+cookie, decide who may register, and add sign-in rate limiting; none of these
+are part of this version. There is no password reset: a forgotten password
+needs a new account, or removal of that user from the database by whoever
+runs the server.
 
 ## Job lifecycle and files
 
@@ -136,6 +170,11 @@ local Python API.
 
 | Method and path | Result |
 | --- | --- |
+| `POST /api/auth/register` | Create an account from `{username, password}` and sign in (201) |
+| `POST /api/auth/login` | Sign in with `{username, password}`; sets the session cookie |
+| `POST /api/auth/logout` | End this browser's session and clear the cookie |
+| `GET /api/auth/me` | The signed-in account, or 401 |
+| `GET /api/jobs` | `{jobs: [...]}`: the signed-in account's jobs, newest first |
 | `GET /api/health` | Readiness flags, individual checks, and sample metadata |
 | `POST /api/jobs` | Validate and queue a video request; return the job with HTTP 202 |
 | `GET /api/jobs/<id>` | Read the saved job, stage, error, and result |
@@ -170,15 +209,20 @@ them with its fixed sample values and sets `review` to false. The UI obtains
 those values from `/api/health`. File uploads, reference URLs, arbitrary
 output paths, and custom voices are not accepted by this API.
 
+Every route except the four `/api/auth/` routes requires a signed-in session
+and returns 401 (`not_signed_in`) without one. An account is returned as
+`{id, username, createdAt}`; the password hash is never returned.
+
 A job includes `id`, `status`, `stage`, `message`, `createdAt`, `updatedAt`,
-`request`, `error`, and `result`. Narration can add
+`request`, `error`, `result`, and `owner` (the account ID). Narration can add
 `lineProgress: {current, total}`. A successful result includes the title,
 video/download URLs, nullable thumbnail/subtitle URLs, measured duration,
 width, height, and byte count. Error responses use
 `{"error":{"code":"...","message":"..."}}`.
 
-Typical errors are invalid input (400), disallowed host/origin (403), unknown
-job or artifact (404), an unfinished job's media (409), oversized request
+Typical errors are invalid input (400), not signed in or wrong password
+(401), disallowed host/origin (403), unknown job or artifact (404), a taken
+username (409), an unfinished job's media (409), oversized request
 (413), non-JSON input (415), a full queue (429), and incomplete setup (503).
 Media serving supports single byte ranges for video seeking. The server
 only serves allowlisted media from completed jobs; local metadata and logs
@@ -252,6 +296,20 @@ it incurs API usage. Do not substitute mock-test results for either check.
   tests. This delivery focuses on the desktop web workflow; mobile acceptance
   testing is deferred.
 
+### Accounts and history check — 2026-10-16
+
+- On macOS with Python 3.13 and Node 22, all 166 Python tests and all 19
+  frontend tests passed, and the production build succeeded. The new tests
+  cover password hashing, sessions, sign-in errors, ownership checks on jobs
+  and media, the history list, and the sign-in and history pages.
+- In a desktop browser, the built site ran against the real server code with
+  a stand-in worker in place of the pipeline (Kokoro, torch, and Remotion were
+  not installed on that machine). Checked: account creation, a wrong-password
+  message, sign-out and sign-in, the session cookie hidden from page scripts,
+  two jobs (one finished, one stopped) in History, **Open** in the workspace,
+  and a second account seeing no jobs and getting 404 for the first account's
+  job and video. No real video was generated in this check.
+
 ## Troubleshooting
 
 - **Setup needed:** open the setup dialog and address the listed dependency
@@ -266,6 +324,11 @@ it incurs API usage. Do not substitute mock-test results for either check.
   old output directory and do not become a completed video automatically.
 - **The server was restarted:** queued/running jobs become failed to avoid
   silently repeating paid work. Submit a new job when ready.
+- **Signed out unexpectedly:** sessions last 14 days and end on sign-out.
+  Sign in again; your jobs and history are kept.
+- **Forgot a password:** there is no reset. Create a new account, or ask
+  whoever runs the server to remove the old one from
+  `runs/web/accounts.sqlite3`.
 - **Video no longer available:** the local artifact may have been moved or
   deleted. Job metadata alone cannot restore the media; create a new video.
 

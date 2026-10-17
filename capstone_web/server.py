@@ -1,16 +1,20 @@
 """Loopback-only HTTP API and built frontend; no framework dependency."""
 
+from http.cookies import CookieError, SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import mimetypes
 from pathlib import Path
 import re
+import sqlite3
 from urllib.parse import parse_qs, unquote, urlsplit
 
+from .accounts import SESSION_DAYS, AccountStore, validate_credentials
 from .health import ROOT, health
 from .jobs import JOB_ID, JobRunner, JobStore, RequestError, validate_request
 
 MAX_BODY = 16_384
+SESSION_COOKIE = "traversaal_session"
 
 
 def byte_range(value, size):
@@ -35,7 +39,8 @@ def byte_range(value, size):
 class LocalServer(ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self, address=("127.0.0.1", 8000), *, root=ROOT, store=None, runner=None, readiness=None):
+    def __init__(self, address=("127.0.0.1", 8000), *, root=ROOT, store=None, runner=None, readiness=None,
+                 accounts=None):
         if address[0] != "127.0.0.1":
             raise ValueError("The development server must bind to 127.0.0.1.")
         self.root = Path(root).resolve()
@@ -45,6 +50,7 @@ class LocalServer(ThreadingHTTPServer):
         try:
             # Binding first prevents a second launch on this port from interrupting live jobs.
             self.store = store or JobStore(self.root / "runs/web")
+            self.accounts = accounts or AccountStore(self.root / "runs/web/accounts.sqlite3")
             self.runner = runner or JobRunner(self.store, self.root)
         except Exception:
             self.server_close()
@@ -69,12 +75,17 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("X-Frame-Options", "DENY")
         super().end_headers()
 
-    def _json(self, status, value):
+    def _json(self, status, value, session=None):
         data = json.dumps(value, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Cache-Control", "no-store")
+        if session is not None:
+            # HttpOnly keeps the token away from page scripts; Strict blocks it on cross-site requests.
+            # An empty token clears the cookie. Add Secure when this is served over HTTPS.
+            age = SESSION_DAYS * 86400 if session else 0
+            self.send_header("Set-Cookie", f"{SESSION_COOKIE}={session}; Max-Age={age}; Path=/; HttpOnly; SameSite=Strict")
         self.end_headers()
         if self.command != "HEAD":
             self.wfile.write(data)
@@ -101,31 +112,79 @@ class Handler(BaseHTTPRequestHandler):
             return False
         return True
 
+    def _session_token(self):
+        try:
+            cookie = SimpleCookie(self.headers.get("Cookie", ""))
+        except CookieError:
+            return None
+        morsel = cookie.get(SESSION_COOKIE)
+        return morsel.value if morsel is not None else None
+
+    def _user(self):
+        """Return the signed-in account, or send 401 and return None."""
+        user = self.server.accounts.session_user(self._session_token())
+        if user is None:
+            self._error(401, "not_signed_in", "Sign in to use the studio.")
+        return user
+
+    def _read_json(self):
+        lengths = self.headers.get_all("Content-Length", [])
+        if self.headers.get("Transfer-Encoding") or len(lengths) != 1:
+            raise RequestError("Send one Content-Length header with the JSON request.", "invalid_body")
+        length = int(lengths[0])
+        if not 0 < length <= MAX_BODY:
+            raise RequestError("The JSON request must be smaller than 16 KB.", "body_too_large", 413)
+        if self.headers.get_content_type() != "application/json":
+            raise RequestError("Use Content-Type: application/json.", "unsupported_media_type", 415)
+        self.connection.settimeout(10)
+        data = self.rfile.read(length)
+        if len(data) != length:
+            raise RequestError("The request body is incomplete.", "invalid_json")
+        try:
+            return json.loads(data)
+        except (ValueError, UnicodeDecodeError):
+            raise RequestError("The request body is not valid JSON.", "invalid_json") from None
+
     def do_POST(self):
         if not self._local_request():
             return
-        if urlsplit(self.path).path != "/api/jobs":
+        path = urlsplit(self.path).path
+        routes = {"/api/jobs": self._create_job, "/api/auth/register": self._register,
+                  "/api/auth/login": self._login, "/api/auth/logout": self._logout}
+        if path not in routes:
             self._error(404, "not_found", "API route not found.")
             return
-        lengths = self.headers.get_all("Content-Length", [])
-        if self.headers.get("Transfer-Encoding") or len(lengths) != 1:
-            self._error(400, "invalid_body", "Send one Content-Length header with the JSON request.")
+        try:
+            routes[path]()
+        except RequestError as exc:
+            self._error(exc.status, exc.code, str(exc))
+        except (ValueError, TimeoutError):
+            self._error(400, "invalid_body", "The request body could not be read.")
+        except (OSError, sqlite3.Error):
+            self._error(500, "storage_error", "Could not save your data. Check local disk space and permissions.")
+
+    def _register(self):
+        username, password = validate_credentials(self._read_json())
+        user = self.server.accounts.register(username, password)
+        self._json(201, {"user": user}, session=self.server.accounts.create_session(user["id"]))
+
+    def _login(self):
+        username, password = validate_credentials(self._read_json())
+        user = self.server.accounts.authenticate(username, password)
+        if user is None:
+            raise RequestError("The username or password is incorrect.", "invalid_credentials", 401)
+        self._json(200, {"user": user}, session=self.server.accounts.create_session(user["id"]))
+
+    def _logout(self):
+        self.server.accounts.end_session(self._session_token())
+        self._json(200, {"user": None}, session="")
+
+    def _create_job(self):
+        user = self._user()
+        if user is None:
             return
         try:
-            length = int(lengths[0])
-            if not 0 < length <= MAX_BODY:
-                raise RequestError("The JSON request must be smaller than 16 KB.", "body_too_large", 413)
-            if self.headers.get_content_type() != "application/json":
-                raise RequestError("Use Content-Type: application/json.", "unsupported_media_type", 415)
-            self.connection.settimeout(10)
-            data = self.rfile.read(length)
-            if len(data) != length:
-                raise RequestError("The request body is incomplete.", "invalid_json")
-            try:
-                body = json.loads(data)
-            except (ValueError, UnicodeDecodeError):
-                raise RequestError("The request body is not valid JSON.", "invalid_json") from None
-            request = validate_request(body)
+            request = validate_request(self._read_json())
             readiness = self.server.readiness()
             ready = readiness["sampleReady"] if request["source"] == "sample" else readiness["liveReady"]
             if not ready:
@@ -133,13 +192,9 @@ class Handler(BaseHTTPRequestHandler):
                 missing = [check["label"] for check in readiness["checks"] if not check["ok"] and check["id"] not in excluded]
                 raise RequestError("Setup is incomplete: " + ", ".join(missing) + ". Check the setup status before generating.",
                                    "not_ready", 503)
-            job = self.server.store.create(request)
+            job = self.server.store.create(request, owner=user["id"])
             self.server.runner.submit(job)
             self._json(202, job)
-        except RequestError as exc:
-            self._error(exc.status, exc.code, str(exc))
-        except (ValueError, TimeoutError):
-            self._error(400, "invalid_body", "The request body could not be read.")
         except OSError:
             self._error(500, "storage_error", "Could not save the task. Check local disk space and permissions.")
 
@@ -151,24 +206,11 @@ class Handler(BaseHTTPRequestHandler):
             return
         parsed = urlsplit(self.path)
         path = unquote(parsed.path)
-        if path == "/api/health":
-            self._json(200, self.server.readiness())
-            return
-        parts = path.strip("/").split("/")
-        if len(parts) >= 3 and parts[:2] == ["api", "jobs"]:
-            job_id = parts[2]
-            job = self.server.store.get(job_id) if JOB_ID.fullmatch(job_id) else None
-            if job is None:
-                self._error(404, "job_not_found", "This task was not found on this local server.")
-            elif len(parts) == 3:
-                self._json(200, job)
-            elif len(parts) == 5 and parts[3] == "files":
-                self._artifact(job, parts[4], parse_qs(parsed.query).get("download") == ["1"])
-            else:
-                self._error(404, "not_found", "API route not found.")
-            return
         if path.startswith("/api/"):
-            self._error(404, "not_found", "API route not found.")
+            try:
+                self._api_get(path, parsed.query)
+            except sqlite3.Error:
+                self._error(500, "storage_error", "Could not read your account. Check local disk space and permissions.")
             return
         dist = self.server.root / "web/dist"
         try:
@@ -184,6 +226,37 @@ class Handler(BaseHTTPRequestHandler):
             self._error(404, "frontend_not_built", "Build the frontend with npm --prefix web run build, or use the Vite development server.")
             return
         self._file(target)
+
+    def _api_get(self, path, query):
+        if path == "/api/auth/me":
+            user = self._user()
+            if user is not None:
+                self._json(200, {"user": user})
+            return
+        user = self._user()
+        if user is None:
+            return
+        if path == "/api/health":
+            self._json(200, self.server.readiness())
+            return
+        if path == "/api/jobs":
+            self._json(200, {"jobs": self.server.store.list(user["id"])})
+            return
+        parts = path.strip("/").split("/")
+        if len(parts) >= 3 and parts[:2] == ["api", "jobs"]:
+            job_id = parts[2]
+            job = self.server.store.get(job_id) if JOB_ID.fullmatch(job_id) else None
+            # Another account's job answers exactly like a missing one, so IDs reveal nothing.
+            if job is None or job.get("owner") != user["id"]:
+                self._error(404, "job_not_found", "This task was not found on this local server.")
+            elif len(parts) == 3:
+                self._json(200, job)
+            elif len(parts) == 5 and parts[3] == "files":
+                self._artifact(job, parts[4], parse_qs(query).get("download") == ["1"])
+            else:
+                self._error(404, "not_found", "API route not found.")
+            return
+        self._error(404, "not_found", "API route not found.")
 
     def _artifact(self, job, filename, download):
         if job["status"] != "completed" or job["result"] is None:
