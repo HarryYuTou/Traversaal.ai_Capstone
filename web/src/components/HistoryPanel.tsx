@@ -3,8 +3,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, isActive, type Job } from '../api';
 import { formatDuration } from './VideoPreview';
 
-const SAMPLE_TITLE = 'From an Address to a Web Page';
-
 function when(iso: string): string {
   const date = new Date(iso);
   return Number.isNaN(date.getTime()) ? '' : date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
@@ -61,7 +59,7 @@ export default function HistoryPanel({ busy, currentJobId, onOpen, onRetry, onCr
       <ul className="history-list">
         {jobs.map((job) => {
           const result = job.status === 'completed' ? job.result : null;
-          const title = result?.title || (job.request.source === 'sample' ? SAMPLE_TITLE : job.request.topic);
+          const title = result?.title || job.request.topic;
           const current = job.id === currentJobId;
           const blocked = busy && !current;
           return <li key={job.id} className={`history-item ${current ? 'current' : ''}`}>

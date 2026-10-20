@@ -13,7 +13,8 @@ import math
 from pathlib import Path
 
 from .planner import write_json
-from .scene_plan import dump_plan, load_plan
+from .process import ProcessCompileError, compile_process_visual
+from .scene_plan import dump_plan, load_plan, motion_channel
 
 SCHEMA_VERSION = "1"
 FPS = 30
@@ -30,6 +31,34 @@ class TimelineError(ValueError):
     pass
 
 
+def compile_motion_actions(visual: dict, lines: list[dict], scene_start: int, scene_end: int) -> dict:
+    """Resolve narration-relative action anchors onto the measured audio timeline.
+
+    Return a new visual, retaining each authored field. Offsets use the line's measured,
+    frame-rounded duration; spans between lines include the same pauses as the narration.
+    Never stretch a collapsed action into a neighbouring action's frame interval.
+    """
+    actions, intervals = [], {}
+    for index, action in enumerate(visual["actions"]):
+        try:
+            first, last = lines[action["startLine"]], lines[action["endLine"]]
+            start = first["from"] + round(action["startOffset"] * first["durationInFrames"])
+            end = last["from"] + round(action["endOffset"] * last["durationInFrames"])
+        except (IndexError, KeyError, TypeError, ValueError, OverflowError) as exc:
+            raise TimelineError(f"Motion action {index} has an unusable narration anchor: {exc}") from None
+        if not scene_start <= start < end <= scene_end:
+            raise TimelineError(f"Motion action {index} must span at least one frame inside its scene "
+                                f"({scene_start}–{scene_end}); got {start}–{end}.")
+        channel = (action["entityId"], motion_channel(action["kind"]))
+        for other_start, other_end, other_index in intervals.get(channel, []):
+            if start < other_end and other_start < end:
+                raise TimelineError(f"Motion action {index} overlaps action {other_index} on entity "
+                                    f"{channel[0]!r} channel {channel[1]!r} after frame compilation.")
+        intervals.setdefault(channel, []).append((start, end, index))
+        actions.append({**action, "from": start, "durationInFrames": end - start})
+    return {**visual, "actions": actions}
+
+
 def build_timeline(plan, manifest: dict) -> dict:
     """Place every scene, line and card of a narrated plan on 30 fps frames."""
     if manifest.get("status") != "completed":
@@ -43,7 +72,7 @@ def build_timeline(plan, manifest: dict) -> dict:
     blocks = {block["narrationId"]: block for block in manifest["blocks"]}
     chapter_of = {scene_id: chapter for chapter in plan.chapters or () for scene_id in chapter.scene_ids}
     chapters, scenes, frame = [], [], TITLE_FRAMES
-    for scene in plan.scenes:
+    for scene_index, scene in enumerate(plan.scenes):
         chapter = chapter_of.get(scene.id)
         if chapter is not None and chapter.scene_ids[0] == scene.id:
             chapters.append({"id": chapter.id, "number": len(chapters) + 1, "title": chapter.title,
@@ -58,6 +87,9 @@ def build_timeline(plan, manifest: dict) -> dict:
             block = blocks.get(line.id)
             if block is None or block["sampleRate"] != rate or block["channels"] != 1:
                 raise TimelineError(f"No usable narration audio for {line.id}.")
+            if not isinstance(block.get("sampleCount"), int) or isinstance(block["sampleCount"], bool) \
+                    or block["sampleCount"] <= 0:
+                raise TimelineError(f"No usable narration sample count for {line.id}.")
             frames = math.ceil(block["sampleCount"] / samples_per_frame)
             entry = {"id": line.id, "text": line.text, "from": frame, "durationInFrames": frames,
                      "audioPath": block["audioPath"], "sampleCount": block["sampleCount"]}
@@ -66,9 +98,20 @@ def build_timeline(plan, manifest: dict) -> dict:
             lines.append(entry)
             frame += frames
         frame += TAIL_FRAMES
-        scenes.append({"id": scene.id, "chapterId": chapter.id if chapter else None, "template": scene.template,
-                       "visual": scene.visual.model_dump(mode="json", by_alias=True),
-                       "from": start, "durationInFrames": frame - start, "lines": lines})
+        visual = scene.visual.model_dump(mode="json", by_alias=True)
+        template, metadata = scene.template, {}
+        if scene.template == "motion":
+            visual = compile_motion_actions(visual, lines, start, frame)
+        elif scene.template == "process":
+            try:
+                visual, trace = compile_process_visual(scene.visual, lines, start,
+                                                       frame + (END_FRAMES if scene_index == len(plan.scenes) - 1 else 0))
+            except ProcessCompileError as exc:
+                raise TimelineError(f"Scene {scene.id}: {exc}") from None
+            template, metadata = "motion", {"processTrace": trace}
+        scenes.append({"id": scene.id, "chapterId": chapter.id if chapter else None, "template": template,
+                       "visual": visual,
+                       "from": start, "durationInFrames": frame - start, "lines": lines, **metadata})
     scenes[-1]["durationInFrames"] += END_FRAMES
     total = frame + END_FRAMES
     for chapter in chapters:

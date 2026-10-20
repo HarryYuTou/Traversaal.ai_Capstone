@@ -1,0 +1,557 @@
+{
+  "schemaVersion": "1",
+  "projectId": "motion-network-demo",
+  "title": "How a Message Crosses the Internet",
+  "scenes": [
+    {
+      "id": "scene-01",
+      "purpose": "Follow three packets as one message is split, routed, received out of order, and reassembled.",
+      "template": "motion",
+      "visual": {
+        "title": "One message. Three packets.",
+        "entities": [
+          {
+            "id": "sender",
+            "kind": "laptop",
+            "x": 9,
+            "y": 50,
+            "size": 1.4,
+            "rotation": 0,
+            "opacity": 1,
+            "value": 0,
+            "color": "ink",
+            "label": "Sender"
+          },
+          {
+            "id": "receiver",
+            "kind": "server",
+            "x": 91,
+            "y": 50,
+            "size": 1.4,
+            "rotation": 0,
+            "opacity": 1,
+            "value": 0,
+            "color": "ink",
+            "label": "Receiver"
+          },
+          {
+            "id": "message",
+            "kind": "box",
+            "x": 22,
+            "y": 50,
+            "size": 0.85,
+            "rotation": 0,
+            "opacity": 1,
+            "value": 0,
+            "color": "accent",
+            "label": "Message"
+          },
+          {
+            "id": "packet-one",
+            "kind": "packet",
+            "x": 22,
+            "y": 50,
+            "size": 1,
+            "rotation": 0,
+            "opacity": 0,
+            "value": 0,
+            "color": "accent",
+            "label": "1"
+          },
+          {
+            "id": "packet-two",
+            "kind": "packet",
+            "x": 22,
+            "y": 50,
+            "size": 1,
+            "rotation": 0,
+            "opacity": 0,
+            "value": 0,
+            "color": "secondary",
+            "label": "2"
+          },
+          {
+            "id": "packet-three",
+            "kind": "packet",
+            "x": 22,
+            "y": 50,
+            "size": 1,
+            "rotation": 0,
+            "opacity": 0,
+            "value": 0,
+            "color": "ink",
+            "label": "3"
+          },
+          {
+            "id": "complete",
+            "kind": "box",
+            "x": 71,
+            "y": 50,
+            "size": 0.85,
+            "rotation": 0,
+            "opacity": 0,
+            "value": 0,
+            "color": "accent",
+            "label": "Complete message"
+          },
+          {
+            "id": "received",
+            "kind": "gauge",
+            "x": 91,
+            "y": 88,
+            "size": 0.7,
+            "rotation": 0,
+            "opacity": 0,
+            "value": 0,
+            "color": "accent",
+            "label": ""
+          }
+        ],
+        "paths": [
+          {
+            "id": "upper-route",
+            "points": [
+              {
+                "x": 22,
+                "y": 24
+              },
+              {
+                "x": 38,
+                "y": 16
+              },
+              {
+                "x": 62,
+                "y": 16
+              },
+              {
+                "x": 78,
+                "y": 38
+              }
+            ],
+            "curved": true,
+            "closed": false,
+            "color": "accent"
+          },
+          {
+            "id": "middle-route",
+            "points": [
+              {
+                "x": 22,
+                "y": 50
+              },
+              {
+                "x": 50,
+                "y": 50
+              },
+              {
+                "x": 78,
+                "y": 50
+              }
+            ],
+            "curved": true,
+            "closed": false,
+            "color": "secondary"
+          },
+          {
+            "id": "lower-route",
+            "points": [
+              {
+                "x": 22,
+                "y": 76
+              },
+              {
+                "x": 38,
+                "y": 82
+              },
+              {
+                "x": 62,
+                "y": 82
+              },
+              {
+                "x": 78,
+                "y": 62
+              }
+            ],
+            "curved": true,
+            "closed": false,
+            "color": "muted"
+          }
+        ],
+        "actions": [
+          {
+            "entityId": "message",
+            "kind": "opacity",
+            "startLine": 1,
+            "endLine": 1,
+            "startOffset": 0,
+            "endOffset": 0.2,
+            "pathId": "",
+            "x": 0,
+            "y": 0,
+            "value": 0,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "received",
+            "kind": "opacity",
+            "startLine": 2,
+            "endLine": 2,
+            "startOffset": 0,
+            "endOffset": 0.15,
+            "pathId": "",
+            "x": 0,
+            "y": 0,
+            "value": 1,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "packet-one",
+            "kind": "opacity",
+            "startLine": 1,
+            "endLine": 1,
+            "startOffset": 0,
+            "endOffset": 0.2,
+            "pathId": "",
+            "x": 0,
+            "y": 0,
+            "value": 1,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "packet-one",
+            "kind": "move",
+            "startLine": 1,
+            "endLine": 1,
+            "startOffset": 0.15,
+            "endOffset": 0.8,
+            "pathId": "",
+            "x": 22,
+            "y": 24,
+            "value": 0,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "packet-two",
+            "kind": "opacity",
+            "startLine": 1,
+            "endLine": 1,
+            "startOffset": 0,
+            "endOffset": 0.2,
+            "pathId": "",
+            "x": 0,
+            "y": 0,
+            "value": 1,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "packet-two",
+            "kind": "move",
+            "startLine": 1,
+            "endLine": 1,
+            "startOffset": 0.15,
+            "endOffset": 0.8,
+            "pathId": "",
+            "x": 22,
+            "y": 50,
+            "value": 0,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "packet-three",
+            "kind": "opacity",
+            "startLine": 1,
+            "endLine": 1,
+            "startOffset": 0,
+            "endOffset": 0.2,
+            "pathId": "",
+            "x": 0,
+            "y": 0,
+            "value": 1,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "packet-three",
+            "kind": "move",
+            "startLine": 1,
+            "endLine": 1,
+            "startOffset": 0.15,
+            "endOffset": 0.8,
+            "pathId": "",
+            "x": 22,
+            "y": 76,
+            "value": 0,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "packet-one",
+            "kind": "follow-path",
+            "startLine": 2,
+            "endLine": 4,
+            "startOffset": 0,
+            "endOffset": 0.45,
+            "pathId": "upper-route",
+            "x": 0,
+            "y": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "entityId": "packet-two",
+            "kind": "follow-path",
+            "startLine": 2,
+            "endLine": 3,
+            "startOffset": 0,
+            "endOffset": 0.35,
+            "pathId": "middle-route",
+            "x": 0,
+            "y": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "entityId": "packet-three",
+            "kind": "follow-path",
+            "startLine": 2,
+            "endLine": 4,
+            "startOffset": 0,
+            "endOffset": 0.95,
+            "pathId": "lower-route",
+            "x": 0,
+            "y": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "entityId": "received",
+            "kind": "value",
+            "startLine": 3,
+            "endLine": 3,
+            "startOffset": 0.35,
+            "endOffset": 0.5,
+            "pathId": "",
+            "x": 0,
+            "y": 0,
+            "value": 0.3333333333333333,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "received",
+            "kind": "value",
+            "startLine": 4,
+            "endLine": 4,
+            "startOffset": 0.45,
+            "endOffset": 0.6,
+            "pathId": "",
+            "x": 0,
+            "y": 0,
+            "value": 0.6666666666666666,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "received",
+            "kind": "value",
+            "startLine": 4,
+            "endLine": 4,
+            "startOffset": 0.95,
+            "endOffset": 1,
+            "pathId": "",
+            "x": 0,
+            "y": 0,
+            "value": 1,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "packet-one",
+            "kind": "move",
+            "startLine": 5,
+            "endLine": 5,
+            "startOffset": 0.15,
+            "endOffset": 0.8,
+            "pathId": "",
+            "x": 64,
+            "y": 50,
+            "value": 0,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "packet-one",
+            "kind": "move",
+            "startLine": 6,
+            "endLine": 6,
+            "startOffset": 0,
+            "endOffset": 0.45,
+            "pathId": "",
+            "x": 71,
+            "y": 50,
+            "value": 0,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "packet-one",
+            "kind": "opacity",
+            "startLine": 6,
+            "endLine": 6,
+            "startOffset": 0.3,
+            "endOffset": 0.5,
+            "pathId": "",
+            "x": 0,
+            "y": 0,
+            "value": 0,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "packet-two",
+            "kind": "move",
+            "startLine": 5,
+            "endLine": 5,
+            "startOffset": 0.15,
+            "endOffset": 0.8,
+            "pathId": "",
+            "x": 71,
+            "y": 50,
+            "value": 0,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "packet-two",
+            "kind": "move",
+            "startLine": 6,
+            "endLine": 6,
+            "startOffset": 0,
+            "endOffset": 0.45,
+            "pathId": "",
+            "x": 71,
+            "y": 50,
+            "value": 0,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "packet-two",
+            "kind": "opacity",
+            "startLine": 6,
+            "endLine": 6,
+            "startOffset": 0.3,
+            "endOffset": 0.5,
+            "pathId": "",
+            "x": 0,
+            "y": 0,
+            "value": 0,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "packet-three",
+            "kind": "move",
+            "startLine": 5,
+            "endLine": 5,
+            "startOffset": 0.15,
+            "endOffset": 0.8,
+            "pathId": "",
+            "x": 78,
+            "y": 50,
+            "value": 0,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "packet-three",
+            "kind": "move",
+            "startLine": 6,
+            "endLine": 6,
+            "startOffset": 0,
+            "endOffset": 0.45,
+            "pathId": "",
+            "x": 71,
+            "y": 50,
+            "value": 0,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "packet-three",
+            "kind": "opacity",
+            "startLine": 6,
+            "endLine": 6,
+            "startOffset": 0.3,
+            "endOffset": 0.5,
+            "pathId": "",
+            "x": 0,
+            "y": 0,
+            "value": 0,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "complete",
+            "kind": "opacity",
+            "startLine": 6,
+            "endLine": 6,
+            "startOffset": 0.4,
+            "endOffset": 0.65,
+            "pathId": "",
+            "x": 0,
+            "y": 0,
+            "value": 1,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "complete",
+            "kind": "move",
+            "startLine": 7,
+            "endLine": 7,
+            "startOffset": 0,
+            "endOffset": 0.5,
+            "pathId": "",
+            "x": 88,
+            "y": 50,
+            "value": 0,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "complete",
+            "kind": "opacity",
+            "startLine": 7,
+            "endLine": 7,
+            "startOffset": 0.5,
+            "endOffset": 0.8,
+            "pathId": "",
+            "x": 0,
+            "y": 0,
+            "value": 0,
+            "easing": "ease-in-out"
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-01-line-01",
+          "text": "A message looks like one piece, but the internet can carry it as several smaller packets."
+        },
+        {
+          "id": "scene-01-line-02",
+          "text": "Here, the sender divides its data into three numbered pieces, each with the same destination."
+        },
+        {
+          "id": "scene-01-line-03",
+          "text": "Routers forward those packets, and they can take different paths through the network."
+        },
+        {
+          "id": "scene-01-line-04",
+          "text": "One packet takes a shorter route, while another spends longer waiting along the way."
+        },
+        {
+          "id": "scene-01-line-05",
+          "text": "That means the pieces may arrive in a different order from the order they were sent."
+        },
+        {
+          "id": "scene-01-line-06",
+          "text": "With TCP, the receiver uses sequence numbers to put the data back into the right order."
+        },
+        {
+          "id": "scene-01-line-07",
+          "text": "Only after the pieces are assembled can the application use the complete message."
+        },
+        {
+          "id": "scene-01-line-08",
+          "text": "The useful idea is simple: split, transport, then reassemble."
+        }
+      ]
+    }
+  ]
+}

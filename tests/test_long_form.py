@@ -30,6 +30,7 @@ class LongFormTests(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.out = Path(self.temporary.name) / "run"
         self.spec, _ = make_spec(TOPIC, AUDIENCE, 225)
+        self.spec["allowedTemplates"] = ["concept", "flow"]
 
     def saved(self, name):
         return json.loads((self.out / name).read_text(encoding="utf-8"))
@@ -108,14 +109,15 @@ class LongFormTests(unittest.TestCase):
         self.assertIn("Chapters: 5 to 7", outline_request(make_spec(TOPIC, AUDIENCE, 420)[0]))
 
     def test_plan_command_reports_chapters_and_cost(self):
-        client = FakeClient(response(outline_output()), *(response(model_output()) for _ in range(3)))
+        client = FakeClient(response({"templates": ["concept", "flow"]}), response(outline_output()),
+                            *(response(model_output()) for _ in range(3)))
         stdout = io.StringIO()
         with patch("capstone_script.__main__._client", return_value=client), \
                 patch("capstone_script.__main__.load_env_file"), redirect_stdout(stdout):
             code = main(["plan", "--topic", TOPIC, "--duration", "225", "--out", str(self.out)])
         self.assertEqual(code, 0)
         self.assertIn("3 chapters | 15 scenes | 54 lines", stdout.getvalue())
-        self.assertIn("API about $0.29 at list prices", stdout.getvalue())
+        self.assertIn("API about $0.36 at list prices", stdout.getvalue())
 
 
 if __name__ == "__main__":

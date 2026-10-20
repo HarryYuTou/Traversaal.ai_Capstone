@@ -11,6 +11,7 @@ import {FlowScene} from './scenes/FlowScene';
 import {MapScene} from './scenes/MapScene';
 import {QuoteScene} from './scenes/QuoteScene';
 import {StatScene} from './scenes/StatScene';
+import {MotionScene} from './motion/MotionScene';
 import {ThemeContext, motion, themes} from './theme';
 import type {Timeline, TimelineScene} from './types';
 
@@ -32,6 +33,8 @@ const SceneView: React.FC<{scene: TimelineScene; label: string}> = ({scene, labe
       return <QuoteScene scene={scene} label={label} />;
     case 'map':
       return <MapScene scene={scene} label={label} />;
+    case 'motion':
+      return <MotionScene scene={scene} label={label} />;
   }
 };
 

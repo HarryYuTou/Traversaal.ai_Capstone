@@ -83,6 +83,23 @@ def render_props(timeline_path: Path, theme: str = "light", music: bool = True,
     return path
 
 
+def inspect_motion(timeline_path: Path, timeline: dict, progress=lambda message: None) -> dict | None:
+    """Write diagnostic evidence before rendering; intentional contacts remain reviewable warnings."""
+    if not any(scene["template"] == "motion" for scene in timeline["scenes"]):
+        return None
+    output = timeline_path.parent.parent / "motion-inspection.json"
+    progress("Checking animation geometry and timing on every frame...")
+    result = subprocess.run([_node(), str(RENDERER / "scripts" / "inspect-motion.mjs"),
+                             str(timeline_path), str(output)], cwd=RENDERER,
+                            capture_output=True, text=True)
+    if result.returncode != 0 or not output.is_file():
+        raise RenderError(f"Animation inspection did not finish: {result.stderr.strip()}")
+    report = json.loads(output.read_text(encoding="utf-8"))
+    if report["status"] == "needs-review":
+        progress("Animation diagnostics flagged possible contacts or long holds; inspect motion-inspection.json.")
+    return {"path": output.name, "status": report["status"]}
+
+
 def render_video(run_dir: Path, draft: bool = False, share: bool = False, progress=lambda message: None,
                  theme: str = "light", music: bool = True) -> dict:
     """Render video.mp4 (or video-draft.mp4 at half size) into run_dir and describe it in video-info.json.
@@ -105,6 +122,7 @@ def render_video(run_dir: Path, draft: bool = False, share: bool = False, progre
         progress("Building the frame timeline, aligned narration and subtitles...")
         write_timeline(run_dir)
     timeline = json.loads(timeline_path.read_text(encoding="utf-8"))
+    motion_inspection = inspect_motion(timeline_path, timeline, progress)
     props_path = render_props(timeline_path, theme, music, progress)
     command = render_command(props_path, output, draft)
     progress(f"Rendering {timeline['durationInFrames']} frames with Remotion...")
@@ -121,6 +139,8 @@ def render_video(run_dir: Path, draft: bool = False, share: bool = False, progre
             "expectedSeconds": timeline["durationSeconds"], "probedSeconds": duration,
             "bytes": output.stat().st_size, "renderSeconds": round(seconds, 1), "theme": theme, "music": music,
             "subtitles": [f"{VIDEO_DIR}/subtitles.srt", f"{VIDEO_DIR}/subtitles.vtt"]}
+    if motion_inspection:
+        info["motionInspection"] = motion_inspection
     if not draft:
         progress("Rendering the thumbnail...")
         if subprocess.run(still_command(props_path, run_dir / "thumbnail.png"), cwd=RENDERER).returncode == 0:

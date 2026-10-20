@@ -1,0 +1,2181 @@
+{
+  "schemaVersion": "1",
+  "projectId": "why-do-queues-grow-persist-and-clear-and-how-can",
+  "title": "Why Queues Grow, Linger, and Clear",
+  "scenes": [
+    {
+      "id": "scene-01",
+      "purpose": "Shows a single-desk line that lengthens and later shrinks, raising the question of what drives each change.",
+      "template": "process",
+      "visual": {
+        "title": "One Desk: The Line Grows, Then Shrinks",
+        "actorKind": "person",
+        "actors": [
+          {
+            "id": "a",
+            "color": "ink",
+            "label": ""
+          },
+          {
+            "id": "b",
+            "color": "ink",
+            "label": ""
+          },
+          {
+            "id": "c",
+            "color": "ink",
+            "label": ""
+          },
+          {
+            "id": "d",
+            "color": "ink",
+            "label": ""
+          }
+        ],
+        "stations": [
+          {
+            "id": "desk",
+            "label": "Service desk",
+            "kind": "counter",
+            "color": "accent"
+          }
+        ],
+        "initialQueue": [
+          "b"
+        ],
+        "initialService": [
+          {
+            "actorId": "a",
+            "stationId": "desk"
+          }
+        ],
+        "events": [
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 0,
+            "endLine": 0,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "arrive",
+            "actorIds": [
+              "c",
+              "d"
+            ],
+            "stationIds": [],
+            "startLine": 1,
+            "endLine": 1,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "finish",
+            "actorIds": [
+              "a"
+            ],
+            "stationIds": [
+              "desk"
+            ],
+            "startLine": 2,
+            "endLine": 2,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "start",
+            "actorIds": [
+              "b"
+            ],
+            "stationIds": [
+              "desk"
+            ],
+            "startLine": 3,
+            "endLine": 3,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "finish",
+            "actorIds": [
+              "b"
+            ],
+            "stationIds": [
+              "desk"
+            ],
+            "startLine": 4,
+            "endLine": 4,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "start",
+            "actorIds": [
+              "c"
+            ],
+            "stationIds": [
+              "desk"
+            ],
+            "startLine": 5,
+            "endLine": 5,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 6,
+            "endLine": 6,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-01-line-01",
+          "text": "Picture one desk, with one person being helped and one waiting."
+        },
+        {
+          "id": "scene-01-line-02",
+          "text": "More people walk up, and the line slowly grows longer."
+        },
+        {
+          "id": "scene-01-line-03",
+          "text": "The person at the desk finishes and heads for the exit."
+        },
+        {
+          "id": "scene-01-line-04",
+          "text": "The next person in line steps up to be served."
+        },
+        {
+          "id": "scene-01-line-05",
+          "text": "Later, nobody new arrives, and that customer finishes too."
+        },
+        {
+          "id": "scene-01-line-06",
+          "text": "Another person steps up, and the line is shorter now."
+        },
+        {
+          "id": "scene-01-line-07",
+          "text": "So what made it grow, what makes lines linger, and what clears them?"
+        }
+      ]
+    },
+    {
+      "id": "scene-02",
+      "purpose": "Raises the common belief that a second desk fixes a line, promises to test it, and sets the ground rules for the video.",
+      "template": "process",
+      "visual": {
+        "title": "Does a Second Desk Fix the Line?",
+        "actorKind": "person",
+        "actors": [
+          {
+            "id": "e",
+            "color": "ink",
+            "label": ""
+          },
+          {
+            "id": "f",
+            "color": "ink",
+            "label": ""
+          },
+          {
+            "id": "g",
+            "color": "ink",
+            "label": ""
+          },
+          {
+            "id": "h",
+            "color": "ink",
+            "label": ""
+          },
+          {
+            "id": "i",
+            "color": "secondary",
+            "label": ""
+          }
+        ],
+        "stations": [
+          {
+            "id": "desk-1",
+            "label": "Desk 1",
+            "kind": "counter",
+            "color": "accent"
+          },
+          {
+            "id": "desk-2",
+            "label": "Desk 2",
+            "kind": "counter",
+            "color": "secondary"
+          }
+        ],
+        "initialQueue": [
+          "f",
+          "g",
+          "h"
+        ],
+        "initialService": [
+          {
+            "actorId": "e",
+            "stationId": "desk-1"
+          }
+        ],
+        "events": [
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 0,
+            "endLine": 0,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "start",
+            "actorIds": [
+              "f"
+            ],
+            "stationIds": [
+              "desk-2"
+            ],
+            "startLine": 1,
+            "endLine": 1,
+            "startOffset": 0.0,
+            "endOffset": 0.6
+          },
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 1,
+            "endLine": 2,
+            "startOffset": 0.6,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "arrive",
+            "actorIds": [
+              "i"
+            ],
+            "stationIds": [],
+            "startLine": 3,
+            "endLine": 3,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 4,
+            "endLine": 4,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-02-line-01",
+          "text": "Surely a second desk simply fixes a line, right?"
+        },
+        {
+          "id": "scene-02-line-02",
+          "text": "A second desk takes the next person. Does that settle it? We will test it."
+        },
+        {
+          "id": "scene-02-line-03",
+          "text": "First, the rules. Everyone shares one line, first come, first served."
+        },
+        {
+          "id": "scene-02-line-04",
+          "text": "Newcomers join the back, and nobody leaves early or gets turned away."
+        },
+        {
+          "id": "scene-02-line-05",
+          "text": "On screen, movement speeds are not real service rates."
+        }
+      ]
+    },
+    {
+      "id": "scene-03",
+      "purpose": "Shows one desk so the viewer can count waiting, in service, and total unfinished as a customer finishes and the next steps up.",
+      "template": "process",
+      "visual": {
+        "title": "Who Is Waiting, Who Is Served",
+        "actorKind": "person",
+        "actors": [
+          {
+            "id": "a1",
+            "color": "accent",
+            "label": ""
+          },
+          {
+            "id": "a2",
+            "color": "ink",
+            "label": ""
+          },
+          {
+            "id": "a3",
+            "color": "ink",
+            "label": ""
+          },
+          {
+            "id": "a4",
+            "color": "ink",
+            "label": ""
+          }
+        ],
+        "stations": [
+          {
+            "id": "desk",
+            "label": "Service desk",
+            "kind": "counter",
+            "color": "secondary"
+          }
+        ],
+        "initialQueue": [
+          "a2",
+          "a3",
+          "a4"
+        ],
+        "initialService": [
+          {
+            "actorId": "a1",
+            "stationId": "desk"
+          }
+        ],
+        "events": [
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 0,
+            "endLine": 2,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "finish",
+            "actorIds": [
+              "a1"
+            ],
+            "stationIds": [
+              "desk"
+            ],
+            "startLine": 3,
+            "endLine": 3,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 4,
+            "endLine": 4,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "start",
+            "actorIds": [
+              "a2"
+            ],
+            "stationIds": [
+              "desk"
+            ],
+            "startLine": 5,
+            "endLine": 5,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 6,
+            "endLine": 7,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-03-line-01",
+          "text": "With those rules set, let's count who is where at one desk."
+        },
+        {
+          "id": "scene-03-line-02",
+          "text": "One customer is at the desk, being served. Three more stand in line, waiting."
+        },
+        {
+          "id": "scene-03-line-03",
+          "text": "So waiting is three, in service is one, and the total unfinished is four."
+        },
+        {
+          "id": "scene-03-line-04",
+          "text": "Now the customer at the desk finishes and walks out the exit."
+        },
+        {
+          "id": "scene-03-line-05",
+          "text": "In service drops to zero, and the total unfinished drops to three."
+        },
+        {
+          "id": "scene-03-line-06",
+          "text": "Next, the person at the front of the line steps up to the desk."
+        },
+        {
+          "id": "scene-03-line-07",
+          "text": "Waiting drops to two and in service rises to one, but the total stays three."
+        },
+        {
+          "id": "scene-03-line-08",
+          "text": "Stepping up finishes nobody. Only the earlier exit lowered the total."
+        }
+      ]
+    },
+    {
+      "id": "scene-04",
+      "purpose": "Explains that stepping up ends waiting time but not time in the system, which only ends with completion and departure.",
+      "template": "definition",
+      "visual": {
+        "title": "Waiting Time Versus Time in the System",
+        "term": "Time in the system",
+        "definition": "All the time from arriving to leaving: waiting time plus time being served.",
+        "example": "At the desk, your wait is over, but your visit is not.",
+        "icon": "hourglass"
+      },
+      "narration": [
+        {
+          "id": "scene-04-line-01",
+          "text": "Waiting time ends the moment service begins, but time in the system keeps running.",
+          "highlightPart": "term"
+        },
+        {
+          "id": "scene-04-line-02",
+          "text": "Time in the system covers everything from arriving to leaving, waiting plus service.",
+          "highlightPart": "definition"
+        },
+        {
+          "id": "scene-04-line-03",
+          "text": "Picture yourself stepping up to the desk. Your wait is over, but your visit is not.",
+          "highlightPart": "example"
+        },
+        {
+          "id": "scene-04-line-04",
+          "text": "Only when service is complete and you walk out does the total unfinished go down.",
+          "highlightPart": "definition"
+        },
+        {
+          "id": "scene-04-line-05",
+          "text": "So keep three counts in mind: waiting, in service, and the total still unfinished."
+        }
+      ]
+    },
+    {
+      "id": "scene-05",
+      "purpose": "Sets up four unfinished parcels at one bench and shows two arrivals and one completion raising the total to five.",
+      "template": "process",
+      "visual": {
+        "title": "Two In, One Out: Four Becomes Five",
+        "actorKind": "box",
+        "actors": [
+          {
+            "id": "a",
+            "color": "ink",
+            "label": ""
+          },
+          {
+            "id": "b",
+            "color": "muted",
+            "label": ""
+          },
+          {
+            "id": "c",
+            "color": "muted",
+            "label": ""
+          },
+          {
+            "id": "d",
+            "color": "muted",
+            "label": ""
+          },
+          {
+            "id": "e",
+            "color": "accent",
+            "label": ""
+          },
+          {
+            "id": "f",
+            "color": "accent",
+            "label": ""
+          }
+        ],
+        "stations": [
+          {
+            "id": "bench",
+            "label": "Packing bench",
+            "kind": "workbench",
+            "color": "secondary"
+          }
+        ],
+        "initialQueue": [
+          "b",
+          "c",
+          "d"
+        ],
+        "initialService": [
+          {
+            "actorId": "a",
+            "stationId": "bench"
+          }
+        ],
+        "events": [
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 0,
+            "endLine": 2,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "arrive",
+            "actorIds": [
+              "e",
+              "f"
+            ],
+            "stationIds": [],
+            "startLine": 3,
+            "endLine": 3,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "finish",
+            "actorIds": [
+              "a"
+            ],
+            "stationIds": [
+              "bench"
+            ],
+            "startLine": 4,
+            "endLine": 4,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "start",
+            "actorIds": [
+              "b"
+            ],
+            "stationIds": [
+              "bench"
+            ],
+            "startLine": 5,
+            "endLine": 5,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 6,
+            "endLine": 6,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-05-line-01",
+          "text": "Let's put those three counts to work at a packing bench."
+        },
+        {
+          "id": "scene-05-line-02",
+          "text": "One parcel is on the bench, and three wait behind it. That's four unfinished."
+        },
+        {
+          "id": "scene-05-line-03",
+          "text": "The total is the starting count, plus arrivals, minus completions."
+        },
+        {
+          "id": "scene-05-line-04",
+          "text": "Now two new parcels arrive and join the back of the line."
+        },
+        {
+          "id": "scene-05-line-05",
+          "text": "The parcel on the bench is finished, and it leaves for good."
+        },
+        {
+          "id": "scene-05-line-06",
+          "text": "The next parcel moves onto the bench. Waiting drops, but it's still unfinished."
+        },
+        {
+          "id": "scene-05-line-07",
+          "text": "Now one is on the bench and four wait. Four plus two minus one is five."
+        }
+      ]
+    },
+    {
+      "id": "scene-06",
+      "purpose": "Shows one arrival and two completions bringing the total from five down to four.",
+      "template": "process",
+      "visual": {
+        "title": "One In, Two Out: Five Becomes Four",
+        "actorKind": "box",
+        "actors": [
+          {
+            "id": "b",
+            "color": "ink",
+            "label": ""
+          },
+          {
+            "id": "c",
+            "color": "muted",
+            "label": ""
+          },
+          {
+            "id": "d",
+            "color": "muted",
+            "label": ""
+          },
+          {
+            "id": "e",
+            "color": "muted",
+            "label": ""
+          },
+          {
+            "id": "f",
+            "color": "muted",
+            "label": ""
+          },
+          {
+            "id": "g",
+            "color": "accent",
+            "label": ""
+          }
+        ],
+        "stations": [
+          {
+            "id": "bench",
+            "label": "Packing bench",
+            "kind": "workbench",
+            "color": "secondary"
+          }
+        ],
+        "initialQueue": [
+          "c",
+          "d",
+          "e",
+          "f"
+        ],
+        "initialService": [
+          {
+            "actorId": "b",
+            "stationId": "bench"
+          }
+        ],
+        "events": [
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 0,
+            "endLine": 0,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "arrive",
+            "actorIds": [
+              "g"
+            ],
+            "stationIds": [],
+            "startLine": 1,
+            "endLine": 1,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "finish",
+            "actorIds": [
+              "b"
+            ],
+            "stationIds": [
+              "bench"
+            ],
+            "startLine": 2,
+            "endLine": 2,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "start",
+            "actorIds": [
+              "c"
+            ],
+            "stationIds": [
+              "bench"
+            ],
+            "startLine": 3,
+            "endLine": 3,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 4,
+            "endLine": 4,
+            "startOffset": 0.0,
+            "endOffset": 0.35
+          },
+          {
+            "kind": "finish",
+            "actorIds": [
+              "c"
+            ],
+            "stationIds": [
+              "bench"
+            ],
+            "startLine": 4,
+            "endLine": 4,
+            "startOffset": 0.35,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "start",
+            "actorIds": [
+              "d"
+            ],
+            "stationIds": [
+              "bench"
+            ],
+            "startLine": 5,
+            "endLine": 5,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 6,
+            "endLine": 6,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-06-line-01",
+          "text": "Next round begins with those five unfinished parcels."
+        },
+        {
+          "id": "scene-06-line-02",
+          "text": "This time, only one new parcel arrives at the line."
+        },
+        {
+          "id": "scene-06-line-03",
+          "text": "Meanwhile, the parcel on the bench is completed and heads out."
+        },
+        {
+          "id": "scene-06-line-04",
+          "text": "The next waiting parcel moves up, and packing begins."
+        },
+        {
+          "id": "scene-06-line-05",
+          "text": "It's packed, then it leaves too. That's two completions so far."
+        },
+        {
+          "id": "scene-06-line-06",
+          "text": "Another waiting parcel moves up onto the empty bench."
+        },
+        {
+          "id": "scene-06-line-07",
+          "text": "Five plus one minus two leaves four. More completions than arrivals shrink the work."
+        }
+      ]
+    },
+    {
+      "id": "scene-07",
+      "purpose": "Shows one arrival matched by one completion so the total stays at four, holding the backlog in place.",
+      "template": "process",
+      "visual": {
+        "title": "One In, One Out: Still Four",
+        "actorKind": "box",
+        "actors": [
+          {
+            "id": "d",
+            "color": "ink",
+            "label": ""
+          },
+          {
+            "id": "e",
+            "color": "muted",
+            "label": ""
+          },
+          {
+            "id": "f",
+            "color": "muted",
+            "label": ""
+          },
+          {
+            "id": "g",
+            "color": "muted",
+            "label": ""
+          },
+          {
+            "id": "h",
+            "color": "accent",
+            "label": ""
+          }
+        ],
+        "stations": [
+          {
+            "id": "bench",
+            "label": "Packing bench",
+            "kind": "workbench",
+            "color": "secondary"
+          }
+        ],
+        "initialQueue": [
+          "e",
+          "f",
+          "g"
+        ],
+        "initialService": [
+          {
+            "actorId": "d",
+            "stationId": "bench"
+          }
+        ],
+        "events": [
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 0,
+            "endLine": 0,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "arrive",
+            "actorIds": [
+              "h"
+            ],
+            "stationIds": [],
+            "startLine": 1,
+            "endLine": 1,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "finish",
+            "actorIds": [
+              "d"
+            ],
+            "stationIds": [
+              "bench"
+            ],
+            "startLine": 2,
+            "endLine": 2,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "start",
+            "actorIds": [
+              "e"
+            ],
+            "stationIds": [
+              "bench"
+            ],
+            "startLine": 3,
+            "endLine": 3,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 4,
+            "endLine": 5,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-07-line-01",
+          "text": "Last round starts at four: one on the bench, three waiting."
+        },
+        {
+          "id": "scene-07-line-02",
+          "text": "One new parcel arrives and joins the back of the line."
+        },
+        {
+          "id": "scene-07-line-03",
+          "text": "Then the parcel on the bench finishes and leaves the room."
+        },
+        {
+          "id": "scene-07-line-04",
+          "text": "The next parcel moves onto the bench to be packed."
+        },
+        {
+          "id": "scene-07-line-05",
+          "text": "Still one on the bench, three waiting, and four unfinished."
+        },
+        {
+          "id": "scene-07-line-06",
+          "text": "Matching counts hold the backlog steady. They don't make it disappear."
+        }
+      ]
+    },
+    {
+      "id": "scene-08",
+      "purpose": "Shows how a burst of arrivals and one long job build and hold a line at a single unchanged server.",
+      "template": "process",
+      "visual": {
+        "title": "A burst arrives at a busy server",
+        "actorKind": "packet",
+        "actors": [
+          {
+            "id": "p1",
+            "color": "ink",
+            "label": ""
+          },
+          {
+            "id": "p2",
+            "color": "accent",
+            "label": "Needs extra work"
+          },
+          {
+            "id": "p3",
+            "color": "secondary",
+            "label": ""
+          },
+          {
+            "id": "p4",
+            "color": "muted",
+            "label": ""
+          }
+        ],
+        "stations": [
+          {
+            "id": "server",
+            "label": "Server",
+            "kind": "server",
+            "color": "ink"
+          }
+        ],
+        "initialQueue": [],
+        "initialService": [
+          {
+            "actorId": "p1",
+            "stationId": "server"
+          }
+        ],
+        "events": [
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 0,
+            "endLine": 1,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "arrive",
+            "actorIds": [
+              "p2",
+              "p3",
+              "p4"
+            ],
+            "stationIds": [],
+            "startLine": 2,
+            "endLine": 3,
+            "startOffset": 0.0,
+            "endOffset": 0.7
+          },
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 3,
+            "endLine": 3,
+            "startOffset": 0.7,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "finish",
+            "actorIds": [
+              "p1"
+            ],
+            "stationIds": [
+              "server"
+            ],
+            "startLine": 4,
+            "endLine": 4,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "start",
+            "actorIds": [
+              "p2"
+            ],
+            "stationIds": [
+              "server"
+            ],
+            "startLine": 5,
+            "endLine": 5,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 6,
+            "endLine": 6,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-08-line-01",
+          "text": "Now let's see what timing does, with packets at a single server."
+        },
+        {
+          "id": "scene-08-line-02",
+          "text": "This server handles one packet at a time, and it's busy now."
+        },
+        {
+          "id": "scene-08-line-03",
+          "text": "Then three packets arrive almost together, one right after another."
+        },
+        {
+          "id": "scene-08-line-04",
+          "text": "With the server busy, they form a waiting line of three."
+        },
+        {
+          "id": "scene-08-line-05",
+          "text": "The first packet finishes and leaves, freeing the server for the next."
+        },
+        {
+          "id": "scene-08-line-06",
+          "text": "The next packet starts, but it needs much more work than usual."
+        },
+        {
+          "id": "scene-08-line-07",
+          "text": "It stays at the server a long time, so the two behind it linger."
+        }
+      ]
+    },
+    {
+      "id": "scene-09",
+      "purpose": "Shows a quiet spell with no arrivals letting the same server empty the line, and why one snapshot or average misses this.",
+      "template": "process",
+      "visual": {
+        "title": "A quiet spell lets the server catch up",
+        "actorKind": "packet",
+        "actors": [
+          {
+            "id": "p2",
+            "color": "accent",
+            "label": "Needs extra work"
+          },
+          {
+            "id": "p3",
+            "color": "secondary",
+            "label": ""
+          },
+          {
+            "id": "p4",
+            "color": "muted",
+            "label": ""
+          }
+        ],
+        "stations": [
+          {
+            "id": "server",
+            "label": "Server",
+            "kind": "server",
+            "color": "ink"
+          }
+        ],
+        "initialQueue": [
+          "p3",
+          "p4"
+        ],
+        "initialService": [
+          {
+            "actorId": "p2",
+            "stationId": "server"
+          }
+        ],
+        "events": [
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 0,
+            "endLine": 0,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "finish",
+            "actorIds": [
+              "p2"
+            ],
+            "stationIds": [
+              "server"
+            ],
+            "startLine": 1,
+            "endLine": 1,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "start",
+            "actorIds": [
+              "p3"
+            ],
+            "stationIds": [
+              "server"
+            ],
+            "startLine": 2,
+            "endLine": 2,
+            "startOffset": 0.0,
+            "endOffset": 0.8
+          },
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 2,
+            "endLine": 3,
+            "startOffset": 0.8,
+            "endOffset": 0.3
+          },
+          {
+            "kind": "finish",
+            "actorIds": [
+              "p3"
+            ],
+            "stationIds": [
+              "server"
+            ],
+            "startLine": 3,
+            "endLine": 3,
+            "startOffset": 0.3,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "start",
+            "actorIds": [
+              "p4"
+            ],
+            "stationIds": [
+              "server"
+            ],
+            "startLine": 4,
+            "endLine": 4,
+            "startOffset": 0.0,
+            "endOffset": 0.8
+          },
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 4,
+            "endLine": 5,
+            "startOffset": 0.8,
+            "endOffset": 0.2
+          },
+          {
+            "kind": "finish",
+            "actorIds": [
+              "p4"
+            ],
+            "stationIds": [
+              "server"
+            ],
+            "startLine": 5,
+            "endLine": 5,
+            "startOffset": 0.2,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 6,
+            "endLine": 7,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-09-line-01",
+          "text": "Now no new packets arrive. This quiet spell lets the server catch up."
+        },
+        {
+          "id": "scene-09-line-02",
+          "text": "At last, the packet needing extra work finishes and leaves."
+        },
+        {
+          "id": "scene-09-line-03",
+          "text": "The next packet moves up from the line and starts."
+        },
+        {
+          "id": "scene-09-line-04",
+          "text": "This one is quick, so it finishes and leaves soon after."
+        },
+        {
+          "id": "scene-09-line-05",
+          "text": "The last packet starts, and the waiting line is now empty."
+        },
+        {
+          "id": "scene-09-line-06",
+          "text": "Moments later it finishes too, and the server sits idle."
+        },
+        {
+          "id": "scene-09-line-07",
+          "text": "The server never changed. A burst built the line; a quiet spell cleared it."
+        },
+        {
+          "id": "scene-09-line-08",
+          "text": "A snapshot or average misses this: three waiting at one moment, none at another."
+        }
+      ]
+    },
+    {
+      "id": "scene-10",
+      "purpose": "Shows that opening a second desk moves a waiting person into service without changing the unfinished total.",
+      "template": "process",
+      "visual": {
+        "title": "Opening a second desk",
+        "actorKind": "person",
+        "actors": [
+          {
+            "id": "a",
+            "color": "ink",
+            "label": ""
+          },
+          {
+            "id": "b",
+            "color": "ink",
+            "label": ""
+          },
+          {
+            "id": "c",
+            "color": "ink",
+            "label": ""
+          },
+          {
+            "id": "d",
+            "color": "ink",
+            "label": ""
+          },
+          {
+            "id": "e",
+            "color": "ink",
+            "label": ""
+          }
+        ],
+        "stations": [
+          {
+            "id": "desk-1",
+            "label": "Desk 1",
+            "kind": "counter",
+            "color": "accent"
+          },
+          {
+            "id": "desk-2",
+            "label": "Desk 2",
+            "kind": "counter",
+            "color": "secondary"
+          }
+        ],
+        "initialQueue": [
+          "b",
+          "c",
+          "d",
+          "e"
+        ],
+        "initialService": [
+          {
+            "actorId": "a",
+            "stationId": "desk-1"
+          }
+        ],
+        "events": [
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 0,
+            "endLine": 1,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "start",
+            "actorIds": [
+              "b"
+            ],
+            "stationIds": [
+              "desk-2"
+            ],
+            "startLine": 2,
+            "endLine": 2,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 3,
+            "endLine": 3,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-10-line-01",
+          "text": "Now, instead of timing, we change the service side."
+        },
+        {
+          "id": "scene-10-line-02",
+          "text": "One desk is busy and four people wait, so five are unfinished in total."
+        },
+        {
+          "id": "scene-10-line-03",
+          "text": "Now a second desk opens, and the person at the front steps straight up to it."
+        },
+        {
+          "id": "scene-10-line-04",
+          "text": "Three wait and two are served. The total stays five, since nobody has finished yet."
+        }
+      ]
+    },
+    {
+      "id": "scene-11",
+      "purpose": "Demonstrates that with two desks, three arrivals and two completions still grow the total, just more slowly than with one desk.",
+      "template": "process",
+      "visual": {
+        "title": "Two desks slow the growth",
+        "actorKind": "person",
+        "actors": [
+          {
+            "id": "a",
+            "color": "ink",
+            "label": ""
+          },
+          {
+            "id": "b",
+            "color": "ink",
+            "label": ""
+          },
+          {
+            "id": "c",
+            "color": "ink",
+            "label": ""
+          },
+          {
+            "id": "d",
+            "color": "ink",
+            "label": ""
+          },
+          {
+            "id": "e",
+            "color": "ink",
+            "label": ""
+          },
+          {
+            "id": "f",
+            "color": "secondary",
+            "label": ""
+          },
+          {
+            "id": "g",
+            "color": "secondary",
+            "label": ""
+          },
+          {
+            "id": "h",
+            "color": "secondary",
+            "label": ""
+          }
+        ],
+        "stations": [
+          {
+            "id": "desk-1",
+            "label": "Desk 1",
+            "kind": "counter",
+            "color": "accent"
+          },
+          {
+            "id": "desk-2",
+            "label": "Desk 2",
+            "kind": "counter",
+            "color": "secondary"
+          }
+        ],
+        "initialQueue": [
+          "c",
+          "d",
+          "e"
+        ],
+        "initialService": [
+          {
+            "actorId": "a",
+            "stationId": "desk-1"
+          },
+          {
+            "actorId": "b",
+            "stationId": "desk-2"
+          }
+        ],
+        "events": [
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 0,
+            "endLine": 0,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "arrive",
+            "actorIds": [
+              "f"
+            ],
+            "stationIds": [],
+            "startLine": 1,
+            "endLine": 1,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 2,
+            "endLine": 2,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "finish",
+            "actorIds": [
+              "a",
+              "b"
+            ],
+            "stationIds": [
+              "desk-1",
+              "desk-2"
+            ],
+            "startLine": 3,
+            "endLine": 3,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "start",
+            "actorIds": [
+              "c",
+              "d"
+            ],
+            "stationIds": [
+              "desk-1",
+              "desk-2"
+            ],
+            "startLine": 4,
+            "endLine": 4,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "arrive",
+            "actorIds": [
+              "g",
+              "h"
+            ],
+            "stationIds": [],
+            "startLine": 5,
+            "endLine": 5,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 6,
+            "endLine": 7,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-11-line-01",
+          "text": "Now three people will arrive while each desk completes one customer."
+        },
+        {
+          "id": "scene-11-line-02",
+          "text": "A newcomer joins the back of the line while both desks keep working."
+        },
+        {
+          "id": "scene-11-line-03",
+          "text": "Busy desks are not departures yet."
+        },
+        {
+          "id": "scene-11-line-04",
+          "text": "Each desk finishes its customer, and both walk out the exit."
+        },
+        {
+          "id": "scene-11-line-05",
+          "text": "The next two step up, because a desk needs someone to serve."
+        },
+        {
+          "id": "scene-11-line-06",
+          "text": "Two more people arrive, making three arrivals against two departures."
+        },
+        {
+          "id": "scene-11-line-07",
+          "text": "The total rose from five to six. One desk finishing only one customer would have made it seven."
+        },
+        {
+          "id": "scene-11-line-08",
+          "text": "So the second desk slowed the growth, but the backlog did not shrink."
+        }
+      ]
+    },
+    {
+      "id": "scene-12",
+      "purpose": "Shows a later interval where two desks complete more than arrive, so the total falls, separating helping from clearing.",
+      "template": "process",
+      "visual": {
+        "title": "When completions outnumber arrivals",
+        "actorKind": "person",
+        "actors": [
+          {
+            "id": "c",
+            "color": "ink",
+            "label": ""
+          },
+          {
+            "id": "d",
+            "color": "ink",
+            "label": ""
+          },
+          {
+            "id": "e",
+            "color": "ink",
+            "label": ""
+          },
+          {
+            "id": "f",
+            "color": "secondary",
+            "label": ""
+          },
+          {
+            "id": "g",
+            "color": "secondary",
+            "label": ""
+          },
+          {
+            "id": "h",
+            "color": "secondary",
+            "label": ""
+          },
+          {
+            "id": "i",
+            "color": "muted",
+            "label": ""
+          }
+        ],
+        "stations": [
+          {
+            "id": "desk-1",
+            "label": "Desk 1",
+            "kind": "counter",
+            "color": "accent"
+          },
+          {
+            "id": "desk-2",
+            "label": "Desk 2",
+            "kind": "counter",
+            "color": "secondary"
+          }
+        ],
+        "initialQueue": [
+          "e",
+          "f",
+          "g",
+          "h"
+        ],
+        "initialService": [
+          {
+            "actorId": "c",
+            "stationId": "desk-1"
+          },
+          {
+            "actorId": "d",
+            "stationId": "desk-2"
+          }
+        ],
+        "events": [
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 0,
+            "endLine": 0,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "finish",
+            "actorIds": [
+              "c",
+              "d"
+            ],
+            "stationIds": [
+              "desk-1",
+              "desk-2"
+            ],
+            "startLine": 1,
+            "endLine": 1,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "start",
+            "actorIds": [
+              "e",
+              "f"
+            ],
+            "stationIds": [
+              "desk-1",
+              "desk-2"
+            ],
+            "startLine": 2,
+            "endLine": 2,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "arrive",
+            "actorIds": [
+              "i"
+            ],
+            "stationIds": [],
+            "startLine": 3,
+            "endLine": 3,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "finish",
+            "actorIds": [
+              "e",
+              "f"
+            ],
+            "stationIds": [
+              "desk-1",
+              "desk-2"
+            ],
+            "startLine": 4,
+            "endLine": 4,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "start",
+            "actorIds": [
+              "g",
+              "h"
+            ],
+            "stationIds": [
+              "desk-1",
+              "desk-2"
+            ],
+            "startLine": 5,
+            "endLine": 5,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 6,
+            "endLine": 6,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-12-line-01",
+          "text": "Later, arrivals ease off while the two desks keep working."
+        },
+        {
+          "id": "scene-12-line-02",
+          "text": "Both desks finish, and two customers leave through the exit."
+        },
+        {
+          "id": "scene-12-line-03",
+          "text": "Each desk takes the next person from the front of the line."
+        },
+        {
+          "id": "scene-12-line-04",
+          "text": "Only one new person arrives during this stretch."
+        },
+        {
+          "id": "scene-12-line-05",
+          "text": "Then both desks finish again, and two more customers head out."
+        },
+        {
+          "id": "scene-12-line-06",
+          "text": "The next two step up. Four left and one arrived, so six fell to three."
+        },
+        {
+          "id": "scene-12-line-07",
+          "text": "Capacity helps, but only completions outpacing arrivals shrink a backlog."
+        }
+      ]
+    },
+    {
+      "id": "scene-13",
+      "purpose": "Shows the three counts again and how arrivals and completions grow or hold the unfinished total at a single desk.",
+      "template": "process",
+      "visual": {
+        "title": "Three Counts at One Desk",
+        "actorKind": "person",
+        "actors": [
+          {
+            "id": "a",
+            "color": "muted",
+            "label": ""
+          },
+          {
+            "id": "b",
+            "color": "muted",
+            "label": ""
+          },
+          {
+            "id": "c",
+            "color": "muted",
+            "label": ""
+          },
+          {
+            "id": "d",
+            "color": "secondary",
+            "label": ""
+          },
+          {
+            "id": "e",
+            "color": "secondary",
+            "label": ""
+          },
+          {
+            "id": "f",
+            "color": "secondary",
+            "label": ""
+          }
+        ],
+        "stations": [
+          {
+            "id": "desk",
+            "label": "Service desk",
+            "kind": "counter",
+            "color": "accent"
+          }
+        ],
+        "initialQueue": [
+          "b",
+          "c"
+        ],
+        "initialService": [
+          {
+            "actorId": "a",
+            "stationId": "desk"
+          }
+        ],
+        "events": [
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 0,
+            "endLine": 0,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "finish",
+            "actorIds": [
+              "a"
+            ],
+            "stationIds": [
+              "desk"
+            ],
+            "startLine": 1,
+            "endLine": 1,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "start",
+            "actorIds": [
+              "b"
+            ],
+            "stationIds": [
+              "desk"
+            ],
+            "startLine": 2,
+            "endLine": 2,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "arrive",
+            "actorIds": [
+              "d",
+              "e"
+            ],
+            "stationIds": [],
+            "startLine": 3,
+            "endLine": 3,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "finish",
+            "actorIds": [
+              "b"
+            ],
+            "stationIds": [
+              "desk"
+            ],
+            "startLine": 4,
+            "endLine": 4,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "arrive",
+            "actorIds": [
+              "f"
+            ],
+            "stationIds": [],
+            "startLine": 5,
+            "endLine": 5,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "start",
+            "actorIds": [
+              "c"
+            ],
+            "stationIds": [
+              "desk"
+            ],
+            "startLine": 6,
+            "endLine": 6,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-13-line-01",
+          "text": "Let's recap with counts: two wait, one is served, three are unfinished."
+        },
+        {
+          "id": "scene-13-line-02",
+          "text": "Only a completion removes someone from the total, like this customer leaving now."
+        },
+        {
+          "id": "scene-13-line-03",
+          "text": "Stepping up shrinks the waiting line, but that person is still unfinished."
+        },
+        {
+          "id": "scene-13-line-04",
+          "text": "Two newcomers arrive after one completion, so the backlog grows from three to four."
+        },
+        {
+          "id": "scene-13-line-05",
+          "text": "Next, one customer finishes and leaves, dropping the total to three."
+        },
+        {
+          "id": "scene-13-line-06",
+          "text": "One arrival matches that one completion, so the total is back at four."
+        },
+        {
+          "id": "scene-13-line-07",
+          "text": "The next person steps up; waiting shrinks, but four remain unfinished."
+        }
+      ]
+    },
+    {
+      "id": "scene-14",
+      "purpose": "Recalls how bursts form temporary lines, what a second desk changes, and how more completions than arrivals clear the line, ending with a recap.",
+      "template": "process",
+      "visual": {
+        "title": "Bursts, Quiet Spells, and a Second Desk",
+        "actorKind": "person",
+        "actors": [
+          {
+            "id": "p",
+            "color": "muted",
+            "label": ""
+          },
+          {
+            "id": "q",
+            "color": "muted",
+            "label": ""
+          },
+          {
+            "id": "r",
+            "color": "secondary",
+            "label": ""
+          },
+          {
+            "id": "s",
+            "color": "secondary",
+            "label": ""
+          }
+        ],
+        "stations": [
+          {
+            "id": "desk1",
+            "label": "Desk one",
+            "kind": "counter",
+            "color": "accent"
+          },
+          {
+            "id": "desk2",
+            "label": "Desk two",
+            "kind": "counter",
+            "color": "ink"
+          }
+        ],
+        "initialQueue": [],
+        "initialService": [
+          {
+            "actorId": "p",
+            "stationId": "desk1"
+          },
+          {
+            "actorId": "q",
+            "stationId": "desk2"
+          }
+        ],
+        "events": [
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 0,
+            "endLine": 0,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "arrive",
+            "actorIds": [
+              "r",
+              "s"
+            ],
+            "stationIds": [],
+            "startLine": 1,
+            "endLine": 1,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "finish",
+            "actorIds": [
+              "p",
+              "q"
+            ],
+            "stationIds": [
+              "desk1",
+              "desk2"
+            ],
+            "startLine": 2,
+            "endLine": 2,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "start",
+            "actorIds": [
+              "r",
+              "s"
+            ],
+            "stationIds": [
+              "desk1",
+              "desk2"
+            ],
+            "startLine": 3,
+            "endLine": 3,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 4,
+            "endLine": 4,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "finish",
+            "actorIds": [
+              "r",
+              "s"
+            ],
+            "stationIds": [
+              "desk1",
+              "desk2"
+            ],
+            "startLine": 5,
+            "endLine": 5,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 6,
+            "endLine": 6,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-14-line-01",
+          "text": "Now picture two desks, each helping one customer, with nobody waiting."
+        },
+        {
+          "id": "scene-14-line-02",
+          "text": "A burst of arrivals, or a few slow jobs, can build a temporary line."
+        },
+        {
+          "id": "scene-14-line-03",
+          "text": "Both desks finish at the same time, and two customers head out."
+        },
+        {
+          "id": "scene-14-line-04",
+          "text": "With a second desk, two waiting people start sooner, shortening their waits."
+        },
+        {
+          "id": "scene-14-line-05",
+          "text": "Extra capacity can slow a backlog's growth, but clearing needs more completions than arrivals."
+        },
+        {
+          "id": "scene-14-line-06",
+          "text": "In a quiet spell, both desks finish while nobody new arrives, and the system empties."
+        },
+        {
+          "id": "scene-14-line-07",
+          "text": "Count arrivals and completions, and you can tell whether a line grows, lingers, or clears."
+        }
+      ]
+    }
+  ],
+  "chapters": [
+    {
+      "id": "chapter-01",
+      "title": "The Puzzle of the Growing Line",
+      "sceneIds": [
+        "scene-01",
+        "scene-02"
+      ]
+    },
+    {
+      "id": "chapter-02",
+      "title": "Waiting, Being Served, and the Whole System",
+      "sceneIds": [
+        "scene-03",
+        "scene-04"
+      ]
+    },
+    {
+      "id": "chapter-03",
+      "title": "Arrivals Minus Departures Sets the Count",
+      "sceneIds": [
+        "scene-05",
+        "scene-06",
+        "scene-07"
+      ]
+    },
+    {
+      "id": "chapter-04",
+      "title": "Bursts and Quiet Spells",
+      "sceneIds": [
+        "scene-08",
+        "scene-09"
+      ]
+    },
+    {
+      "id": "chapter-05",
+      "title": "What a Second Desk Really Changes",
+      "sceneIds": [
+        "scene-10",
+        "scene-11",
+        "scene-12"
+      ]
+    },
+    {
+      "id": "chapter-06",
+      "title": "Recap: Counting Your Way Through a Queue",
+      "sceneIds": [
+        "scene-13",
+        "scene-14"
+      ]
+    }
+  ]
+}

@@ -7,11 +7,12 @@ from pathlib import Path
 import shutil
 
 ROOT = Path(__file__).resolve().parents[1]
+SAMPLE_FIXTURE = Path("fixtures/scene-plan.motion-network.json")
 SAMPLE = {
-    "title": "From an Address to a Web Page",
-    "topic": "What happens when you type a website address and press Enter?",
-    "audience": "Curious adults with no technical background",
-    "durationSeconds": 90,
+    "title": "How a Message Crosses the Internet",
+    "topic": "How does a message travel across the internet?",
+    "audience": "Curious adults with no networking background",
+    "durationSeconds": 45,
 }
 PYTHON_MODULES = ("pydantic", "numpy", "scipy", "soundfile", "torch", "kokoro",
                   "misaki", "spacy", "en_core_web_sm", "huggingface_hub")
@@ -54,7 +55,7 @@ def model_cached(root=ROOT):
 def health(root=ROOT):
     root = Path(root)
     missing = [name for name in PYTHON_MODULES if not has_module(name)]
-    fixture = root / "fixtures/scene-plan.valid.json"
+    fixture = root / SAMPLE_FIXTURE
     try:
         fixture_ok = isinstance(json.loads(fixture.read_text(encoding="utf-8"))["scenes"], list)
     except (OSError, ValueError, KeyError, TypeError):
@@ -70,7 +71,7 @@ def health(root=ROOT):
          (root / "renderer/node_modules/@remotion/cli/remotion-cli.js").is_file(),
          "detail": "Install with npm --prefix renderer ci. The first render may download a browser."},
         {"id": "sample", "label": "Built-in sample script", "ok": fixture_ok,
-         "detail": "Uses the checked-in web-request script; no Claude API call."},
+         "detail": "Uses the checked-in animated network story; no Claude API call."},
         {"id": "tts_cache", "label": "Local voice model", "ok": cached,
          "detail": "Cached; narration will run offline on CPU." if cached else
          "Not cached yet. The first narration downloads the pinned Kokoro model."},

@@ -99,7 +99,8 @@ class ReviewTests(unittest.TestCase):
 
     def test_plan_command_with_review(self):
         out = self.run_dir.parent / "planned"
-        client = FakeClient(response(model_output()), response(review_output()))
+        client = FakeClient(response({"templates": ["concept", "flow"]}),
+                            response(model_output()), response(review_output()))
         stdout = io.StringIO()
         with patch("capstone_script.__main__._client", return_value=client), \
                 patch("capstone_script.__main__.load_env_file"), redirect_stdout(stdout):

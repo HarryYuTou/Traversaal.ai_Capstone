@@ -2,7 +2,7 @@
 
 This branch adds the last two stages of the pipeline: a frame-accurate
 timeline and a Remotion renderer that turns a narrated run into an MP4 with
-animated slides, captions and the narration track. It is offered for the
+illustrated motion scenes or animated slides, captions and the narration track. It is offered for the
 visual design and video assembly owners to adopt, change or replace; nothing
 in the script or TTS modules depends on it.
 
@@ -58,6 +58,20 @@ adds `video-720p.mp4`, re-encoded with the FFmpeg that ships with Remotion
 refuses an existing `video.mp4`; delete it to render again. Deleting
 `video/` rebuilds the timeline on the next render.
 
+For illustrated motion, rendering first writes `motion-inspection.json` in
+the run folder. It checks body bounds on every frame, identifies long static
+holds, records process-event coverage and suggests absolute video frames to
+inspect. Possible contacts are review warnings, since some raw motion scenes
+deliberately dock objects together. A passed report does not verify factual
+accuracy, labels or teaching quality; inspect rendered frames too. The report
+path and status are included in `video-info.json`.
+
+To run the same diagnostics without encoding an MP4:
+
+```bash
+node renderer/scripts/inspect-motion.mjs runs/narration-01/video/timeline.json runs/narration-01/motion-inspection.json
+```
+
 ## The timeline
 
 `capstone_script/timeline.py` places everything on whole frames at 30 fps:
@@ -105,6 +119,8 @@ the run's `video/` folder so `narration.wav` can be loaded.
 | `src/scenes/StatScene.tsx` | One to three large numbers that count up, with labels and an optional note |
 | `src/scenes/QuoteScene.tsx` | A quotation in serif type whose words light up as it is read, then who said it |
 | `src/scenes/MapScene.tsx` | A full-frame map grid of one region with pins, an optional route drawn leg by leg, and country groups |
+| `src/motion/MotionScene.tsx` | Persistent illustrated actors, narration-bound actions, routes and labels on a shared stage |
+| `src/motion/engine.ts` | Deterministic state evaluation, distance-based path travel and physical-coordinate orbits |
 | `src/Backdrop.tsx` | The moving background, and the push transition between cards and scenes |
 | `src/scenes/SlideIcon.tsx` | The optional icon of a slide, node or column, from Lucide (ISC license) |
 | `src/Overlays.tsx` | Captions and the progress bar with chapter marks |
@@ -122,6 +138,12 @@ aloud, since the quote is already on screen. Each card and scene slides in from
 the right while the previous one slides out to the left, overlapping by 14
 frames, over a backdrop of slowly drifting light. Fonts are system fonts, so
 rendering works offline.
+
+Motion scenes use original SVG illustrations on a paper background instead
+of slide cards. Their object state persists between actions, and any frame can
+be rendered directly without replaying earlier frames. Actions use absolute
+frames compiled from the real narration. See [MOTION_GUIDE.md](MOTION_GUIDE.md)
+for the reusable contract, local samples, verification and remaining limits.
 
 ## Themes and music
 

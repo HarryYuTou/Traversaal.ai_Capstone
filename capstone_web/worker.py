@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 import traceback
 
-from .health import ROOT, model_cached
+from .health import ROOT, SAMPLE_FIXTURE, model_cached
 from .jobs import EVENT_PREFIX
 
 
@@ -51,7 +51,7 @@ def generate(job, job_dir, emit_event=emit):
     try:
         if request["source"] == "sample":
             update("narrating", "Loading the built-in sample script. No Claude request is made.")
-            plan = load_plan(ROOT / "fixtures/scene-plan.valid.json")
+            plan = load_plan(ROOT / SAMPLE_FIXTURE)
             output.mkdir(parents=True, exist_ok=False)
             (output / "scene-plan.json").write_text(dump_plan(plan), encoding="utf-8")
         else:

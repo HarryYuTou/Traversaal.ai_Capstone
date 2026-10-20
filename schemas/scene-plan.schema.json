@@ -798,6 +798,669 @@
       "title": "MapVisual",
       "type": "object"
     },
+    "MotionAction": {
+      "additionalProperties": false,
+      "description": "Animate one property between fractional positions in narration lines, before audio exists.\n\nThe end line is included: endOffset=1 reaches its audio endpoint. Timeline compilation\nproduces the absolute frame interval [from, from + durationInFrames).",
+      "properties": {
+        "entityId": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Entityid",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "move",
+            "follow-path",
+            "orbit",
+            "opacity",
+            "scale",
+            "rotate",
+            "value"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "startLine": {
+          "minimum": 0,
+          "title": "Startline",
+          "type": "integer"
+        },
+        "endLine": {
+          "minimum": 0,
+          "title": "Endline",
+          "type": "integer"
+        },
+        "startOffset": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Startoffset",
+          "type": "number"
+        },
+        "endOffset": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Endoffset",
+          "type": "number"
+        },
+        "pathId": {
+          "maxLength": 48,
+          "pattern": "^(?:[a-z0-9]+(?:-[a-z0-9]+)*)?$",
+          "title": "Pathid",
+          "type": "string"
+        },
+        "x": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Y",
+          "type": "number"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        },
+        "easing": {
+          "enum": [
+            "linear",
+            "ease-in-out",
+            "ease-out"
+          ],
+          "title": "Easing",
+          "type": "string"
+        }
+      },
+      "required": [
+        "entityId",
+        "kind",
+        "startLine",
+        "endLine",
+        "startOffset",
+        "endOffset",
+        "pathId",
+        "x",
+        "y",
+        "value",
+        "easing"
+      ],
+      "title": "MotionAction",
+      "type": "object"
+    },
+    "MotionEntity": {
+      "additionalProperties": false,
+      "description": "Initial state on a stage measured in percentages, independent of output resolution.",
+      "properties": {
+        "id": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "planet",
+            "moon",
+            "spacecraft",
+            "lander",
+            "lander-base",
+            "lander-ascent",
+            "rocket",
+            "satellite",
+            "person",
+            "packet",
+            "server",
+            "laptop",
+            "cloud",
+            "coin",
+            "box",
+            "marker",
+            "gauge",
+            "counter",
+            "workbench"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "x": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Y",
+          "type": "number"
+        },
+        "size": {
+          "maximum": 3,
+          "minimum": 0.25,
+          "title": "Size",
+          "type": "number"
+        },
+        "rotation": {
+          "title": "Rotation",
+          "type": "number"
+        },
+        "opacity": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Opacity",
+          "type": "number"
+        },
+        "value": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Value",
+          "type": "number"
+        },
+        "color": {
+          "enum": [
+            "ink",
+            "accent",
+            "secondary",
+            "muted"
+          ],
+          "title": "Color",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 32,
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "x",
+        "y",
+        "size",
+        "rotation",
+        "opacity",
+        "value",
+        "color",
+        "label"
+      ],
+      "title": "MotionEntity",
+      "type": "object"
+    },
+    "MotionLine": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "text"
+      ],
+      "title": "MotionLine",
+      "type": "object"
+    },
+    "MotionPath": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "points": {
+          "items": {
+            "$ref": "#/$defs/MotionPoint"
+          },
+          "maxItems": 24,
+          "minItems": 2,
+          "title": "Points",
+          "type": "array"
+        },
+        "curved": {
+          "title": "Curved",
+          "type": "boolean"
+        },
+        "closed": {
+          "title": "Closed",
+          "type": "boolean"
+        },
+        "color": {
+          "enum": [
+            "ink",
+            "accent",
+            "secondary",
+            "muted"
+          ],
+          "title": "Color",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "points",
+        "curved",
+        "closed",
+        "color"
+      ],
+      "title": "MotionPath",
+      "type": "object"
+    },
+    "MotionPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Y",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "title": "MotionPoint",
+      "type": "object"
+    },
+    "MotionScene": {
+      "additionalProperties": false,
+      "description": "Entities whose movement and property changes explain the narrated process.",
+      "properties": {
+        "id": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "purpose": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Purpose",
+          "type": "string"
+        },
+        "template": {
+          "const": "motion",
+          "title": "Template",
+          "type": "string"
+        },
+        "visual": {
+          "$ref": "#/$defs/MotionVisual"
+        },
+        "narration": {
+          "items": {
+            "$ref": "#/$defs/MotionLine"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Narration",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "purpose",
+        "template",
+        "visual",
+        "narration"
+      ],
+      "title": "MotionScene",
+      "type": "object"
+    },
+    "MotionVisual": {
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "maxLength": 60,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "entities": {
+          "items": {
+            "$ref": "#/$defs/MotionEntity"
+          },
+          "maxItems": 12,
+          "minItems": 1,
+          "title": "Entities",
+          "type": "array"
+        },
+        "paths": {
+          "items": {
+            "$ref": "#/$defs/MotionPath"
+          },
+          "maxItems": 12,
+          "title": "Paths",
+          "type": "array"
+        },
+        "actions": {
+          "items": {
+            "$ref": "#/$defs/MotionAction"
+          },
+          "maxItems": 48,
+          "title": "Actions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "title",
+        "entities",
+        "paths",
+        "actions"
+      ],
+      "title": "MotionVisual",
+      "type": "object"
+    },
+    "ProcessActor": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "color": {
+          "enum": [
+            "ink",
+            "accent",
+            "secondary",
+            "muted"
+          ],
+          "title": "Color",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 24,
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "color",
+        "label"
+      ],
+      "title": "ProcessActor",
+      "type": "object"
+    },
+    "ProcessEvent": {
+      "additionalProperties": false,
+      "description": "A causal state change or deliberate hold, before layout and measured speech timing.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "arrive",
+            "start",
+            "finish",
+            "hold"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "actorIds": {
+          "items": {
+            "maxLength": 48,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "type": "string"
+          },
+          "maxItems": 8,
+          "title": "Actorids",
+          "type": "array"
+        },
+        "stationIds": {
+          "items": {
+            "maxLength": 48,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "type": "string"
+          },
+          "maxItems": 2,
+          "title": "Stationids",
+          "type": "array"
+        },
+        "startLine": {
+          "minimum": 0,
+          "title": "Startline",
+          "type": "integer"
+        },
+        "endLine": {
+          "minimum": 0,
+          "title": "Endline",
+          "type": "integer"
+        },
+        "startOffset": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Startoffset",
+          "type": "number"
+        },
+        "endOffset": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Endoffset",
+          "type": "number"
+        }
+      },
+      "required": [
+        "kind",
+        "actorIds",
+        "stationIds",
+        "startLine",
+        "endLine",
+        "startOffset",
+        "endOffset"
+      ],
+      "title": "ProcessEvent",
+      "type": "object"
+    },
+    "ProcessOccupancy": {
+      "additionalProperties": false,
+      "properties": {
+        "actorId": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Actorid",
+          "type": "string"
+        },
+        "stationId": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Stationid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "actorId",
+        "stationId"
+      ],
+      "title": "ProcessOccupancy",
+      "type": "object"
+    },
+    "ProcessScene": {
+      "additionalProperties": false,
+      "description": "A bounded arrival, waiting and processing workflow with explicit state transitions.",
+      "properties": {
+        "id": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "purpose": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Purpose",
+          "type": "string"
+        },
+        "template": {
+          "const": "process",
+          "title": "Template",
+          "type": "string"
+        },
+        "visual": {
+          "$ref": "#/$defs/ProcessVisual"
+        },
+        "narration": {
+          "items": {
+            "$ref": "#/$defs/MotionLine"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Narration",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "purpose",
+        "template",
+        "visual",
+        "narration"
+      ],
+      "title": "ProcessScene",
+      "type": "object"
+    },
+    "ProcessStation": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 24,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "counter",
+            "server",
+            "workbench"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "color": {
+          "enum": [
+            "ink",
+            "accent",
+            "secondary",
+            "muted"
+          ],
+          "title": "Color",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "kind",
+        "color"
+      ],
+      "title": "ProcessStation",
+      "type": "object"
+    },
+    "ProcessVisual": {
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "maxLength": 60,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "actorKind": {
+          "enum": [
+            "person",
+            "packet",
+            "box",
+            "coin"
+          ],
+          "title": "Actorkind",
+          "type": "string"
+        },
+        "actors": {
+          "items": {
+            "$ref": "#/$defs/ProcessActor"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Actors",
+          "type": "array"
+        },
+        "stations": {
+          "items": {
+            "$ref": "#/$defs/ProcessStation"
+          },
+          "maxItems": 2,
+          "minItems": 1,
+          "title": "Stations",
+          "type": "array"
+        },
+        "initialQueue": {
+          "items": {
+            "maxLength": 48,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "type": "string"
+          },
+          "maxItems": 8,
+          "title": "Initialqueue",
+          "type": "array"
+        },
+        "initialService": {
+          "items": {
+            "$ref": "#/$defs/ProcessOccupancy"
+          },
+          "maxItems": 2,
+          "title": "Initialservice",
+          "type": "array"
+        },
+        "events": {
+          "items": {
+            "$ref": "#/$defs/ProcessEvent"
+          },
+          "maxItems": 48,
+          "title": "Events",
+          "type": "array"
+        }
+      },
+      "required": [
+        "title",
+        "actorKind",
+        "actors",
+        "stations",
+        "initialQueue",
+        "initialService",
+        "events"
+      ],
+      "title": "ProcessVisual",
+      "type": "object"
+    },
     "QuoteLine": {
       "additionalProperties": false,
       "properties": {
@@ -1287,6 +1950,8 @@
             "definition": "#/$defs/DefinitionScene",
             "flow": "#/$defs/FlowScene",
             "map": "#/$defs/MapScene",
+            "motion": "#/$defs/MotionScene",
+            "process": "#/$defs/ProcessScene",
             "quote": "#/$defs/QuoteScene",
             "stat": "#/$defs/StatScene",
             "timeline": "#/$defs/TimelineScene"
@@ -1317,6 +1982,12 @@
           },
           {
             "$ref": "#/$defs/MapScene"
+          },
+          {
+            "$ref": "#/$defs/MotionScene"
+          },
+          {
+            "$ref": "#/$defs/ProcessScene"
           }
         ]
       },

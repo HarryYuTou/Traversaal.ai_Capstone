@@ -26,7 +26,7 @@ export default function VideoPreview({ job, brief, onReset, restoring }: { job: 
   const active = isActive(job);
   const result = job?.status === 'completed' ? job.result : null;
   const theme = job?.request.theme || brief.theme;
-  const title = result?.title || (job?.request.source === 'sample' ? 'From an Address to a Web Page' : job?.request.topic);
+  const title = result?.title || job?.request.topic;
 
   return <section className="preview-section" aria-labelledby="preview-heading">
     <div className="panel-heading preview-heading"><span className="section-number">02</span><h2 id="preview-heading">Your video</h2><span className={`preview-state ${result ? 'success' : ''}`}>{result ? <><Check size={13} />Ready to watch</> : active ? <><LoaderCircle size={13} className="spin" />Creating</> : restoring ? 'Reconnecting' : job?.status === 'failed' ? 'Generation stopped' : 'Waiting for your idea'}</span></div>

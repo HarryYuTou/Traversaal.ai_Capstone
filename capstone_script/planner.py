@@ -1,6 +1,7 @@
 """Topic -> ScenePlan with the Claude API.
 
-Videos up to three minutes take one request. Longer videos are planned chapter
+Production runs first select a compact visual vocabulary. Videos up to three
+minutes then take one scene-planning request; longer videos are planned chapter
 by chapter (see long_form.py). Every response must pass the same validation as
 a hand-written plan; if it does not, a single repair request lists every
 problem. Raw responses and call metadata are saved for every run, including
@@ -18,15 +19,21 @@ from string import Template
 from time import perf_counter
 from typing import Literal
 
+from pydantic import ValidationError
+
 from .scene_plan import (
-    ICONS, MAP_REGIONS, TEMPLATES, WORDS_PER_SECOND, PlanValidationError, _Model, dump_plan, summarize,
+    ICONS, MAP_REGIONS, TEMPLATES, WORDS_PER_SECOND, MotionAction, MotionEntity, MotionPath,
+    ProcessActor, ProcessStation, ProcessOccupancy, ProcessEvent,
+    PlanValidationError, _Model, dump_plan, error_problems, summarize,
     validate_plan,
 )
 
 MODEL = "claude-opus-5-5"
 EFFORT = "high"
 MAX_TOKENS = 16000
-PROMPT_VERSION = "scene-planner-v6"
+PROMPT_VERSION = "scene-planner-v12"
+TEMPLATE_ROUTER_VERSION = "template-router-v3"
+MAX_REQUEST_TEMPLATES = 3
 PROMPTS = Path(__file__).resolve().parents[1] / "prompts"
 # The timeline adds short pauses around lines, so speech fills about 95% of the video.
 SPEECH_SHARE = 0.95
@@ -71,7 +78,7 @@ def word_range(seconds: int):
 
 
 def scene_range(seconds: int, cap: int = SINGLE_PLAN_MAX_SCENES):
-    low = 4 if seconds >= 60 else 2
+    low = 2
     return low, min(cap, max(low + 1, round(seconds / 10)))
 
 
@@ -111,10 +118,20 @@ def request_text(spec: dict, reference_text: str | None = None) -> str:
             f"Audience: {spec['audience']}\n"
             f"Length: about {seconds} seconds, so about {target} words of narration in total "
             f"(stay between {round(target * 0.95)} and {round(target * 1.05)} words).\n"
-            f"Scenes: {min_scenes} to {max_scenes}, using at least two different templates.")
+            f"Scenes: {min_scenes} to {max_scenes}. Prefer process for arrivals, waiting and service; "
+            "prefer motion for other physical transfers, journeys and changing state. "
+            "Use process or motion throughout when it best explains the topic; there is no minimum template variety. "
+            "Prefer two or three coherent scenes when they fit the narration limits.")
+    text += "\n" + template_instruction(spec)
     if reference_text and reference_text.strip():
         text += f"\n\nReference material:\n<reference>\n{reference_text.strip()}\n</reference>"
     return text
+
+
+def template_instruction(spec: dict) -> str:
+    """Keep the request and its restricted structured-output schema in agreement."""
+    return ("Allowed templates for this video: " + ", ".join(spec.get("allowedTemplates", TEMPLATES))
+            + ". Use only these templates; you do not have to use every one.")
 
 
 def structured_schema(schema: dict) -> dict:
@@ -227,6 +244,22 @@ class _OutputMap(_Model):
     route: bool
 
 
+class _OutputMotion(_Model):
+    # Every nested field is required, so adding motion does not spend optional/union schema slots.
+    entities: list[MotionEntity]
+    paths: list[MotionPath]
+    actions: list[MotionAction]
+
+
+class _OutputProcess(_Model):
+    actor_kind: Literal["person", "packet", "box", "coin"]
+    actors: list[ProcessActor]
+    stations: list[ProcessStation]
+    initial_queue: list[str]
+    initial_service: list[ProcessOccupancy]
+    events: list[ProcessEvent]
+
+
 class _OutputVisual(_Model):
     title: str
     # Optional but not nullable: a scene fills only its own template's part and leaves out the rest.
@@ -238,6 +271,8 @@ class _OutputVisual(_Model):
     stat: _OutputStats = None
     quote: _OutputQuote = None
     map: _OutputMap = None
+    motion: _OutputMotion = None
+    process: _OutputProcess = None
 
 
 class _OutputScene(_Model):
@@ -255,22 +290,128 @@ class _OutputPlan(_Model):
     scenes: list[_OutputScene]
 
 
-def output_schema() -> dict:
+def output_schema(templates=None) -> dict:
     """The planner's output shape as a schema for structured outputs.
 
     The real ScenePlan schema, a union of scene types, compiled to a grammar the API rejected as
     too large when it had only four. This shape has one kind of scene whose visual holds one part
-    per template;
+    per template. Production requests select at most three templates first, remove the other
+    visual parts and prune unreachable definitions to bound the compiled grammar;
     from_model_output turns it into ScenePlan data, validate_plan then applies each template's
     rules, and any problem goes back in the repair request. Chapters are left out because the
     program builds them.
     """
-    return structured_schema(_OutputPlan.model_json_schema(by_alias=True))
+    schema = structured_schema(_OutputPlan.model_json_schema(by_alias=True))
+    if templates is None:
+        return schema
+    templates = checked_templates(templates)
+    visual = schema["$defs"]["_OutputVisual"]
+    visual["properties"] = {key: value for key, value in visual["properties"].items()
+                            if key == "title" or key in templates}
+    if len(templates) == 1:
+        visual["required"] = ["title", templates[0]]
+    schema["$defs"]["_OutputScene"]["properties"]["template"]["enum"] = templates
+    # Unused definitions still consume grammar compiler resources. Follow references from the
+    # root rather than keeping every template's definitions in each bounded request.
+    definitions = schema.pop("$defs")
+    reachable = set()
+
+    def visit(node):
+        if isinstance(node, dict):
+            reference = node.get("$ref", "")
+            if reference.startswith("#/$defs/"):
+                name = reference.removeprefix("#/$defs/")
+                if name not in reachable:
+                    reachable.add(name)
+                    visit(definitions[name])
+            for value in node.values():
+                visit(value)
+        elif isinstance(node, list):
+            for value in node:
+                visit(value)
+
+    visit(schema)
+    schema["$defs"] = {name: value for name, value in definitions.items() if name in reachable}
+    return schema
 
 
-def planner_prompt() -> str:
+def checked_templates(templates) -> list[str]:
+    """Reject ambiguous or unsupported request settings before contacting the API."""
+    if not isinstance(templates, (list, tuple)) or not templates:
+        raise ValueError("allowedTemplates must be a nonempty list of template names.")
+    if any(not isinstance(item, str) or item not in TEMPLATES for item in templates):
+        raise ValueError("allowedTemplates contains an unsupported template.")
+    if len(set(templates)) != len(templates):
+        raise ValueError("allowedTemplates must not contain duplicates.")
+    return list(templates)
+
+
+class _TemplateSelection(_Model):
+    templates: list[Literal[TEMPLATES]]
+
+
+def review_template_selection(text: str, candidates):
+    data, problems = parse_json(text)
+    if problems:
+        return None, problems
+    try:
+        selection = _TemplateSelection.model_validate(data)
+    except ValidationError as exc:
+        return None, error_problems(exc)
+    chosen = selection.templates
+    if not 1 <= len(chosen) <= MAX_REQUEST_TEMPLATES:
+        problems.append(f"templates: choose one to {MAX_REQUEST_TEMPLATES} templates")
+    if len(set(chosen)) != len(chosen):
+        problems.append("templates: do not repeat a template")
+    if any(item not in candidates for item in chosen):
+        problems.append("templates: use only the available templates: " + ", ".join(candidates))
+    return (None if problems else chosen), problems
+
+
+def select_templates(spec, client, reference_text, attempts, progress):
+    """Select a small, topic-appropriate schema before generating any detailed scenes."""
+    candidates = checked_templates(spec.get("allowedTemplates", list(TEMPLATES)))
+    if len(candidates) <= MAX_REQUEST_TEMPLATES:
+        return candidates, "explicit"
+    schema = structured_schema(_TemplateSelection.model_json_schema(by_alias=True))
+    schema["properties"]["templates"]["items"]["enum"] = candidates
+    request = (f"Select the visual templates for this explainer.\n\nTopic: {spec['topic']}\n"
+               f"Audience: {spec['audience']}\nLength: about {spec['targetDurationSec']} seconds.\n"
+               f"Available templates: {', '.join(candidates)}.")
+    if reference_text and reference_text.strip():
+        request += f"\n\nReference material:\n<reference>\n{reference_text.strip()}\n</reference>"
+    chosen = request_json(client, (PROMPTS / "template-router.txt").read_text(encoding="utf-8"),
+                          request, schema, lambda text: review_template_selection(text, candidates),
+                          "visual template selection", attempts, "template-selection", progress,
+                          max_tokens=1024, effort="low")
+    return chosen, "routed"
+
+
+def planner_prompt(templates=None) -> str:
     """The scene planner's system prompt with the available icons and map regions filled in."""
-    return Template((PROMPTS / "scene-planner.txt").read_text(encoding="utf-8")).safe_substitute(
+    prompt = (PROMPTS / "scene-planner.txt").read_text(encoding="utf-8")
+    if templates is not None:
+        allowed = set(checked_templates(templates))
+        kept, skipped = [], False
+        for line in prompt.splitlines():
+            match = re.match(r"^- ([a-z]+):", line)
+            if match and match[1] in TEMPLATES:
+                skipped = match[1] not in allowed
+            elif line.startswith("- ") or (line and not line.startswith(" ")):
+                skipped = False
+            if skipped:
+                continue
+            if line.startswith("- Icons:") and not allowed & {"concept", "definition", "flow", "comparison", "timeline", "stat"}:
+                continue
+            if line.startswith("- Walk the viewer") and allowed <= {"process", "motion"}:
+                continue
+            if line.startswith("- Process actors,") and "process" not in allowed:
+                continue
+            if line.startswith("- Motion entities,") and "motion" not in allowed:
+                continue
+            kept.append(line)
+        prompt = "\n".join(kept) + "\n"
+    return Template(prompt).safe_substitute(
         icons=", ".join(ICONS), regions=", ".join(MAP_REGIONS))
 
 
@@ -306,6 +447,9 @@ def highlight_value(template: str, highlight):
     highlight = highlight.strip()
     if not highlight:
         return None
+    if template in ("motion", "process"):
+        noun = "actions" if template == "motion" else "events"
+        raise ValueError(f'a {template} scene uses narration-bound {noun}; highlight must be ""')
     if template in ("concept", "stat"):
         if not (highlight.isascii() and highlight.isdigit()):
             noun = "point" if template == "concept" else "number"
@@ -369,7 +513,7 @@ def output_terms(problem: str, data) -> str:
 
 
 def normalize_ids(data, project_id: str):
-    """Renumber scene and line ids and make node ids path-safe; highlights move with their nodes."""
+    """Renumber scenes/lines and make visual ids path-safe; keep action references and line indices."""
     if not isinstance(data, dict) or not isinstance(data.get("scenes"), list):
         return data
     data = copy.deepcopy(data)
@@ -380,11 +524,34 @@ def normalize_ids(data, project_id: str):
         scene["id"] = f"scene-{s:02d}"
         visual = scene.get("visual")
         if isinstance(visual, dict):
-            for key in ("nodes", "events", "areas", "places"):
+            for key in ("nodes", "events", "areas", "places", "entities", "paths", "actors", "stations"):
                 items = visual.get(key)
                 for item in items if isinstance(items, list) else []:
                     if isinstance(item, dict) and isinstance(item.get("id"), str):
                         item["id"] = slug(item["id"])
+            if scene.get("template") == "motion":
+                actions = visual.get("actions")
+                for action in actions if isinstance(actions, list) else []:
+                    if isinstance(action, dict):
+                        for key in ("entityId", "pathId"):
+                            if isinstance(action.get(key), str) and action[key]:
+                                action[key] = slug(action[key])
+            if scene.get("template") == "process":
+                queue = visual.get("initialQueue")
+                if isinstance(queue, list):
+                    visual["initialQueue"] = [slug(value) if isinstance(value, str) else value for value in queue]
+                occupancy = visual.get("initialService")
+                for item in occupancy if isinstance(occupancy, list) else []:
+                    if isinstance(item, dict):
+                        for key in ("actorId", "stationId"):
+                            if isinstance(item.get(key), str):
+                                item[key] = slug(item[key])
+                events = visual.get("events")
+                for event in events if isinstance(events, list) else []:
+                    if isinstance(event, dict):
+                        for key in ("actorIds", "stationIds"):
+                            if isinstance(event.get(key), list):
+                                event[key] = [slug(value) if isinstance(value, str) else value for value in event[key]]
         if isinstance(scene.get("narration"), list):
             for n, line in enumerate(scene["narration"], start=1):
                 if isinstance(line, dict):
@@ -408,8 +575,8 @@ def length_problems(plan, spec: dict, require_templates: bool = True) -> list[st
                         f"{low} to {high} words. {change} about {abs(target - summary['words'])} words.")
     if not min_scenes <= summary["scenes"] <= max_scenes:
         problems.append(f"scenes: use {min_scenes} to {max_scenes} scenes, not {summary['scenes']}")
-    if require_templates and len(summary["templates"]) < 2:
-        problems.append("scenes: use at least two different templates")
+    # Keep require_templates in the public signature for existing callers. A coherent visual
+    # explanation may use motion throughout; template variety is no longer a validity rule.
     return problems
 
 
@@ -417,7 +584,17 @@ def coverage_problems(plan) -> list[str]:
     """Every point, node, column and example on screen should be highlighted by some line."""
     problems = []
     for s, scene in enumerate(plan.scenes):
-        if scene.template == "flow":
+        if scene.template == "process":
+            events = scene.visual.events
+            if not any(event.kind != "hold" for event in events):
+                problems.append(f"scenes[{s}]: a process needs at least one visible state change; "
+                                "use arrive, start or finish, or choose a supporting template")
+            for index in range(len(scene.narration)):
+                if not any((event.start_line, event.start_offset) < (index, 1)
+                           and (index, 0) < (event.end_line, event.end_offset) for event in events):
+                    problems.append(f"scenes[{s}].narration[{index}]: no process event covers this line; "
+                                    "show its causal change or add an explicit hold for a readable state")
+        elif scene.template == "flow":
             used = {line.highlight_node_id for line in scene.narration}
             missing = [repr(node.id) for node in scene.visual.nodes if node.id not in used]
             if missing:
@@ -485,6 +662,10 @@ def review_plan(text: str, spec: dict, require_templates: bool = True):
     except PlanValidationError as exc:
         found = [output_terms(problem, data) for problem in exc.problems]
         return None, problems + [problem for problem in found if not problem.startswith(partless)]
+    allowed = spec.get("allowedTemplates", TEMPLATES)
+    problems += [f"scenes[{index}].template: {scene.template!r} is not allowed for this video; use "
+                 + ", ".join(allowed)
+                 for index, scene in enumerate(plan.scenes) if scene.template not in allowed]
     problems += length_problems(plan, spec, require_templates) + coverage_problems(plan)
     return (None if problems else plan), problems
 
@@ -500,7 +681,7 @@ def _record(step: str, response, latency_ms: int, text: str, problems: list[str]
 
 
 def request_json(client, system: str, request: str, schema: dict, review, noun: str, attempts: list,
-                 step: str, progress=lambda message: None):
+                 step: str, progress=lambda message: None, *, max_tokens=MAX_TOKENS, effort=EFFORT):
     """Send one structured-output request plus at most one repair and return the reviewed result.
 
     `review(text)` returns (result, problems); a None result goes back with its problems.
@@ -512,8 +693,8 @@ def request_json(client, system: str, request: str, schema: dict, review, noun: 
         progress(f"Requesting the {noun} from {MODEL} (attempt {attempt} of 2)...")
         started = perf_counter()
         response = client.beta.messages.create(
-            model=MODEL, max_tokens=MAX_TOKENS, system=system, messages=messages,
-            output_config={"effort": EFFORT, "format": {"type": "json_schema", "schema": schema}},
+            model=MODEL, max_tokens=max_tokens, system=system, messages=messages,
+            output_config={"effort": effort, "format": {"type": "json_schema", "schema": schema}},
             betas=["server-side-fallback-2026-07-01"], fallbacks="default",
         )
         latency_ms = round((perf_counter() - started) * 1000)
@@ -524,7 +705,8 @@ def request_json(client, system: str, request: str, schema: dict, review, noun: 
                                       + (f" (category: {category})" if category else "")]
         else:
             result, problems = review(text)
-        attempts.append(_record(step, response, latency_ms, text, problems))
+        attempts.append({**_record(step, response, latency_ms, text, problems),
+                         "effort": effort, "maxTokens": max_tokens})
         if result is not None:
             return result
         if response.stop_reason in FATAL_STOPS:
@@ -538,8 +720,8 @@ def request_json(client, system: str, request: str, schema: dict, review, noun: 
 def generate_plan(spec: dict, client, reference_text: str | None = None, progress=lambda message: None,
                   attempts: list | None = None):
     """Return a plan from one request (plus one repair). Raises PlannerError when none is usable."""
-    system = planner_prompt()
-    return request_json(client, system, request_text(spec, reference_text), output_schema(),
+    system = planner_prompt(spec.get("allowedTemplates"))
+    return request_json(client, system, request_text(spec, reference_text), output_schema(spec.get("allowedTemplates")),
                         lambda text: review_plan(text, spec), "scene plan",
                         [] if attempts is None else attempts, "plan", progress)
 
@@ -562,6 +744,7 @@ def write_plan_run(out_dir: Path, spec: dict, client, reference_text: str | None
     """
     from .long_form import CHAPTER_PROMPT_VERSION, OUTLINE_PROMPT_VERSION, generate_long_plan
 
+    spec = {**spec, "templateRouterVersion": TEMPLATE_ROUTER_VERSION}
     out_dir = Path(out_dir)
     if out_dir.exists():
         raise FileExistsError(f"Output already exists: {out_dir}. Choose a new output directory.")
@@ -572,13 +755,19 @@ def write_plan_run(out_dir: Path, spec: dict, client, reference_text: str | None
         spec = {**spec, "referenceCopy": REFERENCE_COPY}
     write_json(out_dir / "project-spec.json", spec)
     chapters = spec["targetDurationSec"] > SINGLE_PLAN_MAX_SECONDS
-    record = {"promptVersion": PROMPT_VERSION, "modelRequested": MODEL, "effort": EFFORT,
+    record = {"promptVersion": PROMPT_VERSION, "templateRouterVersion": TEMPLATE_ROUTER_VERSION,
+              "modelRequested": MODEL, "effort": EFFORT,
               "mode": "chapters" if chapters else "single",
               "createdAt": datetime.now(timezone.utc).isoformat()}
     if chapters:
         record.update(outlinePromptVersion=OUTLINE_PROMPT_VERSION, chapterPromptVersion=CHAPTER_PROMPT_VERSION)
     attempts = []
     try:
+        templates, selection_mode = select_templates(spec, client, reference_text, attempts, progress)
+        spec.update(allowedTemplates=templates, templateSelection=selection_mode)
+        record.update(allowedTemplates=templates, templateSelection=selection_mode)
+        write_json(out_dir / "project-spec.json", spec)
+        progress("Visual templates: " + ", ".join(templates))
         if chapters:
             plan, outline = generate_long_plan(spec, client, reference_text, progress, attempts)
             write_json(out_dir / "outline.json", outline)

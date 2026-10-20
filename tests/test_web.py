@@ -13,7 +13,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 from capstone_web.accounts import AccountStore, hash_password, validate_credentials, verify_password
-from capstone_web.health import SAMPLE, api_key_available, health
+from capstone_web.health import SAMPLE, SAMPLE_FIXTURE, api_key_available, health
 from capstone_web.jobs import EVENT_PREFIX, INTERRUPTED, JobRunner, JobStore, RequestError, WorkerError, validate_request
 from capstone_web.server import LocalServer, byte_range
 from capstone_web.worker import error_message, generate
@@ -65,7 +65,7 @@ class HealthTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "fixtures").mkdir()
-            (root / "fixtures/scene-plan.valid.json").write_text('{"scenes": []}')
+            (root / SAMPLE_FIXTURE).write_text('{"scenes": []}')
             cli = root / "renderer/node_modules/@remotion/cli/remotion-cli.js"
             cli.parent.mkdir(parents=True)
             cli.touch()
@@ -583,6 +583,9 @@ class WorkerTests(unittest.TestCase):
             review.assert_not_called()
             self.assertEqual(narration.call_args.kwargs["threads"], 2)
             self.assertTrue(narration.call_args.kwargs["offline"])
+            sample_plan = narration.call_args.args[0]
+            self.assertEqual(sample_plan.title, SAMPLE["title"])
+            self.assertTrue(any(scene.template == "motion" for scene in sample_plan.scenes))
             timeline.assert_called_once()
             self.assertTrue(render.call_args.kwargs["draft"])
         self.assertEqual(result["durationSeconds"], 88.3)

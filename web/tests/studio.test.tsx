@@ -14,7 +14,7 @@ const request: VideoRequest = {
 const health: Health = {
   status: 'ok', liveReady: true, sampleReady: true,
   checks: [{ id: 'claude_key', label: 'Claude API credential', ok: true, detail: 'Configured on the server.' }],
-  sample: { title: 'From an Address to a Web Page', topic: 'What happens when you type a website address and press Enter?', audience: 'Curious adults with no technical background', durationSeconds: 90 },
+  sample: { title: 'How a Message Crosses the Internet', topic: 'How does a message travel across the internet?', audience: 'Curious adults with no networking background', durationSeconds: 45 },
 };
 const baseJob: Job = {
   id: 'a'.repeat(32), status: 'queued', stage: 'queued', message: 'Queued.',
@@ -74,7 +74,7 @@ describe('Studio workflow', () => {
     await screen.findByRole('button', { name: /Setup needed/ });
     await userEvent.click(screen.getByRole('button', { name: 'Try a sample' }));
     await userEvent.click(screen.getByRole('button', { name: 'Generate sample video' }));
-    expect(api.createJob).toHaveBeenCalledWith(expect.objectContaining({ source: 'sample', topic: health.sample.topic, audience: health.sample.audience, durationSeconds: 90, review: false }));
+    expect(api.createJob).toHaveBeenCalledWith(expect.objectContaining({ source: 'sample', topic: health.sample.topic, audience: health.sample.audience, durationSeconds: 45, review: false }));
   });
 
   it('shows setup instead of making a paid request when topic generation is unavailable', async () => {

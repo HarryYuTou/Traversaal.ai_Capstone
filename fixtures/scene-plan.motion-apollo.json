@@ -1,0 +1,377 @@
+{
+  "schemaVersion": "1",
+  "projectId": "motion-apollo-demo",
+  "title": "Apollo: Leave the Landing Gear Behind",
+  "scenes": [
+    {
+      "id": "scene-01",
+      "purpose": "Explain lunar orbit rendezvous through separation, descent, ascent of only the cabin, docking, and departure.",
+      "template": "motion",
+      "visual": {
+        "title": "Land less. Bring the crew home.",
+        "entities": [
+          {
+            "id": "moon",
+            "kind": "moon",
+            "x": 52,
+            "y": 53,
+            "size": 1.5,
+            "rotation": 0,
+            "opacity": 1,
+            "value": 0,
+            "color": "muted",
+            "label": "Moon"
+          },
+          {
+            "id": "orbiter",
+            "kind": "spacecraft",
+            "x": 18,
+            "y": 23,
+            "size": 0.8,
+            "rotation": 0,
+            "opacity": 1,
+            "value": 0,
+            "color": "ink",
+            "label": "Orbiter"
+          },
+          {
+            "id": "descent-stage",
+            "kind": "lander-base",
+            "x": 24.5,
+            "y": 23,
+            "size": 0.7,
+            "rotation": 0,
+            "opacity": 1,
+            "value": 0,
+            "color": "secondary",
+            "label": ""
+          },
+          {
+            "id": "ascent-stage",
+            "kind": "lander-ascent",
+            "x": 24.5,
+            "y": 23,
+            "size": 0.7,
+            "rotation": 0,
+            "opacity": 1,
+            "value": 0,
+            "color": "accent",
+            "label": "Cabin"
+          }
+        ],
+        "paths": [
+          {
+            "id": "lunar-orbit",
+            "points": [
+              {
+                "x": 69.5,
+                "y": 53.0
+              },
+              {
+                "x": 64.37436867076458,
+                "y": 82.698484809835
+              },
+              {
+                "x": 52.0,
+                "y": 95.0
+              },
+              {
+                "x": 39.62563132923542,
+                "y": 82.698484809835
+              },
+              {
+                "x": 34.5,
+                "y": 53.00000000000001
+              },
+              {
+                "x": 39.62563132923542,
+                "y": 23.301515190165006
+              },
+              {
+                "x": 52.0,
+                "y": 11.0
+              },
+              {
+                "x": 64.37436867076458,
+                "y": 23.301515190165
+              }
+            ],
+            "curved": true,
+            "closed": true,
+            "color": "muted"
+          },
+          {
+            "id": "descent",
+            "points": [
+              {
+                "x": 76,
+                "y": 53
+              },
+              {
+                "x": 76,
+                "y": 25
+              },
+              {
+                "x": 65,
+                "y": 10
+              },
+              {
+                "x": 54,
+                "y": 16
+              },
+              {
+                "x": 52,
+                "y": 25.8
+              }
+            ],
+            "curved": true,
+            "closed": false,
+            "color": "secondary"
+          },
+          {
+            "id": "ascent",
+            "points": [
+              {
+                "x": 52,
+                "y": 25.8
+              },
+              {
+                "x": 54,
+                "y": 15
+              },
+              {
+                "x": 66,
+                "y": 13
+              },
+              {
+                "x": 76,
+                "y": 33
+              },
+              {
+                "x": 76,
+                "y": 53
+              }
+            ],
+            "curved": true,
+            "closed": false,
+            "color": "accent"
+          },
+          {
+            "id": "orbiter-approach",
+            "points": [
+              {
+                "x": 18,
+                "y": 23
+              },
+              {
+                "x": 39,
+                "y": 14
+              },
+              {
+                "x": 64,
+                "y": 18
+              },
+              {
+                "x": 69.5,
+                "y": 53
+              }
+            ],
+            "curved": true,
+            "closed": false,
+            "color": "muted"
+          },
+          {
+            "id": "lander-approach",
+            "points": [
+              {
+                "x": 24.5,
+                "y": 23
+              },
+              {
+                "x": 45.5,
+                "y": 14
+              },
+              {
+                "x": 70.5,
+                "y": 18
+              },
+              {
+                "x": 76.0,
+                "y": 53
+              }
+            ],
+            "curved": true,
+            "closed": false,
+            "color": "muted"
+          }
+        ],
+        "actions": [
+          {
+            "entityId": "orbiter",
+            "kind": "follow-path",
+            "startLine": 0,
+            "endLine": 1,
+            "startOffset": 0,
+            "endOffset": 1,
+            "pathId": "orbiter-approach",
+            "x": 0,
+            "y": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "entityId": "descent-stage",
+            "kind": "follow-path",
+            "startLine": 0,
+            "endLine": 1,
+            "startOffset": 0,
+            "endOffset": 1,
+            "pathId": "lander-approach",
+            "x": 0,
+            "y": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "entityId": "ascent-stage",
+            "kind": "follow-path",
+            "startLine": 0,
+            "endLine": 1,
+            "startOffset": 0,
+            "endOffset": 1,
+            "pathId": "lander-approach",
+            "x": 0,
+            "y": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "entityId": "orbiter",
+            "kind": "orbit",
+            "startLine": 2,
+            "endLine": 6,
+            "startOffset": 0,
+            "endOffset": 0.5,
+            "pathId": "",
+            "x": 52,
+            "y": 53,
+            "value": 720,
+            "easing": "linear"
+          },
+          {
+            "entityId": "descent-stage",
+            "kind": "follow-path",
+            "startLine": 2,
+            "endLine": 2,
+            "startOffset": 0,
+            "endOffset": 0.9,
+            "pathId": "descent",
+            "x": 0,
+            "y": 0,
+            "value": 0,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "ascent-stage",
+            "kind": "follow-path",
+            "startLine": 2,
+            "endLine": 2,
+            "startOffset": 0,
+            "endOffset": 0.9,
+            "pathId": "descent",
+            "x": 0,
+            "y": 0,
+            "value": 0,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "ascent-stage",
+            "kind": "follow-path",
+            "startLine": 5,
+            "endLine": 6,
+            "startOffset": 0,
+            "endOffset": 0.5,
+            "pathId": "ascent",
+            "x": 0,
+            "y": 0,
+            "value": 0,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "ascent-stage",
+            "kind": "move",
+            "startLine": 7,
+            "endLine": 7,
+            "startOffset": 0.35,
+            "endOffset": 0.9,
+            "pathId": "",
+            "x": 78,
+            "y": 70,
+            "value": 0,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "ascent-stage",
+            "kind": "opacity",
+            "startLine": 7,
+            "endLine": 7,
+            "startOffset": 0.5,
+            "endOffset": 1,
+            "pathId": "",
+            "x": 0,
+            "y": 0,
+            "value": 0.3,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "orbiter",
+            "kind": "move",
+            "startLine": 7,
+            "endLine": 7,
+            "startOffset": 0.45,
+            "endOffset": 1,
+            "pathId": "",
+            "x": 88,
+            "y": 24,
+            "value": 0,
+            "easing": "ease-in-out"
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-01-line-01",
+          "text": "Apollo solved a difficult problem: land on the Moon without taking the entire spacecraft down."
+        },
+        {
+          "id": "scene-01-line-02",
+          "text": "Two vehicles arrived together: an orbiter for the journey home, and a smaller lunar lander."
+        },
+        {
+          "id": "scene-01-line-03",
+          "text": "The lander separated and descended, while the orbiter continued circling above."
+        },
+        {
+          "id": "scene-01-line-04",
+          "text": "On the surface, the lander's lower stage became a stable platform for exploration."
+        },
+        {
+          "id": "scene-01-line-05",
+          "text": "Returning did not mean lifting that entire platform off the Moon."
+        },
+        {
+          "id": "scene-01-line-06",
+          "text": "Only the upper cabin launched, leaving the descent stage behind."
+        },
+        {
+          "id": "scene-01-line-07",
+          "text": "That cabin returned to orbit, caught up with the other spacecraft, and docked."
+        },
+        {
+          "id": "scene-01-line-08",
+          "text": "The crew transferred back, then discarded the lunar cabin before beginning the journey home."
+        }
+      ]
+    }
+  ]
+}

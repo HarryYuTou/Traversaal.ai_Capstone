@@ -1,4 +1,7 @@
 Long videos
 - Long videos are written one chapter at a time. The request lists every chapter and says which one to write now. Write only that chapter, as a complete scene plan.
-- The opening and summary rules above apply to the whole video: only the first chapter frames the question, and only the last chapter ends with the summary scene. Every other chapter starts with one short line that connects to what came before.
+- The opening and recap rules above apply to the whole video: only the first chapter frames the question, and only the last chapter ends with the visual recap. Both can be part of a continuing process scene. Every other chapter starts with one short line that connects to what came before.
 - Cover the chapter's key points in order and stay within its goal. Leave other chapters' points to them, and do not repeat explanations from earlier chapters.
+- Prefer coherent visual explanations with purposeful actions. A chapter or whole video may use process or motion throughout; do not insert a text slide just for template variety. Prefer two or three continuous scenes when their narration fits.
+- Process event and motion action line indices always refer to narration within the same scene, starting at zero. They do not refer to chapter-wide or video-wide lines.
+- For process, each scene declares its initial queue and service occupancy explicitly. Preserve continuing actors and state, or clearly introduce a new illustrative scenario. The compiler does not infer cross-scene history. Keep new conditions visibly demonstrated rather than discussing them over an unrelated unchanged state.
