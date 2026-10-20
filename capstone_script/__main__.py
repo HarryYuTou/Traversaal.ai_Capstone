@@ -11,6 +11,7 @@ from .planner import attach_reference_url, load_env_file, make_spec, write_plan_
 from .reference import fetch_reference
 from .preview import build_preview
 from .render import THEMES, render_video
+from .scorecard import MIN_SECONDS, build as build_scorecard, write_report, write_template
 from .review import write_review
 from .timeline import write_timeline
 from .scene_plan import PlanValidationError, dump_plan, load_plan, schema_text, summarize
@@ -179,6 +180,14 @@ def main(argv=None):
     evaluation.add_argument("--narrate", action="store_true",
                             help="Also voice plans of up to 180 seconds to measure real speech length")
     _add_voice_options(evaluation)
+    scorecard = sub.add_parser("scorecard", help="Success rate and quality score for finished runs (no API calls).")
+    scorecard.add_argument("--runs", type=Path, nargs="+", required=True, help="Run directories, such as runs/l1-*")
+    scorecard.add_argument("--ratings", type=Path, help="Human ratings CSV (see docs/QUALITY_SCORECARD.md)")
+    scorecard.add_argument("--min-seconds", type=float, default=MIN_SECONDS,
+                           help=f"Shortest video that counts (default {MIN_SECONDS})")
+    output = scorecard.add_mutually_exclusive_group(required=True)
+    output.add_argument("--out", type=Path, help="New directory for scorecard.md, .csv and .json")
+    output.add_argument("--template", type=Path, help="Write an empty ratings CSV for these runs instead")
     preview = sub.add_parser("preview", help="Rebuild preview.html for a narrated run.")
     preview.add_argument("--run", type=Path, required=True, help="Run directory with audio-manifest.json")
     run = sub.add_parser("run", help="Topic -> scene plan -> narration (-> video) in one run directory.")
@@ -225,6 +234,19 @@ def main(argv=None):
             print(f"Results: {args.out.resolve() / 'results.md'}")
             print(f"{summary['planned']} of {summary['topics']} planned | first request passed "
                   f"{summary['firstRequestPassRate']:.0%} | API about ${summary['costUsd']:.2f}")
+            return 0
+        if args.command == "scorecard":
+            if args.template:
+                print(f"Ratings template: {write_template(args.runs, args.template).resolve()}")
+                return 0
+            results = build_scorecard(args.runs, args.ratings, args.min_seconds)
+            summary = results["summary"]
+            print(f"Scorecard: {write_report(results, args.out).resolve() / 'scorecard.md'}")
+            rate = "no live attempts" if summary["successRate"] is None else (
+                f"{summary['automaticSuccesses']} of {summary['liveAttempts']} live runs succeeded "
+                f"({summary['successRate']:.0%})")
+            print(f"{rate} | {summary['accepted']} accepted | mean quality "
+                  f"{summary['meanQualityScore'] if summary['meanQualityScore'] is not None else 'not rated'}")
             return 0
         if args.command == "preview":
             print(f"Preview: {build_preview(args.run).resolve()}")
