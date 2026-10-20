@@ -1,8 +1,9 @@
 # Script Planner Guide
 
 `capstone_script` turns a topic into a scene-by-scene script and voices every
-line with the `capstone_tts` module. Each scene says what the viewer sees (one
-of four slide templates) and what the narrator says, one short line at a time.
+line with the `capstone_tts` module. Each scene says what the viewer sees (a
+process or motion scene, or one of eight supporting slide templates) and what the narrator
+says, one short line at a time.
 
 ```text
 Topic -> scene-plan.json -> one WAV per line + audio-manifest.json -> narration-preview.wav + preview.html
@@ -14,10 +15,11 @@ Topic -> scene-plan.json -> one WAV per line + audio-manifest.json -> narration-
 Use the same Python 3.11 `.venv` as the TTS module and install
 `requirements.lock.txt`; it now includes the `anthropic` SDK.
 
-Only the `plan`, `run` and `review` commands call the Claude API. Create a file named
+The `plan`, `run`, `review` and `evaluate` commands call the Claude API. Create a file named
 `.env` in the repository folder containing `ANTHROPIC_API_KEY=...`. Git ignores
-`.env`; never commit or paste the key. A Claude subscription does not include
-API usage. Each call's token usage is saved in `llm-response.json`; the list
+`.env`; never commit or paste the key into chat. API billing is managed in
+Claude Console; eligible Max and Team subscribers can [claim monthly API credits](https://platform.claude.com/docs/en/about-claude/api-credits-for-subscribers).
+Each call's token usage is saved in `llm-response.json`; the list
 price for Claude Opus 5.5 is $4 per million input tokens and $20 per million
 output tokens.
 
@@ -61,8 +63,9 @@ python -m capstone_script schema
 python -m unittest discover -s tests -v
 ```
 
-`--duration` accepts 30–600 seconds. Up to 180 seconds, one request writes the
-whole plan; longer videos are planned chapter by chapter (see below).
+`--duration` accepts 30–600 seconds. A small request first selects visual
+templates. Up to 180 seconds, one subsequent request writes the whole plan;
+longer videos are planned chapter by chapter (see below).
 `--offline` uses the cached Kokoro model; omit it on the first narration. Every
 command refuses an existing output directory.
 
@@ -78,18 +81,28 @@ command refuses an existing output directory.
 | `stat` | `title` (≤60), 1–3 `stats`, each a number `value`, optional `prefix` and `unit` (≤12), and a `label` (≤60); optional `note` (≤120) | `highlightStatIndex` |
 | `quote` | `title` (≤60), `quote` (≤220), `author` (≤60), optional `context` (≤80) | `highlightQuote` (`true` on the line that reads the quotation) |
 | `map` | `title` (≤60), a `region` from `schemas/map-regions.json`, up to 3 `areas` (an `id`, a `label` and up to 40 country names, with today's borders), up to 8 `places` (`id`, `label`, `lon`, `lat`) and `route` (connect the places in order) | `highlightId` (a place or an area) |
+| `motion` | `title` (≤60), 1–12 `entities`, up to 12 `paths` and 48 narration-bound `actions`; see [motion contract](MOTION_GUIDE.md) | None; actions anchor to narration line indices and offsets |
+| `process` | `title`, `actorKind`, 1–8 `actors`, 1–2 `stations`, `initialQueue`, `initialService` and up to 48 narration-bound `events`; see [process contract](MOTION_GUIDE.md#semantic-process-contract) | None; events anchor to narration line indices and offsets |
 
 Every scene has an `id`, a `purpose`, a `template`, a `visual` and 1–8
 narration lines of at most 25 English words. IDs use lowercase letters, digits
 and hyphens because narration IDs become file names. Python also checks what
 JSON Schema cannot: unique scene, line and node IDs, highlights that point to
 an existing point or node, the word limit and English-only text.
-The planner's prompt describes all eight templates, and its output shape, id
-clean-up, icon filter and coverage check (every event, number, place and area
-gets a highlighting line; a quote scene has a line that reads the quotation)
-cover the four newer ones too. This has only been tested offline with a fake
-client: before relying on it, run a real plan to confirm that the model picks
-the new templates well. Without reference material, the prompt allows only
+The local contract supports ten scene types; each planning request receives
+only its selected template details. Supporting slide coverage
+checks require each event, number, place and area to get a highlighting line;
+a quote scene has a line that reads the quotation. Motion instead validates
+entity/path references and narration-bound actions. Process checks actor and
+station references, initial occupancy, chronological nonoverlapping events,
+queue order and lifecycle: new actors arrive, front actors start at free
+stations, and served actors finish and leave permanently within a scene.
+Every process narration line needs an event or explicit hold; not every line
+needs movement. Real motion planning results and the remaining visual limits
+are recorded in [the verification section](MOTION_GUIDE.md#live-planning-check).
+Run and inspect each new process plan as well; schema validity alone does not
+establish visual or factual quality.
+Without reference material, the prompt allows only
 famous, widely documented dates and numbers, and only quotations it can give
 word for word; the reviewer never rewrites a line that reads a quotation.
 Concept and definition visuals, flow nodes, comparison columns, timeline
@@ -118,26 +131,46 @@ paths, durations or frames; later stages measure those from real audio.
    text (headings, paragraphs, lists and tables, without menus, scripts or
    footers) and caps it at 20,000 characters. Every run with a reference saves
    its own copy as `reference.md`.
-2. Claude Opus 5.5 (effort `high`) answers with structured JSON output in its
-   own output shape, not the ScenePlan schema: the full schema, a union of
-   scene types, was already rejected as too large to compile with four types,
-   and structured outputs accept at most 24 optional and 16 union-typed (`anyOf`,
-   which is how an optional `| None` field is written) parameters per request.
-   So every scene has one kind of `visual` with a `title` and one part per
-   template (`visual.flow` for a flow scene, and so on), each narration line
+2. A small Claude request first selects one to three appropriate templates
+   for the whole video (`prompts/template-router.txt`, effort `low`, at most
+   1,024 output tokens). It prefers the fewest useful templates; an explanation
+   may use process or motion alone. It prefers process for arrival/service
+   workflows, with up to eight actors and two stations, and motion for other
+   physical explanations. An explicit `allowedTemplates` list of at most three
+   skips this selection. The selected list and router version are saved in
+   `project-spec.json` and `llm-response.json`.
+
+   Claude Opus 5.5 (effort `high`) then answers with structured JSON output in
+   its own output shape, not the ScenePlan schema. A live request on October
+   19 rejected the combined nine-template schema as too large to compile,
+   despite its low optional/union field counts. Each planning request now
+   includes only the selected visual parts and their referenced definitions.
+   A single-template request makes that visual part required. The full local
+   ScenePlan contract now accepts all ten templates. Unselected visual
+   instructions are also omitted from the detailed planning prompt.
+
+   Every scene has one kind of `visual` with a `title` and its selected part
+   (`visual.flow` for a flow scene, and so on), each narration line
    has one `highlight` text whose meaning depends on the template (a point or
    number position such as `"0"`, an id, `left`/`right`, `term`/`definition`/
    `example`, or `quote`), and optional texts such as icons take `""` for
-   "none". That is 8 optional and no union-typed parameters; a test keeps every
-   request schema under both limits. The program turns the answer into a
+   "none". Motion and process use an empty highlight and explicit line-bound
+   actions or events. Process output contains no authored coordinates; the
+   local compiler owns layout and phased movement after speech is measured.
+   A motion-only request has no optional visual parts or union parameters.
+   Tests check schema pruning, template restrictions and routing failures;
+   field counts alone cannot prove that the provider can compile a grammar.
+   The program turns the answer into a
    ScenePlan, renumbers scene and line IDs and makes node IDs path-safe, and
-   validation then applies each template's rules.
+   validation then applies each template's rules and the selected allowlist.
 3. The plan must pass validation and fit the length: the word target assumes
    2.6 words per second, and a plan outside 80–120% of the target words counts
    as a problem. Asking for ±5% centered the real speech length on the target
-   in testing; see [PLANNER_EVALUATION.md](PLANNER_EVALUATION.md). A plan must use at least two different templates, and every
-   point, node, column and example must be highlighted by at least one
-   narration line, so the visuals follow the narration.
+   in testing; see [PLANNER_EVALUATION.md](PLANNER_EVALUATION.md). An all-motion
+   video is allowed. In supporting slide scenes, every point, node, column and
+   example must be highlighted by at least one narration line. Motion scenes
+   instead validate action anchors, entity/path references, property conflicts
+   and target ranges; the timeline resolves timing after speech is generated.
 4. If anything fails, one repair request (`prompts/repair-scene-plan.txt`)
    lists every problem, named by the output shape's fields (such as
    `scenes[2].visual.timeline.events[0].label`). A second failure stops the run; `llm-response.json`
@@ -147,7 +180,7 @@ paths, durations or frames; later stages measure those from real audio.
 
 One request cannot write a seven-minute script well: it would run past a
 dozen scenes and lose track of what it already explained. Videos over 180
-seconds are planned in two stages.
+seconds select their visual templates once, then are planned in two stages.
 
 1. **Outline.** `prompts/outline-planner.txt` asks for chapters: a title, a
    one-sentence goal, two to four key points and a length for each. There is
@@ -160,8 +193,11 @@ seconds are planned in two stages.
    lines, and `prompts/chapter-planner.txt` adds the rules for chapters: only
    the first chapter opens the video, only the last one ends with the summary,
    and every other chapter starts with one line that links to the one before.
-   The rule of at least two templates applies to the video, not to each
-   chapter.
+   A chapter or the whole video may use process or motion throughout;
+   template variety is not a validity requirement. Short plans and chapters
+   permit two coherent scenes instead of forcing at least four. Each process
+   scene explicitly initializes its queue and service state, including across
+   chapter boundaries.
 
 The chapter plans are merged into one plan with chapters. Every request,
 including the outline, gets at most one repair. A chapter that fails twice
@@ -183,6 +219,9 @@ API, URL and PDF letter by letter, SQL as "sequel", NASA as a word) and reads
 numbers and "10%" as words, but it says "e.g." as "ee-jee" and "vs." as
 "viz", so the scan flags abbreviations, not acronyms. Invalid edits get one repair request. Review a plan before narrating
 it; a narrated run is refused because its audio would no longer match.
+Process review also preserves event anchors, actor/station references and
+initial occupancy. A misleading demonstration is reported as an issue, not
+silently justified by changing the narration's meaning.
 
 ### Evaluation
 
@@ -217,10 +256,15 @@ minutes.
 | `audio/<narrationId>/` | `narrate`, `run` | `capstone_tts` output for one line: WAV, `audio-info.json`, input |
 | `audio-manifest.json` | `narrate`, `run` | Per line: scene, text, audio path, real sample count, duration, synthesis time |
 | `narration-preview.wav` | `narrate`, `run` | All lines with fixed 0.2 / 0.1 / 0.2 s scene pauses, for listening only |
-| `preview.html` | `narrate`, `run`, `preview` | Slides, highlights and subtitles driven by the preview track |
+| `preview.html` | `narrate`, `run`, `preview` | Listening preview; inspect the rendered MP4 for animated staging |
+| `video/timeline.json` | `timeline`, `render` | Measured frame timing; process scenes become motion scenes with a source-event `processTrace` |
 
 Open `preview.html` from the run folder in a browser. The preview pauses are
 not the frame-accurate timeline; that stays with the timeline module.
+Process compilation rejects measured event spans too short to show travel,
+work and departure. See [timing floors](MOTION_GUIDE.md#compilation-and-readable-timing).
+It does not silently stretch the narration or manufacture duration to meet
+the target; revise the source plan and re-narrate when needed.
 
 ## Measured results
 

@@ -158,7 +158,8 @@ class CommandTests(unittest.TestCase):
         self.assertTrue((self.out / "narration-preview.wav").exists())
 
     def test_run_command_goes_from_topic_to_narration(self):
-        with patch("capstone_script.__main__._client", return_value=FakeClient(response(model_output()))):
+        client = FakeClient(response({"templates": ["concept", "flow"]}), response(model_output()))
+        with patch("capstone_script.__main__._client", return_value=client):
             code, _ = self.run_main("run", "--topic", TOPIC, "--out", str(self.out))
         self.assertEqual(code, 0)
         for name in ("project-spec.json", "llm-response.json", "scene-plan.json",

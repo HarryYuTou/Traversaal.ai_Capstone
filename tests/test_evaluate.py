@@ -4,8 +4,10 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
-from capstone_script.evaluate import evaluate
+from capstone_script.evaluate import evaluate, run_metrics
+from capstone_script.planner import TEMPLATE_ROUTER_VERSION
 from test_planner import TOPIC, FakeClient, broken_highlight, model_output, response
 from test_review import NEW_TEXT, review_output
 
@@ -20,7 +22,9 @@ class EvaluateTests(unittest.TestCase):
         self.out = Path(temporary.name) / "eval"
 
     def test_each_topic_is_planned_reviewed_and_summarized(self):
-        client = FakeClient(response(model_output()), response(review_output()),
+        client = FakeClient(response({"templates": ["concept", "flow"]}),
+                            response(model_output()), response(review_output()),
+                            response({"templates": ["concept", "flow"]}),
                             response(model_output(broken_highlight)), response(model_output(broken_highlight)))
         results = evaluate(TOPICS, self.out, client)
         first, second = results["runs"]
@@ -31,7 +35,7 @@ class EvaluateTests(unittest.TestCase):
         self.assertEqual(first["linesRewritten"], 1)
         self.assertEqual(first["wordsDraft"], 214)
         self.assertEqual(second["planStatus"], "failed")
-        self.assertEqual((second["requests"], second["repairs"]), (2, 1))
+        self.assertEqual((second["requests"], second["repairs"]), (3, 1))
         self.assertIn("router", second["error"])
         summary = results["summary"]
         self.assertEqual((summary["topics"], summary["planned"], summary["repairs"]), (2, 1, 1))
@@ -39,20 +43,56 @@ class EvaluateTests(unittest.TestCase):
         self.assertEqual(json.loads((self.out / "results.json").read_text(encoding="utf-8"))["summary"], summary)
         table = (self.out / "results.md").read_text(encoding="utf-8")
         self.assertIn("| 1 | What happens after you enter a website address? | 75 s | single | first request |", table)
-        self.assertIn("| 2 | Why is the sky blue? | 75 s | single | failed | 2 |", table)
+        self.assertIn("| 2 | Why is the sky blue? | 75 s | single | failed | 3 |", table)
         self.assertEqual(first["run"], "01-what-happens-after-you-enter-a-w")
         plan = json.loads((self.out / first["run"] / "scene-plan.json").read_text(encoding="utf-8"))
         self.assertEqual(plan["scenes"][0]["narration"][0]["text"], NEW_TEXT)
 
     def test_an_invalid_topic_is_recorded_and_the_batch_continues(self):
         topics = [{"topic": "Too short", "audience": "Anyone", "duration": 20}, TOPICS[0]]
-        client = FakeClient(response(model_output()), response(review_output()))
+        client = FakeClient(response({"templates": ["concept", "flow"]}),
+                            response(model_output()), response(review_output()))
         results = evaluate(topics, self.out, client)
         bad, good = results["runs"]
         self.assertEqual(bad["planStatus"], "not started")
         self.assertIn("Duration must be between", bad["error"])
         self.assertEqual(good["planStatus"], "completed")
         self.assertTrue((self.out / "results.md").exists())
+
+    def test_routing_repair_does_not_count_as_a_scene_planning_repair(self):
+        client = FakeClient(response({"templates": []}),
+                            response({"templates": ["concept", "flow"]}),
+                            response(model_output()), response(review_output()))
+        with patch("capstone_script.planner.perf_counter", side_effect=[0, 1, 2, 4, 5, 8, 9, 13]):
+            results = evaluate(TOPICS[:1], self.out, client)
+        run = results["runs"][0]
+        self.assertEqual(run["planStatus"], "completed")
+        self.assertEqual((run["requests"], run["repairs"], run["routingRequests"], run["routingRepairs"]),
+                         (3, 0, 2, 1))
+        self.assertEqual(run["planSeconds"], 6.0)
+        self.assertEqual(results["summary"]["firstRequestPassRate"], 1.0)
+        self.assertEqual((results["summary"]["repairs"], results["summary"]["routingRepairs"]), (0, 1))
+        self.assertEqual(results["promptVersions"]["templateRouter"], TEMPLATE_ROUTER_VERSION)
+        record = json.loads((self.out / run["run"] / "llm-response.json").read_text(encoding="utf-8"))
+        review = json.loads((self.out / run["run"] / "review.json").read_text(encoding="utf-8"))
+        self.assertEqual(len(review["attempts"]), 1)
+        self.assertEqual(run["planCostUsd"], record["estimatedCostUsd"])
+        self.assertEqual(results["summary"]["costUsd"],
+                         round(record["estimatedCostUsd"] + review["estimatedCostUsd"], 2))
+
+    def test_metrics_support_older_runs_without_template_routing(self):
+        self.out.mkdir()
+        (self.out / "project-spec.json").write_text(json.dumps({
+            "topic": TOPIC, "audience": "Students", "targetDurationSec": 75,
+        }), encoding="utf-8")
+        (self.out / "llm-response.json").write_text(json.dumps({
+            "status": "failed", "error": "Invalid scene plan", "estimatedCostUsd": 0.25,
+            "attempts": [{"step": "plan", "latencyMs": 1000}, {"step": "plan", "latencyMs": 2000}],
+        }), encoding="utf-8")
+        metrics = run_metrics(self.out)
+        self.assertEqual((metrics["requests"], metrics["repairs"], metrics["routingRequests"],
+                          metrics["routingRepairs"]), (2, 1, 0, 0))
+        self.assertEqual((metrics["planCostUsd"], metrics["planSeconds"]), (0.25, 3.0))
 
     def test_existing_output_is_refused(self):
         self.out.mkdir()

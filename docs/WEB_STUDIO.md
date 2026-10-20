@@ -44,9 +44,13 @@ generating a new topic, including its optional review. Keep credentials out
 of screenshots, shared logs, and commits.
 
 For **Try a sample**, no Claude credential or Claude request is needed. It
-uses `fixtures/scene-plan.valid.json`, then runs the same real Kokoro CPU
-narration, timeline construction, and Remotion render. It is not a prerecorded
-video or a simulated generation.
+uses `fixtures/scene-plan.motion-network.json`: **How a Message Crosses the
+Internet**, a roughly 45-second story with packets moving between a laptop,
+the network, and a server. It runs real Kokoro CPU narration, timeline
+construction, and Remotion rendering. The exact length follows the generated
+speech. It is not a prerecorded video or a simulated generation. The earlier
+five-scene sample remains available at `fixtures/scene-plan.valid.json` for
+CLI use and regression checks.
 
 The first narration may download the pinned Kokoro model and voice into
 `.cache/huggingface`; the first render may download Remotion's browser.
@@ -76,6 +80,12 @@ starting a job that can download it.
 The image shown before completion is an illustrative preview. It is not a
 live frame from the renderer. The workspace reports stages rather than an
 estimated overall completion percentage.
+
+The separate CLI `preview.html` is a script and narration check. For scenes
+with object movement, it explicitly shows a **Narration-only preview** with
+a description of each planned beat while the audio plays. It does not draw
+or simulate the movement. Inspect the rendered MP4 for animation timing and
+layout; rebuilding the preview after a completed render adds a video link.
 
 Refreshing the page reconnects to the most recently remembered job for the
 signed-in account in that browser. The brief and job ID are stored in
@@ -279,6 +289,10 @@ A real topic run additionally verifies Claude access and script generation;
 it incurs API usage. Do not substitute mock-test results for either check.
 
 ### Frontend-v1 local verification — 2026-10-12
+
+The October 12 and October 16 video records below used the original
+five-scene web-request sample. They do not verify the newer network-motion
+sample or a live Claude-generated motion plan.
 
 - On the macOS development machine, all 147 Python tests and all eight frontend
   component tests passed. The frontend production build and the existing

@@ -46,9 +46,9 @@ export default function BriefForm({ value, onChange, onSubmit, health, disabled,
       if (!ready) return onSetup();
       onSubmit(sample ? {
         ...value,
-        topic: health?.sample.topic || 'What happens after you enter a website address?',
+        topic: health?.sample.topic || 'How does a message travel across the internet?',
         audience: health?.sample.audience || 'Curious adults with no networking background',
-        durationSeconds: health?.sample.durationSeconds || 90,
+        durationSeconds: health?.sample.durationSeconds || 45,
         review: false,
       } : { ...value, topic: value.topic.trim(), audience: value.audience.trim() });
     }}>
@@ -61,8 +61,8 @@ export default function BriefForm({ value, onChange, onSubmit, health, disabled,
 
         {sample ? <div className="sample-brief">
           <span className="eyebrow">A READY-TO-USE SCRIPT</span>
-          <h3>{health?.sample.title || 'From an Address to a Web Page'}</h3>
-          <p>Follow a web address from your browser to a server and back. We’ll turn this five-scene script into a real narrated video.</p>
+          <h3>{health?.sample.title || 'How a Message Crosses the Internet'}</h3>
+          <p>Watch a message travel from your laptop through the network to a receiver. Moving packets and a narrated story show how the pieces connect.</p>
           <div className="sample-note"><FlaskConical size={14} />No AI script request or API usage</div>
         </div> : <>
           <div className="field">

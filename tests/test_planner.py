@@ -38,6 +38,8 @@ def as_model_output(plan):
         template, visual = scene["template"], scene["visual"]
         part = {**PART_DEFAULTS.get(template, {}), **{key: value for key, value in visual.items() if key != "title"}}
         for key, defaults in ITEM_DEFAULTS.items():
+            if template == "process":
+                continue
             items = part.get(key)
             for item in items if isinstance(items, list) else [items] if isinstance(items, dict) else []:
                 for name, value in defaults.items():
@@ -103,6 +105,7 @@ class PlannerTests(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.out = Path(self.temporary.name) / "run"
         self.spec, _ = make_spec(TOPIC, "University students with no networking background", 75)
+        self.spec["allowedTemplates"] = ["concept", "flow"]
 
     def saved(self, name):
         return json.loads((self.out / name).read_text(encoding="utf-8"))
@@ -188,11 +191,19 @@ class PlannerTests(unittest.TestCase):
             "scenes[6]: no narration line highlights the example; give it a line whose highlight is \"example\"",
         ])
 
-    def test_a_plan_needs_two_different_templates(self):
+    def test_a_plan_can_use_one_template_when_it_fits_the_explanation(self):
         def concepts_only(data):
             data["scenes"] = [scene for scene in data["scenes"] if scene["template"] == "concept"]
         plan = validate_plan(normalize_ids(model_plan(concepts_only), "demo"))
-        self.assertIn("scenes: use at least two different templates", length_problems(plan, self.spec))
+        self.assertNotIn("scenes: use at least two different templates", length_problems(plan, self.spec))
+
+    def test_request_prefers_process_animation_without_requiring_template_variety(self):
+        text = request_text(self.spec)
+        self.assertIn("Scenes: 2 to 8.", text)
+        self.assertIn("Prefer process for arrivals, waiting and service", text)
+        self.assertIn("Use process or motion throughout", text)
+        self.assertIn("no minimum template variety", text)
+        self.assertNotIn("at least two different templates", text)
 
     def test_unknown_icons_from_the_model_are_dropped_without_a_repair(self):
         def add_icons(data):
@@ -277,7 +288,8 @@ class PlanCommandTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             out = Path(temporary) / "run"
             stdout = io.StringIO()
-            with patch("capstone_script.__main__._client", return_value=FakeClient(response(model_output()))), \
+            with patch("capstone_script.__main__._client", return_value=FakeClient(
+                    response({"templates": ["concept", "flow"]}), response(model_output()))), \
                     patch("capstone_script.__main__.load_env_file"), redirect_stdout(stdout):
                 code = main(["plan", "--topic", TOPIC, "--out", str(out)])
             self.assertEqual(code, 0)

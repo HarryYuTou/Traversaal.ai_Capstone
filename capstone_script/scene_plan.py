@@ -1,6 +1,6 @@
 """ScenePlan: the scene-by-scene script that the planner writes.
 
-A plan says what each scene shows (one of eight visual templates) and what the
+A plan says what each scene shows (a motion explanation or a slide template) and what the
 narrator says, one short line at a time. Long plans also group their scenes
 into chapters. A plan never contains audio paths, durations or frame numbers;
 later stages measure those from real audio.
@@ -20,7 +20,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, Validation
 from pydantic.alias_generators import to_camel
 
 SCHEMA_VERSION = "1"
-TEMPLATES = ("concept", "flow", "comparison", "definition", "timeline", "stat", "quote", "map")
+TEMPLATES = ("concept", "flow", "comparison", "definition", "timeline", "stat", "quote", "map", "motion", "process")
 MAX_SCENES = 60
 MAX_CHAPTERS = 10
 MAX_LINES_PER_SCENE = 8
@@ -56,6 +56,15 @@ Attribution = Annotated[str, StringConstraints(min_length=1, max_length=60)]
 QuoteContext = Annotated[str, StringConstraints(min_length=1, max_length=80)]
 Country = Annotated[str, StringConstraints(min_length=1, max_length=48)]
 Number = Annotated[float, Field(allow_inf_nan=False, ge=-1e12, le=1e12)]
+Finite = Annotated[float, Field(allow_inf_nan=False)]
+StagePosition = Annotated[float, Field(allow_inf_nan=False, ge=0, le=100)]
+Fraction = Annotated[float, Field(allow_inf_nan=False, ge=0, le=1)]
+MotionSize = Annotated[float, Field(allow_inf_nan=False, ge=0.25, le=3)]
+MotionColor = Literal["ink", "accent", "secondary", "muted"]
+MotionKind = Literal["planet", "moon", "spacecraft", "lander", "lander-base", "lander-ascent", "rocket", "satellite", "person", "packet",
+                     "server", "laptop", "cloud", "coin", "box", "marker", "gauge", "counter", "workbench"]
+ActionKind = Literal["move", "follow-path", "orbit", "opacity", "scale", "rotate", "value"]
+MotionEasing = Literal["linear", "ease-in-out", "ease-out"]
 
 
 class _Model(BaseModel):
@@ -111,6 +120,11 @@ class MapLine(_Model):
     text: LineText
     # The id of a place or an area on this scene's map.
     highlight_id: Id | None = None
+
+
+class MotionLine(_Model):
+    id: Id
+    text: LineText
 
 
 class FlowNode(_Model):
@@ -209,6 +223,101 @@ class MapVisual(_Model):
     route: bool = False
 
 
+class MotionEntity(_Model):
+    """Initial state on a stage measured in percentages, independent of output resolution."""
+
+    id: Id
+    kind: MotionKind
+    x: StagePosition
+    y: StagePosition
+    size: MotionSize
+    rotation: Finite
+    opacity: Fraction
+    value: Fraction
+    color: MotionColor
+    label: Annotated[str, StringConstraints(max_length=32)]
+
+
+class MotionPoint(_Model):
+    x: StagePosition
+    y: StagePosition
+
+
+class MotionPath(_Model):
+    id: Id
+    points: list[MotionPoint] = Field(min_length=2, max_length=24)
+    curved: bool
+    closed: bool
+    color: MotionColor
+
+
+class MotionAction(_Model):
+    """Animate one property between fractional positions in narration lines, before audio exists.
+
+    The end line is included: endOffset=1 reaches its audio endpoint. Timeline compilation
+    produces the absolute frame interval [from, from + durationInFrames).
+    """
+
+    entity_id: Id
+    kind: ActionKind
+    start_line: Annotated[int, Field(ge=0)]
+    end_line: Annotated[int, Field(ge=0)]
+    start_offset: Fraction
+    end_offset: Fraction
+    path_id: Annotated[str, StringConstraints(pattern=r"^(?:[a-z0-9]+(?:-[a-z0-9]+)*)?$", max_length=48)]
+    x: StagePosition
+    y: StagePosition
+    value: Finite
+    easing: MotionEasing
+
+
+class MotionVisual(_Model):
+    title: Title
+    entities: list[MotionEntity] = Field(min_length=1, max_length=12)
+    paths: list[MotionPath] = Field(max_length=12)
+    actions: list[MotionAction] = Field(max_length=48)
+
+
+class ProcessActor(_Model):
+    id: Id
+    color: MotionColor
+    label: Annotated[str, StringConstraints(max_length=24)]
+
+
+class ProcessStation(_Model):
+    id: Id
+    label: Label
+    kind: Literal["counter", "server", "workbench"]
+    color: MotionColor
+
+
+class ProcessOccupancy(_Model):
+    actor_id: Id
+    station_id: Id
+
+
+class ProcessEvent(_Model):
+    """A causal state change or deliberate hold, before layout and measured speech timing."""
+
+    kind: Literal["arrive", "start", "finish", "hold"]
+    actor_ids: list[Id] = Field(max_length=8)
+    station_ids: list[Id] = Field(max_length=2)
+    start_line: Annotated[int, Field(ge=0)]
+    end_line: Annotated[int, Field(ge=0)]
+    start_offset: Fraction
+    end_offset: Fraction
+
+
+class ProcessVisual(_Model):
+    title: Title
+    actor_kind: Literal["person", "packet", "box", "coin"]
+    actors: list[ProcessActor] = Field(min_length=1, max_length=8)
+    stations: list[ProcessStation] = Field(min_length=1, max_length=2)
+    initial_queue: list[Id] = Field(max_length=8)
+    initial_service: list[ProcessOccupancy] = Field(max_length=2)
+    events: list[ProcessEvent] = Field(max_length=48)
+
+
 class ConceptScene(_Model):
     """A title, one core statement and up to three points."""
 
@@ -289,8 +398,28 @@ class MapScene(_Model):
     narration: list[MapLine] = Field(min_length=1, max_length=MAX_LINES_PER_SCENE)
 
 
+class MotionScene(_Model):
+    """Entities whose movement and property changes explain the narrated process."""
+
+    id: Id
+    purpose: Purpose
+    template: Literal["motion"]
+    visual: MotionVisual
+    narration: list[MotionLine] = Field(min_length=1, max_length=MAX_LINES_PER_SCENE)
+
+
+class ProcessScene(_Model):
+    """A bounded arrival, waiting and processing workflow with explicit state transitions."""
+
+    id: Id
+    purpose: Purpose
+    template: Literal["process"]
+    visual: ProcessVisual
+    narration: list[MotionLine] = Field(min_length=1, max_length=MAX_LINES_PER_SCENE)
+
+
 Scene = Annotated[Union[ConceptScene, FlowScene, ComparisonScene, DefinitionScene,
-                        TimelineScene, StatScene, QuoteScene, MapScene],
+                        TimelineScene, StatScene, QuoteScene, MapScene, MotionScene, ProcessScene],
                   Field(discriminator="template")]
 
 
@@ -359,6 +488,10 @@ def semantic_problems(plan: ScenePlan) -> list[str]:
         elif scene.template == "map":
             map_ids = [area.id for area in scene.visual.areas] + [place.id for place in scene.visual.places]
             problems += map_problems(scene.visual, where)
+        elif scene.template == "motion":
+            problems += motion_problems(scene.visual, len(scene.narration), where)
+        elif scene.template == "process":
+            problems += process_problems(scene.visual, len(scene.narration), where)
         for i, line in enumerate(scene.narration):
             at = f"{where}.narration[{i}]"
             if line.id in line_ids:
@@ -415,6 +548,136 @@ def map_problems(visual: MapVisual, where: str) -> list[str]:
     return problems
 
 
+def motion_channel(kind: str) -> str:
+    """Only one action may drive a given entity property at a time."""
+    return "position" if kind in ("move", "follow-path", "orbit") else kind
+
+
+def process_problems(visual: ProcessVisual, line_count: int, where: str) -> list[str]:
+    """Validate workflow state as well as references; geometry belongs to the compiler."""
+    problems = []
+    prefix = f"{where}.visual"
+    actors = {actor.id for actor in visual.actors}
+    stations = {station.id for station in visual.stations}
+    for key in ("actors", "stations"):
+        ids = [item.id for item in getattr(visual, key)]
+        problems += [f"{prefix}.{key}[{index}].id: duplicate id {item!r}"
+                     for index, item in enumerate(ids) if item in ids[:index]]
+    if actors & stations:
+        problems.append(f"{prefix}: actor and station ids must be distinct")
+    queue = list(visual.initial_queue)
+    if len(set(queue)) != len(queue):
+        problems.append(f"{prefix}.initialQueue: an actor cannot occupy two queue positions")
+    if any(item not in actors for item in queue):
+        problems.append(f"{prefix}.initialQueue: every id must name an actor in this scene")
+    occupied, seen = {}, set(queue)
+    for index, item in enumerate(visual.initial_service):
+        at = f"{prefix}.initialService[{index}]"
+        if item.actor_id not in actors:
+            problems.append(f"{at}.actorId: {item.actor_id!r} is not an actor in this scene")
+        if item.station_id not in stations:
+            problems.append(f"{at}.stationId: {item.station_id!r} is not a station in this scene")
+        if item.actor_id in seen:
+            problems.append(f"{at}.actorId: {item.actor_id!r} already occupies a queue or service position")
+        if item.station_id in occupied:
+            problems.append(f"{at}.stationId: {item.station_id!r} is already occupied")
+        occupied[item.station_id] = item.actor_id
+        seen.add(item.actor_id)
+    previous_end = None
+    for index, event in enumerate(visual.events):
+        at = f"{prefix}.events[{index}]"
+        before = len(problems)
+        start, end = (event.start_line, event.start_offset), (event.end_line, event.end_offset)
+        for name, anchor in (("startLine", event.start_line), ("endLine", event.end_line)):
+            if anchor >= line_count:
+                problems.append(f"{at}.{name}: {anchor} is outside this scene's {line_count} narration lines")
+        if end <= start:
+            problems.append(f"{at}: the end anchor must be after the start anchor")
+        if previous_end is not None and start < previous_end:
+            problems.append(f"{at}: events must be chronological and must not overlap; "
+                            "put simultaneous actors in the same event")
+        previous_end = max(previous_end or end, end)
+        for key, values, known in (("actorIds", event.actor_ids, actors),
+                                    ("stationIds", event.station_ids, stations)):
+            if len(set(values)) != len(values):
+                problems.append(f"{at}.{key}: ids must not repeat within an event")
+            if any(value not in known for value in values):
+                problems.append(f"{at}.{key}: every id must reference this scene's "
+                                + ("actors" if key == "actorIds" else "stations"))
+        if event.kind == "hold":
+            if event.actor_ids or event.station_ids:
+                problems.append(f"{at}: hold requires empty actorIds and stationIds")
+        elif not event.actor_ids:
+            problems.append(f"{at}.actorIds: {event.kind} needs at least one actor")
+        if event.kind == "arrive":
+            if event.station_ids:
+                problems.append(f"{at}.stationIds: arrive requires an empty list")
+            if any(actor in seen for actor in event.actor_ids):
+                problems.append(f"{at}.actorIds: arrivals must be new actors; a visible or departed actor cannot arrive again")
+        elif event.kind in ("start", "finish"):
+            if len(event.actor_ids) != len(event.station_ids):
+                problems.append(f"{at}: pair each actor with exactly one station")
+            if event.kind == "start":
+                if event.actor_ids != queue[:len(event.actor_ids)]:
+                    problems.append(f"{at}.actorIds: start must take the next actors from the front of the queue, in order")
+                if any(station in occupied for station in event.station_ids):
+                    problems.append(f"{at}.stationIds: start requires free stations")
+            elif any(occupied.get(station) != actor
+                     for actor, station in zip(event.actor_ids, event.station_ids)):
+                problems.append(f"{at}: finish must pair each actor with the station currently serving that actor")
+        if len(problems) != before:
+            continue
+        if event.kind == "arrive":
+            queue.extend(event.actor_ids)
+            seen.update(event.actor_ids)
+        elif event.kind == "start":
+            del queue[:len(event.actor_ids)]
+            occupied.update(zip(event.station_ids, event.actor_ids))
+        elif event.kind == "finish":
+            for station in event.station_ids:
+                del occupied[station]
+    return problems
+
+
+def motion_problems(visual: MotionVisual, line_count: int, where: str) -> list[str]:
+    problems = []
+    for key in ("entities", "paths"):
+        ids = [item.id for item in getattr(visual, key)]
+        problems += [f"{where}.visual.{key}[{index}].id: duplicate id {item!r}"
+                     for index, item in enumerate(ids) if item in ids[:index]]
+    entity_ids = {entity.id for entity in visual.entities}
+    path_ids = {path.id for path in visual.paths}
+    intervals = {}
+    for index, action in enumerate(visual.actions):
+        at = f"{where}.visual.actions[{index}]"
+        if action.entity_id not in entity_ids:
+            problems.append(f"{at}.entityId: {action.entity_id!r} is not an entity in this scene")
+        if action.kind == "follow-path":
+            if action.path_id not in path_ids:
+                problems.append(f"{at}.pathId: {action.path_id!r} is not a path in this scene")
+        elif action.path_id:
+            problems.append(f'{at}.pathId: use "" unless kind is "follow-path"')
+        if action.kind in ("opacity", "value") and not 0 <= action.value <= 1:
+            problems.append(f"{at}.value: {action.kind} target must be between 0 and 1")
+        elif action.kind == "scale" and not 0.25 <= action.value <= 3:
+            problems.append(f"{at}.value: scale target must be between 0.25 and 3")
+        for name, line_index in (("startLine", action.start_line), ("endLine", action.end_line)):
+            if line_index >= line_count:
+                problems.append(f"{at}.{name}: {line_index} is outside this scene's {line_count} narration lines")
+        start = (action.start_line, action.start_offset)
+        end = (action.end_line, action.end_offset)
+        if end <= start:
+            problems.append(f"{at}: the end anchor must be after the start anchor")
+            continue
+        channel = (action.entity_id, motion_channel(action.kind))
+        for other_start, other_end, other_index in intervals.get(channel, []):
+            if start < other_end and other_start < end:
+                problems.append(f"{at}: overlaps action {other_index} on entity {action.entity_id!r} "
+                                f"channel {channel[1]!r}")
+        intervals.setdefault(channel, []).append((start, end, index))
+    return problems
+
+
 def scene_icons(scene) -> list[tuple[str, str | None]]:
     """Every (location, icon) pair of a scene's visual, including unset icons."""
     visual = scene.visual
@@ -426,7 +689,7 @@ def scene_icons(scene) -> list[tuple[str, str | None]]:
         return [(f"visual.events[{n}].icon", event.icon) for n, event in enumerate(visual.events)]
     if scene.template == "stat":
         return [(f"visual.stats[{n}].icon", stat.icon) for n, stat in enumerate(visual.stats)]
-    if scene.template in ("quote", "map"):
+    if scene.template in ("quote", "map", "motion", "process"):
         return []
     return [("visual.icon", visual.icon)]
 

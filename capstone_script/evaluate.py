@@ -15,7 +15,8 @@ from statistics import mean
 
 from .narrate import narrate_plan
 from .planner import (
-    MODEL, PROMPT_VERSION, SPEECH_SHARE, attach_reference_url, make_spec, slug, word_range, write_json, write_plan_run,
+    MODEL, PROMPT_VERSION, SPEECH_SHARE, TEMPLATE_ROUTER_VERSION, attach_reference_url, make_spec,
+    slug, word_range, write_json, write_plan_run,
 )
 from .reference import fetch_reference
 from .review import PROMPT_VERSION as REVIEW_PROMPT_VERSION, write_review
@@ -36,11 +37,13 @@ def run_metrics(run_dir: Path) -> dict:
     review = _read(run_dir / "review.json")
     manifest = _read(run_dir / "audio-manifest.json")
     steps = Counter(attempt["step"] for attempt in llm["attempts"])
+    routing_requests = steps.pop("template-selection", 0)
     metrics = {"run": run_dir.name, "topic": spec["topic"], "audience": spec["audience"],
                "reference": spec.get("referenceUrl") or spec.get("referenceFile"),
                "targetSeconds": spec["targetDurationSec"], "mode": spec.get("planMode", "single"),
                "planStatus": llm["status"], "requests": len(llm["attempts"]),
                "repairs": sum(count - 1 for count in steps.values()),
+               "routingRequests": routing_requests, "routingRepairs": max(0, routing_requests - 1),
                "planCostUsd": llm.get("estimatedCostUsd", 0.0),
                "planSeconds": round(sum(attempt["latencyMs"] for attempt in llm["attempts"]) / 1000, 1)}
     if llm["status"] != "completed":
@@ -79,6 +82,7 @@ def aggregate(runs: list[dict]) -> dict:
         "topics": len(runs), "planned": len(planned),
         "firstRequestPassRate": round(sum(run["repairs"] == 0 for run in planned) / len(runs), 3) if runs else 0,
         "repairs": sum(run["repairs"] for run in runs),
+        "routingRepairs": sum(run.get("routingRepairs", 0) for run in runs),
         "meanWordRatio": round(mean(run["wordRatio"] for run in planned), 3) if planned else None,
         "wordRatioRange": [min(run["wordRatio"] for run in planned), max(run["wordRatio"] for run in planned)]
                           if planned else None,
@@ -145,12 +149,14 @@ def evaluate(topics: list[dict], out_dir: Path, client, narrate: bool = False, e
             if not run_dir.exists():  # Failed before planning: a bad topic entry or an unreachable reference.
                 runs.append({"run": run_dir.name, "topic": item.get("topic"), "audience": item.get("audience"),
                              "targetSeconds": item.get("duration"), "mode": None, "planStatus": "not started",
-                             "requests": 0, "repairs": 0, "planCostUsd": 0.0, "planSeconds": 0.0,
+                             "requests": 0, "repairs": 0, "routingRequests": 0, "routingRepairs": 0,
+                             "planCostUsd": 0.0, "planSeconds": 0.0,
                              "error": f"{type(exc).__name__}: {exc}"})
                 continue
         runs.append(run_metrics(run_dir))
     results = {"createdAt": datetime.now(timezone.utc).isoformat(), "model": MODEL,
-               "promptVersions": {"planner": PROMPT_VERSION, "review": REVIEW_PROMPT_VERSION},
+               "promptVersions": {"planner": PROMPT_VERSION, "review": REVIEW_PROMPT_VERSION,
+                                  "templateRouter": TEMPLATE_ROUTER_VERSION},
                "summary": aggregate(runs), "runs": runs}
     write_json(out_dir / "results.json", results)
     (out_dir / "results.md").write_text(markdown(results), encoding="utf-8", newline="\n")

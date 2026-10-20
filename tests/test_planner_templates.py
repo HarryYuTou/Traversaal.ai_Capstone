@@ -104,6 +104,15 @@ class PlannerTemplateTests(unittest.TestCase):
         self.assertIn(", ".join(MAP_REGIONS), prompt)
         self.assertNotIn("$", prompt.replace("\"$\"", ""))
 
+    def test_motion_prompt_explains_rendered_meaning_and_visible_object_lifecycles(self):
+        prompt = planner_prompt()
+        self.assertIn("Labels do not change the drawing", prompt)
+        self.assertIn("A gauge renders value as a percentage, including a visible number", prompt)
+        self.assertIn("derive every initial and target value from the stated fraction", prompt)
+        self.assertIn("then fade to opacity zero after arrival there", prompt)
+        self.assertIn("Do not cut away merely because the next sentence begins", prompt)
+        self.assertIn("the renderer does not carry state between scenes automatically", prompt)
+
     def test_every_event_number_quote_place_and_area_needs_a_line(self):
         def covered():
             data = all_scenes()

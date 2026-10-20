@@ -14,14 +14,14 @@ from pydantic import Field, StringConstraints, ValidationError
 
 from .planner import (
     PROMPTS, PlannerError, normalize_ids, output_schema, parse_json, planner_prompt, request_json, review_plan,
-    scene_range, structured_schema, word_range,
+    scene_range, structured_schema, template_instruction, word_range,
 )
 from .scene_plan import (
     MAX_SCENES, PlanValidationError, Purpose, Title, _Model, error_problems, text_problems, validate_plan,
 )
 
-OUTLINE_PROMPT_VERSION = "outline-planner-v1"
-CHAPTER_PROMPT_VERSION = "chapter-planner-v2"
+OUTLINE_PROMPT_VERSION = "outline-planner-v5"
+CHAPTER_PROMPT_VERSION = "chapter-planner-v6"
 # Each chapter is planned like a short video of this length.
 CHAPTER_SECONDS = (40, 150)
 SECONDS_PER_CHAPTER = 75
@@ -112,7 +112,8 @@ def chapter_request(spec: dict, outline: Outline, index: int, seconds: int, scen
         position = "This is the opening chapter: frame the question and why it matters. Do not recap the video."
     elif index == count - 1:
         position = ("This is the final chapter: begin with one short line that connects to the previous chapter, "
-                    "and end the video with a short summary scene that recaps the key ideas of all chapters.")
+                    "and end the video with a short visual recap of all chapters' key ideas, which may share "
+                    "the final process scene.")
     else:
         position = ("Begin with one short line that connects to the previous chapter. Do not introduce the "
                     "video again, and do not end with a recap of the whole video.")
@@ -126,9 +127,12 @@ def chapter_request(spec: dict, outline: Outline, index: int, seconds: int, scen
             f"Key points, in order:\n{points}\n"
             f"Length: about {seconds} seconds, so about {target} words of narration "
             f"(stay between {round(target * 0.95)} and {round(target * 1.05)} words).\n"
-            f"Scenes: {min_scenes} to {max_scenes}. Vary the templates when the content allows. "
+            f"Scenes: {min_scenes} to {max_scenes}. Prefer process for arrivals, waiting and service, "
+            f"and motion for other physical explanations; an all-process or all-motion chapter is allowed. "
+            f"Prefer two or three coherent scenes when they fit the narration limits. "
             f"Use the chapter title as the plan title.\n"
             f"{position}")
+    text += "\n" + template_instruction(spec)
     if previous_lines:
         text += ("\n\nThe previous chapter ended with these narration lines:\n"
                  + "\n".join(f"> {line}" for line in previous_lines))
@@ -163,13 +167,15 @@ def generate_long_plan(spec: dict, client, reference_text: str | None = None, pr
               "chapters": [{**chapter.model_dump(mode="json", by_alias=True), "plannedSeconds": planned}
                            for chapter, planned in zip(outline.chapters, seconds)]}
     progress(f"Outline: {len(seconds)} chapters, {', '.join(f'{value} s' for value in seconds)}")
-    system = (planner_prompt().strip() + "\n\n"
+    system = (planner_prompt(spec.get("allowedTemplates")).strip() + "\n\n"
               + (PROMPTS / "chapter-planner.txt").read_text(encoding="utf-8").strip() + "\n")
-    schema, count = output_schema(), len(seconds)
+    schema, count = output_schema(spec.get("allowedTemplates")), len(seconds)
     scene_cap = min(12, MAX_SCENES // count)
     plans, previous = [], []
     for index, chapter_seconds in enumerate(seconds):
         chapter_spec = {"projectId": spec["projectId"], "targetDurationSec": chapter_seconds, "sceneCap": scene_cap}
+        if "allowedTemplates" in spec:
+            chapter_spec["allowedTemplates"] = spec["allowedTemplates"]
         plan = request_json(client, system,
                             chapter_request(spec, outline, index, chapter_seconds, scene_cap, previous, reference_text),
                             schema, partial(review_plan, spec=chapter_spec, require_templates=False),

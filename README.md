@@ -12,6 +12,31 @@ and builds a frame-accurate timeline for the Remotion renderer. Target lengths
 range from 30 seconds to ten minutes; videos over three minutes are planned
 chapter by chapter.
 
+The planner now supports **process scenes** for arrivals, waiting, service and
+completion. It specifies actors, stations and events; a local compiler checks
+queue order and occupancy, lays out the workflow, and schedules travel, visible
+work and departure against real narration. The bounded vocabulary supports
+1–8 people, packets, boxes or coins and 1–2 counters, servers or workbenches per
+scene. It is reusable across those workflows, not arbitrary scene generation.
+
+The renderer also supports **motion scenes**: persistent illustrated objects
+move along paths, orbit, separate, fade, rotate, resize and change value in time
+with the actual narration. The Apollo and network samples share this engine;
+their storyboards contain data, not topic-specific rendering code. See the
+[motion and process guide](docs/MOTION_GUIDE.md) for local demos, contracts and
+measured timing checks. Both source formats use the same frame renderer;
+process events compile into motion actions and activity intervals.
+Live Claude planning has also been exercised on a new queueing example:
+the API produced an unedited two-scene motion plan, followed by local Kokoro
+narration and Remotion rendering. The [verification record](docs/MOTION_GUIDE.md#live-planning-check)
+documents the schema fix, visual findings, usage and remaining quality limits.
+The subsequent process run produced a **7 min 14 s** video with six chapters,
+13 illustrated workflow scenes and one definition scene, using people,
+parcels and computer requests. Its source plan is saved as
+[`fixtures/scene-plan.process-queue-long.json`](fixtures/scene-plan.process-queue-long.json).
+See the [process verification record](docs/MOTION_GUIDE.md#seven-minute-process-run)
+for the actual API review, encoded-video checks, cost and remaining limits.
+
 **Traversaal Studio (Frontend-v1)** adds a browser workspace for the brief,
 setup checks, generation progress, video playback, and downloads, with local
 sign-in accounts and a per-account video history. It runs on this computer at
@@ -26,7 +51,7 @@ For command-line topic-to-video generation, follow the
 on CPU** module also remains available: it reads a UTF-8 text file and writes a
 verified narration WAV and JSON report, as described below.
 
-[Web studio guide](docs/WEB_STUDIO.md) · [TTS usage guide](docs/TTS_GUIDE.md) · [Script planner guide](docs/SCRIPT_GUIDE.md) · [Planner evaluation](docs/PLANNER_EVALUATION.md) · [Video renderer guide](docs/RENDERER_GUIDE.md) · [Team week-one plan](docs/WEEK_01_PLAN.md)
+[Web studio guide](docs/WEB_STUDIO.md) · [Motion scene guide](docs/MOTION_GUIDE.md) · [TTS usage guide](docs/TTS_GUIDE.md) · [Script planner guide](docs/SCRIPT_GUIDE.md) · [Planner evaluation](docs/PLANNER_EVALUATION.md) · [Video renderer guide](docs/RENDERER_GUIDE.md) · [Team week-one plan](docs/WEEK_01_PLAN.md)
 
 ## Quick start (macOS, Python 3.11)
 

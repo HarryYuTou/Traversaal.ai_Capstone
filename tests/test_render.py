@@ -1,17 +1,35 @@
 """Render wrapper tests: the Remotion command and its preconditions, without running Node."""
 
 from pathlib import Path
+import json
 import tempfile
 import unittest
 from unittest.mock import patch
 
-from capstone_script.render import RenderError, render_command, render_video, share_command, still_command
+from capstone_script.render import RenderError, inspect_motion, render_command, render_video, share_command, still_command
 
 TIMELINE = Path("runs") / "demo" / "video" / "timeline.json"
 OUTPUT = Path("runs") / "demo" / "video.mp4"
 
 
 class RenderCommandTests(unittest.TestCase):
+    def test_motion_inspection_keeps_warnings_reviewable_and_skips_slides(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            run_dir = Path(temporary)
+            timeline = run_dir / "video" / "timeline.json"
+            report = run_dir / "motion-inspection.json"
+            report.write_text(json.dumps({"status": "needs-review"}), encoding="utf-8")
+            messages = []
+            with patch("capstone_script.render._node", return_value="node"), \
+                    patch("capstone_script.render.subprocess.run") as run:
+                run.return_value.returncode = 0
+                self.assertIsNone(inspect_motion(timeline, {"scenes": [{"template": "concept"}]}))
+                run.assert_not_called()
+                result = inspect_motion(timeline, {"scenes": [{"template": "motion"}]}, messages.append)
+                self.assertEqual(result, {"path": report.name, "status": "needs-review"})
+                self.assertEqual(run.call_args.args[0][-2:], [str(timeline), str(report)])
+                self.assertIn("possible contacts", messages[-1])
+
     def test_command_passes_the_timeline_and_its_folder(self):
         with patch("capstone_script.render.shutil.which", return_value="node"), \
                 patch("capstone_script.render.REMOTION_CLI", Path(__file__)):

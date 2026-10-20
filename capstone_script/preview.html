@@ -77,6 +77,12 @@
                    border: 1px solid var(--line); background: var(--card); color: var(--ink); }
   .scenes button.on { border-color: var(--accent); color: var(--accent); }
   .meta { margin: 0; font-size: 12px; color: var(--muted); }
+  .motion-note { margin: 0; color: var(--muted); font-size: calc(2cqw * var(--fit, 1)); line-height: 1.4; }
+  .motion-beat { margin-top: 1cqw; padding: 1.8cqw 2cqw; border-left: .3cqw solid var(--accent); background: var(--bg); }
+  .motion-beat h3 { margin: 0 0 .6cqw; font-size: calc(2.2cqw * var(--fit, 1)); }
+  .motion-beat p { margin: 0; color: var(--muted); font-size: calc(2.1cqw * var(--fit, 1)); line-height: 1.4; }
+  .render-links { display: flex; flex-wrap: wrap; gap: 12px; margin: 0; font-size: 14px; }
+  .render-links a { color: var(--accent); }
 </style>
 </head>
 <body>
@@ -87,6 +93,7 @@
     <audio id="audio" controls preload="auto"></audio>
     <div class="scenes" id="scenes"></div>
     <p class="meta">Script and narration preview. Pauses are fixed for listening; the final video uses the frame-accurate timeline and renderer.</p>
+    <p class="render-links" id="render-links"></p>
   </div>
 </main>
 <script id="preview-data" type="application/json">__PREVIEW_DATA__</script>
@@ -103,6 +110,16 @@ function el(tag, className, text) {
   if (className) node.className = className;
   if (text !== undefined) node.textContent = text;
   return node;
+}
+
+const renderLinks = document.getElementById("render-links");
+(data.renderedVideos || []).forEach(video => {
+  const link = el("a", "", video.label);
+  link.href = video.href;
+  renderLinks.append(link);
+});
+if (Object.keys(data.motionBeats || {}).length && !renderLinks.children.length) {
+  renderLinks.append(el("span", "meta", "Render the MP4 to inspect the animation, then rebuild this preview to show its video link."));
 }
 
 const lines = new Map();
@@ -130,8 +147,11 @@ ranges.forEach((range, index) => {
 });
 
 let shownScene = null;
+let shownBeat = null;
 function drawScene(scene) {
-  const label = chapterOf.has(scene.id) ? `${chapterOf.get(scene.id)} · ${scene.template}` : scene.template;
+  shownBeat = null;
+  const kind = ["motion", "process"].includes(scene.template) ? "Narration-only preview" : scene.template;
+  const label = chapterOf.has(scene.id) ? `${chapterOf.get(scene.id)} · ${kind}` : kind;
   slide.replaceChildren(el("div", "template", label), el("h2", "", scene.visual.title));
   if (scene.template === "concept") {
     slide.append(el("p", "statement", scene.visual.statement));
@@ -197,6 +217,11 @@ function drawScene(scene) {
     const credit = el("div", "credit", `— ${scene.visual.author}`);
     if (scene.visual.context) credit.append(el("small", "", scene.visual.context));
     slide.append(el("p", "quote", `“${scene.visual.quote}”`), credit);
+  } else if (["motion", "process"].includes(scene.template)) {
+    slide.append(el("p", "motion-note", "This page plays narration and describes the planned movement. It does not show the animation; watch the rendered MP4 to review it."));
+    const beat = el("div", "motion-beat");
+    beat.append(el("h3", "", ""), el("p", "", ""));
+    slide.append(beat);
   } else if (scene.template === "map") {
     slide.append(el("p", "statement", `Map: ${scene.visual.region}${scene.visual.route ? ", with a route" : ""}`));
     const items = el("ul", "map-items");
@@ -235,6 +260,17 @@ function update() {
   const speaking = recent && t < recent.previewStartSeconds + recent.durationSeconds ? recent : null;
   subtitle.textContent = speaking ? speaking.text : "";
   const line = recent ? lines.get(recent.narrationId) : null;
+  if (["motion", "process"].includes(range.scene.template)) {
+    const beats = (data.motionBeats || {})[range.scene.id] || [];
+    const index = Math.max(0, beats.findIndex(beat => beat.narrationId === recent?.narrationId));
+    if (index !== shownBeat) {
+      const beat = slide.querySelector(".motion-beat");
+      beat.querySelector("h3").textContent = `Planned beat ${index + 1} of ${beats.length || range.scene.narration.length}`;
+      beat.querySelector("p").textContent = beats[index]?.description || "Listen to the narration here; inspect the movement in the rendered MP4.";
+      shownBeat = index;
+      fit();
+    }
+  }
   slide.querySelectorAll(".points li").forEach(item =>
     item.classList.toggle("on", line !== null && Number(item.dataset.index) === line.highlightPointIndex));
   slide.querySelectorAll(".node").forEach(box =>
