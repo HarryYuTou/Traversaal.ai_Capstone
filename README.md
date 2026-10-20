@@ -51,7 +51,7 @@ For command-line topic-to-video generation, follow the
 on CPU** module also remains available: it reads a UTF-8 text file and writes a
 verified narration WAV and JSON report, as described below.
 
-[Web studio guide](docs/WEB_STUDIO.md) · [Motion scene guide](docs/MOTION_GUIDE.md) · [TTS usage guide](docs/TTS_GUIDE.md) · [Script planner guide](docs/SCRIPT_GUIDE.md) · [Planner evaluation](docs/PLANNER_EVALUATION.md) · [Video renderer guide](docs/RENDERER_GUIDE.md) · [Team week-one plan](docs/WEEK_01_PLAN.md)
+[Web studio guide](docs/WEB_STUDIO.md) · [Motion scene guide](docs/MOTION_GUIDE.md) · [TTS usage guide](docs/TTS_GUIDE.md) · [Script planner guide](docs/SCRIPT_GUIDE.md) · [Planner evaluation](docs/PLANNER_EVALUATION.md) · [Level 1 quality scorecard](docs/QUALITY_SCORECARD.md) · [Video renderer guide](docs/RENDERER_GUIDE.md) · [Team week-one plan](docs/WEEK_01_PLAN.md)
 
 ## Quick start (macOS, Python 3.11)
 
