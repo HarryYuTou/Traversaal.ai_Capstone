@@ -289,6 +289,7 @@ class ProcessStation(_Model):
     label: Label
     kind: Literal["counter", "server", "workbench"]
     color: MotionColor
+    initial_state: Literal["open", "closed"] | None = None
 
 
 class ProcessOccupancy(_Model):
@@ -553,16 +554,22 @@ def motion_channel(kind: str) -> str:
     return "position" if kind in ("move", "follow-path", "orbit") else kind
 
 
+def initial_open_station_ids(visual: ProcessVisual) -> list[str]:
+    """Resolve explicit initial availability, retaining inference for legacy plans."""
+    opened_later = {station for event in visual.events if event.kind == "open" for station in event.station_ids}
+    return [station.id for station in visual.stations
+            if station.initial_state == "open"
+            or (station.initial_state is None and station.id not in opened_later)]
+
+
 def process_problems(visual: ProcessVisual, line_count: int, where: str) -> list[str]:
     """Validate workflow state as well as references; geometry belongs to the compiler."""
     problems = []
     prefix = f"{where}.visual"
     actors = {actor.id for actor in visual.actors}
     stations = {station.id for station in visual.stations}
-    # An authored opening is the only way to change station availability. Other
-    # stations start open, preserving existing plans without adding required fields.
-    closed = {station for event in visual.events if event.kind == "open" for station in event.station_ids}
-    open_stations = stations - closed
+    open_stations = set(initial_open_station_ids(visual))
+    closed = stations - open_stations
     for key in ("actors", "stations"):
         ids = [item.id for item in getattr(visual, key)]
         problems += [f"{prefix}.{key}[{index}].id: duplicate id {item!r}"
@@ -586,7 +593,7 @@ def process_problems(visual: ProcessVisual, line_count: int, where: str) -> list
         if item.station_id in occupied:
             problems.append(f"{at}.stationId: {item.station_id!r} is already occupied")
         if item.station_id in closed:
-            problems.append(f"{at}.stationId: a station with an open event is initially closed and cannot serve an actor")
+            problems.append(f"{at}.stationId: this station is initially closed and cannot serve an actor")
         occupied[item.station_id] = item.actor_id
         seen.add(item.actor_id)
     previous_end = None

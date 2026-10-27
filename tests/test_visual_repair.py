@@ -12,7 +12,7 @@ from capstone_script.review import Issue, check_review, write_review
 from capstone_script.scene_plan import dump_plan, load_plan, validate_plan
 from capstone_script.visual_repair import affected_scene_ids, check_visual_repair
 from test_planner import FakeClient, as_model_output, response
-from test_process_contract import process_plan
+from test_process_contract import event, process_plan
 from test_review import review_output
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -51,6 +51,38 @@ class VisualRepairTests(unittest.TestCase):
         candidate, problems = check_visual_repair(json.dumps(as_model_output(data)), source, "scene-01")
         self.assertIsNone(candidate)
         self.assertIn("identity color", " ".join(problems))
+
+    def test_closed_baseline_repair_keeps_counter_without_inventing_an_opening(self):
+        data = process_plan()
+        scene = data["scenes"][0]
+        scene["visual"]["title"] = "One counter open"
+        scene["visual"]["events"] = [event("start", ("a",), ("one",), 0),
+                                       event("hold", line=1),
+                                       event("finish", ("a",), ("one",), 2),
+                                       event("arrive", ("c",), line=3)]
+        scene["narration"][0]["text"] = "One shopper steps up while the others wait in line."
+        scene["narration"][1]["text"] = "Only one counter is open, so it serves one shopper at a time."
+        scene["narration"][2]["text"] = "That shopper finishes and leaves through the exit."
+        source = validate_plan(data)
+        repaired_data = copy.deepcopy(data)
+        repaired_data["scenes"][0]["visual"]["stations"][1]["initialState"] = "closed"
+
+        repaired, problems = check_visual_repair(json.dumps(as_model_output(repaired_data)), source, "scene-01")
+
+        self.assertEqual(problems, [])
+        self.assertEqual(repaired.scenes[0].narration, source.scenes[0].narration)
+        self.assertEqual(repaired.scenes[0].visual.events, source.scenes[0].visual.events)
+        stations = repaired.scenes[0].visual.stations
+        self.assertEqual([station.id for station in stations], ["one", "two"])
+        self.assertEqual(stations[1].initial_state, "closed")
+        self.assertEqual(stations[1].color, source.scenes[0].visual.stations[1].color)
+
+        # Identity preservation still applies: hiding the counter by removing it
+        # is not a substitute for authoring its real closed state.
+        repaired_data["scenes"][0]["visual"]["stations"].pop()
+        rejected, problems = check_visual_repair(json.dumps(as_model_output(repaired_data)), source, "scene-01")
+        self.assertIsNone(rejected)
+        self.assertIn("Preserve object 'two'", " ".join(problems))
 
     def test_line_locations_resolve_once_to_their_scene(self):
         issues = [Issue.model_validate(self.issue), Issue.model_validate(self.issue)]

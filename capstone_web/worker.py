@@ -26,6 +26,20 @@ def error_message(stage, exc):
         detail = "Claude could not be reached. Check the server's network connection before retrying."
     elif name == "DurationError":
         detail = "The measured video did not pass its duration requirement. Review duration-check.json and duration-extension.json in this job's output."
+    elif name == "PlannerError":
+        # Match only the pipeline's fixed prefix; never expose model findings or
+        # arbitrary exception text in the public job status.
+        visual_gate = "Visual repair still has narration/action mismatches or unsupported factual claims: "
+        if stage == "reviewing" and str(exc).startswith(visual_gate):
+            detail = ("The quality check found that some visuals still did not match the narration, "
+                      "or that the explanation contained unsupported claims. Generation stopped before rendering. "
+                      "You can try again or adjust the topic.")
+        elif stage == "reviewing":
+            detail = "The generated script did not pass its quality checks. You can try again or simplify the topic."
+        elif stage == "planning":
+            detail = "We could not create a valid script and scene plan. You can try again or simplify the topic."
+        else:
+            detail = "The script could not pass validation. You can try again or simplify the topic."
     else:
         detail = f"The pipeline reported {name}. Check this job's local worker.log for details."
     return f"Generation failed during {stage}. {detail} No automatic retry was made by the web server."

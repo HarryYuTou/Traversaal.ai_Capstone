@@ -135,6 +135,38 @@ class ProcessTimelineTests(unittest.TestCase):
         self.assertTrue(all(event["openStationsBefore"] == event["openStationsAfter"] == ["one", "two"]
                             for event in trace["events"]))
 
+    def test_explicit_closed_station_remains_visible_and_closed_without_an_open_event(self):
+        data = process_plan()
+        visual = data["scenes"][0]["visual"]
+        visual["stations"][0]["initialState"] = "open"
+        visual["stations"][1]["initialState"] = "closed"
+        visual["events"] = [event("start", ("a",), ("one",)), event("hold", line=1),
+                            event("finish", ("a",), ("one",), 2), event("hold", line=3)]
+        scene = build(data)["scenes"][0]
+        trace = scene["processTrace"]
+        self.assertEqual(trace["initialOpenStationIds"], ["one"])
+        self.assertEqual(trace["finalOpenStationIds"], ["one"])
+        self.assertTrue(all(item["openStationsBefore"] == item["openStationsAfter"] == ["one"]
+                            for item in trace["events"]))
+        self.assertFalse(any(item["entityId"] == "two" for item in scene["visual"]["activities"]))
+        for frame in (scene["from"], scene["from"] + scene["durationInFrames"] - 1):
+            self.assertEqual(states_at(scene["visual"], frame)["two"]["opacity"], 1)
+        self.assert_geometry(scene)
+
+    def test_explicit_and_legacy_openings_compile_to_the_same_station_lifecycle(self):
+        data = process_plan()
+        visual = data["scenes"][0]["visual"]
+        visual["events"] = [event("open", stations=("two",)),
+                            event("start", ("a", "b"), ("one", "two"), 1),
+                            event("hold", line=2, end_line=3)]
+        legacy = build(data)["scenes"][0]
+        for state in (None, "closed"):
+            with self.subTest(initial_state=state):
+                visual["stations"][1]["initialState"] = state
+                explicit = build(data)["scenes"][0]
+                self.assertEqual(explicit["processTrace"], legacy["processTrace"])
+                self.assertEqual(explicit["visual"], legacy["visual"])
+
     def test_open_minimum_is_measured_and_rejects_unreadable_speech_span(self):
         data = process_plan()
         data["scenes"][0]["visual"]["events"] = [event("open", stations=("one", "two"))]

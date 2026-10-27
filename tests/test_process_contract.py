@@ -8,7 +8,7 @@ import unittest
 
 import jsonschema
 
-from capstone_script.long_form import merge_chapters, review_outline
+from capstone_script.long_form import merge_chapters, review_outline, visual_continuity
 from capstone_script.planner import (
     _OutputPlan, coverage_problems, from_model_output, normalize_ids, output_schema,
     planner_prompt, review_plan, scene_range, write_plan_run,
@@ -83,7 +83,8 @@ class ProcessContractTests(unittest.TestCase):
         self.assertNotIn("MotionAction", schema["$defs"])
         for name in ("_OutputProcess", "ProcessActor", "ProcessStation", "ProcessOccupancy", "ProcessEvent"):
             part = schema["$defs"][name]
-            self.assertEqual(set(part["required"]), set(part["properties"]))
+            optional = {"initialState"} if name == "ProcessStation" else set()
+            self.assertEqual(set(part["required"]), set(part["properties"]) - optional)
 
     def test_actor_and_station_ids_are_unique_in_a_shared_namespace(self):
         self.assert_problem(lambda v: v["actors"][1].update(id="a"), "duplicate id")
@@ -147,6 +148,70 @@ class ProcessContractTests(unittest.TestCase):
         self.assert_problem(lambda v: v.update(initialService=[{"actorId": "c", "stationId": "two"}],
                                                events=[event("open", stations=("two",))]),
                             "initially closed and cannot serve an actor")
+
+    def test_explicit_closed_station_can_remain_closed_for_a_whole_scene(self):
+        data = process_plan()
+        visual = data["scenes"][0]["visual"]
+        visual["stations"][0]["initialState"] = "open"
+        visual["stations"][1]["initialState"] = "closed"
+        visual["events"] = [event("start", ("a",), ("one",)), event("hold", line=1),
+                            event("finish", ("a",), ("one",), 2), event("hold", line=3)]
+        plan = validate_plan(data)
+        self.assertEqual(json.loads(dump_plan(plan)), data)
+        self.assertEqual(coverage_problems(plan), [])
+        jsonschema.validate(data, json_schema())
+        output = as_model_output(data)
+        jsonschema.validate(output, output_schema(["process"]))
+        back, problems = from_model_output(output)
+        self.assertEqual(problems, [])
+        self.assertEqual(back, data)
+
+    def test_explicit_closed_station_requires_opening_before_initial_or_later_service(self):
+        self.assert_problem(lambda v: v["stations"][1].update(initialState="closed"),
+                            "start requires open stations")
+
+        def initially_serving(v):
+            v["stations"][1]["initialState"] = "closed"
+            v.update(initialService=[{"actorId": "c", "stationId": "two"}],
+                     events=[event("hold", end_line=3)])
+
+        self.assert_problem(initially_serving, "initially closed and cannot serve an actor")
+
+    def test_explicit_open_is_authoritative_and_cannot_be_opened_again(self):
+        def already_open(v):
+            v["stations"][1]["initialState"] = "open"
+            v["events"] = [event("open", stations=("two",))]
+
+        self.assert_problem(already_open, "open requires closed stations")
+        self.assert_problem(lambda v: v["stations"][1].update(initialState="unavailable"), "initialState")
+
+    def test_explicit_closed_station_can_open_once_and_serve(self):
+        data = process_plan()
+        visual = data["scenes"][0]["visual"]
+        visual["stations"][1]["initialState"] = "closed"
+        visual["events"] = [event("open", stations=("two",)),
+                            event("start", ("a", "b"), ("one", "two"), 1),
+                            event("hold", line=2, end_line=3)]
+        validate_plan(data)
+        visual["events"] = [event("open", stations=("two",)), event("open", stations=("two",), line=1)]
+        with self.assertRaisesRegex(PlanValidationError, "cannot open twice"):
+            validate_plan(data)
+
+    def test_chapter_continuity_reports_closed_and_opened_station_end_states(self):
+        for initial_state, opens, expected in [
+            ("closed", False, ["one"]), ("closed", True, ["one", "two"]),
+            (None, False, ["one", "two"]), (None, True, ["one", "two"]),
+        ]:
+            with self.subTest(initial_state=initial_state, opens=opens):
+                data = process_plan()
+                visual = data["scenes"][0]["visual"]
+                visual["stations"][1]["initialState"] = initial_state
+                visual["events"] = [event("open", stations=("two",))] if opens else [event("hold")]
+                context = visual_continuity(validate_plan(data))["endingVisual"]
+                self.assertEqual(context["openStationIds"], expected)
+                self.assertEqual(context["stations"][1]["initialState"], initial_state)
+                self.assertEqual(context["finalQueue"], ["a", "b"])
+                self.assertEqual(context["finalService"], [])
 
     def test_open_station_ids_are_normalized(self):
         data = process_plan()

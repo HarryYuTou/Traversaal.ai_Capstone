@@ -41,3 +41,17 @@ The old lunar plan still has pre-existing semantic problems: opacity changes do 
 An initial short duration integration also stopped on a pre-existing fixture highlight mismatch: a line about IP addresses highlighted the browser without explaining its role. The second positive test corrects that line only in its QA input, preserving the production fixture and the strict acceptance gate.
 
 API credit failures encountered during testing are preserved as failed attempts. Once credits were restored, actual repair and audit calls resumed. Automated checks and sampled-frame inspection do not establish universal correctness or replace a content/listening review of each final video.
+
+## Follow-up: short-prompt checkout review failure
+
+The October 27 demo request, “Make an animated video explaining why opening a second checkout counter reduces waiting time.”, failed during review in web job `b5be5436b1dc488ab18b8d7e500eeb96`. The baseline declared a second counter but lacked a way to keep it closed for the whole scene. Removing it violated identity preservation; adding an opening solely to make it initially closed contradicted the narration. The final audit correctly rejected that repair.
+
+Process stations now accept optional `initialState: "open" | "closed"`. Explicitly closed stations can remain visible and unavailable for an entire scene. Omitted/null values retain the previous opening-event inference. Validation, compilation and chapter context share one resolver; closed service and reopening an open station remain invalid. Planning, repair and review prompts describe the new state. The reviewer prompt also states the existing 300-character issue limit. Web errors now explain a quality-check failure without exposing raw model findings. Identity preservation and final sync/factual gates are unchanged.
+
+Verification after this fix:
+
+- **296 Python tests and 44 renderer tests passed**; renderer TypeScript and diff checks passed. Frontend code did not change.
+- `runs/closed-counter-original-review-live-20261027`: copied the exact failed draft and spec into an isolated run. Real API review, one visual repair and immutable final audit all passed without schema retries. The repaired baseline retains every narration line and event, adding explicit station states. Three low-severity editorial notes remain. The original failed web job is unchanged.
+- `runs/closed-counter-short-prompt-e2e-20261027`: the same short user prompt generated a new plan, passed review, synthesized all 14 narration lines and rendered a **60.736-second, 1920×1080, 30 fps MP4**. No visual repair was needed; two narration edits addressed editorial findings, with one low-severity clarity note remaining. Every-frame geometry/timing checks passed. Six extracted frames verify the closed baseline, opening, open-result hold, parallel service and final result; captions are readable in these samples. `verification.json` and `qa/` preserve the evidence.
+
+The fresh run used the shared CLI pipeline, not a browser-submitted job. It verifies this reported failure and short prompt; it does not establish arbitrary-topic reliability or a completed Level 1 seven-minute evaluation.

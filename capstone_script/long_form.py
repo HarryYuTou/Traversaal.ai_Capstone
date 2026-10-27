@@ -18,7 +18,8 @@ from .planner import (
     scene_range, structured_schema, template_instruction, word_range,
 )
 from .scene_plan import (
-    MAX_SCENES, PlanValidationError, Purpose, Title, _Model, error_problems, text_problems, validate_plan,
+    MAX_SCENES, PlanValidationError, Purpose, Title, _Model, error_problems, initial_open_station_ids,
+    text_problems, validate_plan,
 )
 
 OUTLINE_PROMPT_VERSION = "outline-planner-v5"
@@ -150,8 +151,7 @@ def visual_continuity(plan):
         queue = list(data["initialQueue"])
         service = {item["stationId"]: item["actorId"] for item in data["initialService"]}
         completed = []
-        open_stations = {station["id"] for station in data["stations"]} - {
-            station for event in data["events"] if event["kind"] == "open" for station in event["stationIds"]}
+        open_stations = set(initial_open_station_ids(scene.visual))
         for event in data["events"]:
             if event["kind"] == "arrive":
                 queue.extend(event["actorIds"])

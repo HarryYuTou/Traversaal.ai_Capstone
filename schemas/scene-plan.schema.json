@@ -1375,6 +1375,22 @@
           ],
           "title": "Color",
           "type": "string"
+        },
+        "initialState": {
+          "anyOf": [
+            {
+              "enum": [
+                "open",
+                "closed"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Initialstate"
         }
       },
       "required": [

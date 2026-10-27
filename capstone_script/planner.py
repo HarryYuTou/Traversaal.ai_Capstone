@@ -31,7 +31,7 @@ from .scene_plan import (
 MODEL = "claude-opus-5-5"
 EFFORT = "high"
 MAX_TOKENS = 16000
-PROMPT_VERSION = "scene-planner-v12"
+PROMPT_VERSION = "scene-planner-v13"
 TEMPLATE_ROUTER_VERSION = "template-router-v3"
 MAX_REQUEST_TEMPLATES = 3
 PROMPTS = Path(__file__).resolve().parents[1] / "prompts"
@@ -149,9 +149,10 @@ def structured_schema(schema: dict) -> dict:
 
 
 # The planner's output shape. Structured outputs accept at most 24 optional and 16 union-typed
-# parameters per request (anyOf, which is how `| None` is written, counts as both), so nothing here
-# is nullable: fields a ScenePlan may leave out are required and take "" for "none", and each visual
-# has one optional part per template. from_model_output turns the result into ScenePlan data.
+# parameters per request (anyOf, which is how `| None` is written, counts as both). Most fields
+# a ScenePlan may leave out are required and take "" for "none"; each visual has one optional
+# part per template. ProcessStation retains one nullable initial state for legacy inference.
+# from_model_output turns the result into ScenePlan data.
 class _OutputLine(_Model):
     id: str
     text: str

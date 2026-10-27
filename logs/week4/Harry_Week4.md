@@ -170,3 +170,23 @@ runs/refine2-auto-repaired-comparison-20261027/
 runs/refine2-duration-live-positive-02-20261027/
 runs/refine2-lunar-duration-technical-20261027/
 ```
+
+## Demo follow-up: short-prompt review failure
+
+The one-minute checkout demo exposed a missing station state: a declared
+counter could not remain closed for a full scene without a later opening.
+The repair therefore either removed its identity or invented an unspoken
+opening, and the final audit correctly stopped generation.
+
+Added optional explicit `initialState` for process stations, with legacy
+behavior preserved. The planner, reviewer, repair prompt, compiler and chapter
+context now agree on this state; the review gates remain strict. Web failures
+also explain the quality-check problem in plain language.
+
+The failed original script now passes real API repair and final audit while
+preserving its baseline narration and events. A fresh run from the same short
+user prompt completed planning, review, TTS and a **60.736-second 1080p MP4**.
+Six sampled frames verified the closed baseline, opening and parallel service.
+The follow-up passed **296 Python tests and 44 renderer tests**, plus the
+renderer TypeScript check. Evidence is recorded in the detailed report above
+and `runs/closed-counter-short-prompt-e2e-20261027/verification.json`.

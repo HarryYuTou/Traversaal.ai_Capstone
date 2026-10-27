@@ -180,7 +180,7 @@ class MotionContractTests(unittest.TestCase):
 
 
 class MotionPlannerTests(unittest.TestCase):
-    def test_motion_survives_structured_output_with_only_one_new_optional_field(self):
+    def test_motion_survives_structured_output_with_required_motion_fields(self):
         data = plan_data()
         output = as_model_output(data)
         _OutputPlan.model_validate(output)
@@ -188,7 +188,9 @@ class MotionPlannerTests(unittest.TestCase):
         self.assertEqual(problems, [])
         self.assertEqual(json.loads(dump_plan(validate_plan(back))), data)
         schema = output_schema()
-        self.assertEqual(complexity(schema), (10, 0))
+        # Ten optional visual parts plus the nullable process station initial state.
+        self.assertEqual(complexity(schema), (11, 1))
+        self.assertEqual(complexity(output_schema(["motion"])), (0, 0))
         for name in ("_OutputMotion", "MotionEntity", "MotionPoint", "MotionPath", "MotionAction"):
             definition = schema["$defs"][name]
             self.assertEqual(set(definition["properties"]), set(definition["required"]))

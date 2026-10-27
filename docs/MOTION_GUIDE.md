@@ -61,7 +61,7 @@ these required fields:
 | `title` | At most 60 characters |
 | `actorKind` | One of `person`, `packet`, `box`, `coin`, shared by the scene's actors |
 | `actors` | 1–8 `{id, color, label}` records; label is at most 24 characters or `""` |
-| `stations` | 1–2 `{id, label, kind, color}` records; kind is `counter`, `server` or `workbench`, and label is 1–24 characters |
+| `stations` | 1–2 `{id, label, kind, color}` records with optional `initialState: "open" \| "closed"`; kind is `counter`, `server` or `workbench`, and label is 1–24 characters |
 | `initialQueue` | Actor IDs in waiting order, front first |
 | `initialService` | `{actorId, stationId}` pairs already receiving service |
 | `events` | Up to 48 records describing the changes or deliberate holds |
@@ -70,9 +70,12 @@ Colors are `ink`, `accent`, `secondary` or `muted`. Actor and station IDs must
 be unique and distinct. Every actor not in the initial queue or service list
 starts outside the visible process. Each station can serve one actor, and
 each actor can occupy only one position. Station positions are fixed within a
-scene. A station targeted by an `open` event starts closed; other stations
-start open, preserving existing plans. Declare a future station from the start
-so its opening changes availability without moving the other counters.
+scene. A station's `initialState` explicitly sets whether it starts open or
+closed. A closed station may remain closed for the entire scene without an
+`open` event, preserving the layout of a one-counter baseline. If this field
+is omitted or null, a station targeted by an `open` event starts closed and
+other stations start open, preserving existing plans. Declare a future station
+from the start so its opening changes availability without moving the other counters.
 Continuing actors must be initialized consistently; keep their IDs, colors and
 labels, and keep station IDs and ordering stable across related scenes.
 

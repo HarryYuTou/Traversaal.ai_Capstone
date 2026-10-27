@@ -130,3 +130,29 @@ test('station opens only at the exact authored phase endpoint and old timelines 
   [400, 10, 140, 0].forEach((frame) => stationStateAtFrame(data, 'two', frame));
   assert.deepEqual(stationStateAtFrame(data, 'two', 130), {open: false, openingProgress: 0.5});
 });
+
+test('a declared closed station stays closed throughout a scene without an opening event', () => {
+  const data = {...trace, initialOpenStationIds: ['one']};
+  const original = JSON.stringify(data);
+  for (let frame = 0; frame <= 500; frame += 1) {
+    assert.deepEqual(stationStateAtFrame(data, 'two', frame), {open: false, openingProgress: 0},
+      `closed counter changed at frame ${frame}`);
+    assert.deepEqual(stationStateAtFrame(data, 'one', frame), {open: true, openingProgress: 0},
+      `available counter changed at frame ${frame}`);
+  }
+  for (const frame of [500, 0, 280, 110, 480]) {
+    assert.deepEqual(stationStateAtFrame(data, 'two', frame), {open: false, openingProgress: 0});
+  }
+  assert.equal(JSON.stringify(data), original);
+});
+
+test('an empty initial open station list means every declared station is closed', () => {
+  const data = {...trace, initialOpenStationIds: [], initialService: [],
+    events: trace.events.filter((event) => event.kind === 'arrive' || event.kind === 'hold')};
+  for (const frame of [0, 109, 140, 170, 280, 400, 0]) {
+    for (const stationId of data.stationEntityIds) {
+      assert.deepEqual(stationStateAtFrame(data, stationId, frame), {open: false, openingProgress: 0});
+    }
+  }
+  assert.equal(stationStateAtFrame(data, 'missing', 0), null);
+});

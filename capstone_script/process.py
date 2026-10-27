@@ -6,7 +6,7 @@ an explicit visual transition. Generated actions retain their event's anchors fo
 provenance, while their absolute frame intervals are authoritative for playback.
 """
 
-from .scene_plan import ProcessVisual, motion_channel, process_problems
+from .scene_plan import ProcessVisual, initial_open_station_ids, motion_channel, process_problems
 
 STAGE_WIDTH, STAGE_HEIGHT = 1200, 500
 ACTOR_SIZE = 0.95
@@ -67,8 +67,7 @@ def compile_process_visual(visual: ProcessVisual, lines: list[dict], scene_start
     station_clearance = {station.id: EXIT_CLEARANCE + (10 if station.kind == "server" else 0)
                          for station in visual.stations}
     queue = list(visual.initial_queue)
-    initially_closed = {station for event in visual.events if event.kind == "open" for station in event.station_ids}
-    initial_open = [station.id for station in visual.stations if station.id not in initially_closed]
+    initial_open = initial_open_station_ids(visual)
     open_stations = set(initial_open)
     service = {item.station_id: item.actor_id for item in visual.initial_service}
     completed = []

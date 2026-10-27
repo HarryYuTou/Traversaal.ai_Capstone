@@ -679,6 +679,53 @@ class WorkerTests(unittest.TestCase):
         self.assertIn("ValueError", message)
         self.assertNotIn("sk-private", message)
 
+    def test_review_quality_gate_explains_failure_without_exposing_findings(self):
+        from capstone_script.planner import PlannerError
+        from capstone_script.scene_plan import dump_plan, load_plan
+        from capstone_web.health import ROOT
+        plan = load_plan(ROOT / "fixtures/scene-plan.valid.json")
+        events = []
+
+        def planning(output, *args, **kwargs):
+            output.mkdir()
+            (output / "scene-plan.json").write_text(dump_plan(plan))
+            return plan
+
+        failure = PlannerError(
+            "Visual repair still has narration/action mismatches or unsupported factual claims: "
+            "private model finding with sk-private")
+        with tempfile.TemporaryDirectory() as directory, \
+                patch("anthropic.Anthropic"), patch("capstone_script.planner.load_env_file"), \
+                patch("capstone_script.planner.write_plan_run", side_effect=planning), \
+                patch("capstone_script.review.write_review", side_effect=failure), \
+                patch("capstone_script.narrate.narrate_plan") as narration, \
+                patch("capstone_script.render.render_video") as render, \
+                patch("capstone_web.worker.traceback.print_exc"), self.assertRaises(PlannerError):
+            generate({"id": "c" * 32, "request": request_body()}, Path(directory), events.append)
+        narration.assert_not_called()
+        render.assert_not_called()
+        self.assertEqual(events[-1]["type"], "error")
+        self.assertEqual(events[-1]["stage"], "reviewing")
+        self.assertIn("visuals still did not match the narration", events[-1]["message"])
+        self.assertIn("stopped before rendering", events[-1]["message"])
+        self.assertIn("No automatic retry", events[-1]["message"])
+        self.assertNotIn("private", events[-1]["message"])
+        self.assertNotIn("PlannerError", events[-1]["message"])
+        self.assertFalse(any(event["type"] == "result" for event in events))
+
+    def test_other_planner_failures_use_safe_stage_specific_advice(self):
+        from capstone_script.planner import PlannerError
+        for stage, expected in (("planning", "could not create a valid script"),
+                                ("reviewing", "did not pass its quality checks"),
+                                ("narrating", "could not pass validation")):
+            with self.subTest(stage=stage):
+                message = error_message(stage, PlannerError("arbitrary raw model output sk-private"))
+                self.assertIn(stage, message)
+                self.assertIn(expected, message)
+                self.assertNotIn("sk-private", message)
+                self.assertNotIn("raw model output", message)
+                self.assertNotIn("PlannerError", message)
+
 
 if __name__ == "__main__":
     unittest.main()
