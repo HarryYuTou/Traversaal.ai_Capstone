@@ -1,9 +1,9 @@
-"""Script review: one Claude request scores a finished plan and rewrites weak lines.
+"""Script review with bounded visual repair and an immutable final audit.
 
 The reviewer reads the whole plan the way the audience will hear it and returns
-scores, the issues it found and replacement text for individual lines. Edits
-keep every id, highlight and visual, so a reviewed plan has the same structure
-as its draft and still passes the same checks. A quick local scan for symbols
+scores, the issues it found and replacement text for individual lines. Text edits
+keep every id and highlight. Sync findings trigger a separate visual repair and
+an audit before the result replaces the draft. A quick local scan for symbols
 and abbreviations the voice may misread is sent along as hints.
 Reviews run before narration; a narrated run keeps the plan it was voiced from.
 """
@@ -25,7 +25,7 @@ from .scene_plan import (
     validate_plan,
 )
 
-PROMPT_VERSION = "script-reviewer-v6"
+PROMPT_VERSION = "script-reviewer-v9"
 Note = Annotated[str, StringConstraints(min_length=1, max_length=300)]
 Location = Annotated[str, StringConstraints(min_length=1, max_length=60)]
 
@@ -81,13 +81,16 @@ def speech_notes(plan) -> list[dict]:
 def review_request(plan, spec: dict, notes: list[dict], outline: dict | None = None,
                    reference_text: str | None = None) -> str:
     seconds = spec["targetDurationSec"]
-    _, target, _ = word_range(seconds)
+    _, target, _ = review_word_range(spec)
     data = plan.model_dump(mode="json", by_alias=True, exclude_none=True)
     text = (f"Review this explainer video script.\n\n"
             f"Topic: {spec['topic']}\n"
             f"Audience: {spec['audience']}\n"
             f"Length: about {seconds} seconds, about {target} words of narration; "
             f"the draft has {summarize(plan)['words']} words.\n")
+    if "reviewWordTarget" in spec:
+        text += ("Measured narration was too short, so this draft includes additional explanatory content. "
+                 "Keep that content and its word budget; do not shrink it to a generic speaking-rate estimate.\n")
     if outline:
         text += "\nChapter goals:\n" + "\n".join(
             f"{n}. {chapter['title']}: {chapter['goal']}" for n, chapter in enumerate(outline["chapters"], start=1))
@@ -99,6 +102,16 @@ def review_request(plan, spec: dict, notes: list[dict], outline: dict | None = N
     if reference_text and reference_text.strip():
         text += f"\n\nReference material:\n<reference>\n{reference_text.strip()}\n</reference>"
     return text
+
+
+def review_word_range(spec: dict):
+    """A measured duration repair keeps its content budget, not the initial rate estimate."""
+    if "reviewWordTarget" in spec:
+        target = int(spec["reviewWordTarget"])
+        if target <= 0:
+            raise ValueError("reviewWordTarget must be positive")
+        return round(target * 0.98), target, round(target * 1.1)
+    return word_range(spec["targetDurationSec"])
 
 
 def apply_edits(plan, edits) -> object:
@@ -113,7 +126,7 @@ def apply_edits(plan, edits) -> object:
     return validate_plan(data)
 
 
-def check_review(text: str, plan, spec: dict):
+def check_review(text: str, plan, spec: dict, audit_only: bool = False):
     """Return ((review, reviewed plan), problems); the pair is None unless both can be used."""
     data, problems = parse_json(text)
     if problems:
@@ -122,6 +135,15 @@ def check_review(text: str, plan, spec: dict):
         review = Review.model_validate(data)
     except ValidationError as exc:
         return None, error_problems(exc)
+    if audit_only and review.edits:
+        return None, ["This is a final audit: return edits: [] and assess the exact submitted plan."]
+    if any(issue.category == "sync" for issue in review.issues):
+        from .visual_repair import affected_scene_ids
+        affected = set(affected_scene_ids(plan, review.issues))
+        protected = {line.id for scene in plan.scenes if scene.id in affected for line in scene.narration}
+        if any(edit.line_id in protected for edit in review.edits):
+            return None, ["Keep narration in scenes with sync issues unchanged. The visual repair step "
+                          "must demonstrate the original narration, not a rewritten workaround."]
     line_ids = {line.id for scene in plan.scenes for line in scene.narration}
     for criterion, score in review.scores.model_dump(by_alias=True).items():
         if not 1 <= score <= 5:
@@ -140,7 +162,7 @@ def check_review(text: str, plan, spec: dict):
         reviewed = apply_edits(plan, review.edits)
     except PlanValidationError as exc:
         return None, exc.problems
-    low, target, high = word_range(spec["targetDurationSec"])
+    low, target, high = review_word_range(spec)
     words = summarize(reviewed)["words"]
     if not low <= words <= high:
         problems.append(f"edits: the edited script has {words} words, but the video needs {low} to {high}; "
@@ -149,15 +171,23 @@ def check_review(text: str, plan, spec: dict):
 
 
 def review_plan_text(plan, spec: dict, client, outline: dict | None = None, reference_text: str | None = None,
-                     progress=lambda message: None, attempts: list | None = None):
+                     progress=lambda message: None, attempts: list | None = None, *, audit_only: bool = False):
     """Return (review, reviewed plan, speech notes) from one request plus at most one repair."""
     attempts = [] if attempts is None else attempts
     notes = speech_notes(plan)
+    system = (PROMPTS / "script-reviewer.txt").read_text(encoding="utf-8")
+    if audit_only:
+        system += ("\n\nFinal visual audit: assess this exact plan after structural repairs. "
+                   "Do not rewrite any narration. Return edits: [] and report all remaining issues. "
+                   "Only report sync for an actual mismatch; an explicitly announced replay is intentional. "
+                   "Changing an issue's category does not resolve it: unshown comparisons and unsupported "
+                   "causal claims still prevent acceptance even when classified as accuracy.")
     review, reviewed = request_json(
-        client, (PROMPTS / "script-reviewer.txt").read_text(encoding="utf-8"),
+        client, system,
         review_request(plan, spec, notes, outline, reference_text),
         structured_schema(Review.model_json_schema(by_alias=True)),
-        lambda text: check_review(text, plan, spec), "script review", attempts, "review", progress)
+        lambda text: check_review(text, plan, spec, audit_only), "final visual audit" if audit_only else "script review",
+        attempts, "visual-recheck" if audit_only else "review", progress)
     return review, reviewed, notes
 
 
@@ -175,19 +205,55 @@ def write_review(run_dir: Path, client, reference_text: str | None = None, progr
     record = {"promptVersion": PROMPT_VERSION, "modelRequested": MODEL, "effort": EFFORT,
               "createdAt": datetime.now(timezone.utc).isoformat()}
     attempts = []
+    visual_record = {"status": "not-needed", "repairedSceneIds": [], "remainingIssues": []}
     try:
         review, reviewed, notes = review_plan_text(plan, spec, client, outline, reference_text, progress, attempts)
+        final_review = review
+        needs_visual_repair = any(issue.category == "sync" for issue in review.issues)
+        needs_factual_audit = any(issue.category == "accuracy" and issue.severity in {"high", "medium"}
+                                 for issue in review.issues)
+        if needs_visual_repair:
+            from .visual_repair import repair_visuals
+            progress("Repairing scenes whose actions do not match the narration...")
+            visual_record["status"] = "repairing"
+            reviewed, repaired_ids = repair_visuals(reviewed, review.issues, spec, client, reference_text,
+                                                    progress, attempts)
+            visual_record["repairedSceneIds"] = repaired_ids
+        if needs_visual_repair or needs_factual_audit:
+            # Validate meaning again after a structural repair, not merely JSON or geometry.
+            # Factual edits also need verification, even if no issue was labeled sync.
+            visual_record["status"] = "auditing"
+            final_review, reviewed, notes = review_plan_text(reviewed, spec, client, outline,
+                                                           reference_text, progress, attempts, audit_only=True)
+            remaining = [issue.model_dump(by_alias=True) for issue in final_review.issues
+                         if issue.category == "sync" or
+                         (issue.category == "accuracy" and issue.severity in {"high", "medium"})]
+            visual_record.update(status="needs-review" if remaining else "passed", remainingIssues=remaining)
+            if remaining:
+                raise PlannerError("Visual repair still has narration/action mismatches or unsupported factual claims: "
+                                   + "; ".join(issue["problem"] for issue in remaining), attempts)
     except Exception as exc:
         error = str(exc) if isinstance(exc, PlannerError) else f"{type(exc).__name__}: {exc}"
         write_json(run_dir / "review.json", {**record, "status": "failed", "error": error,
+                                             "visualReview": visual_record,
                                              "estimatedCostUsd": estimated_cost(attempts), "attempts": attempts})
         raise
     before = {line.id: line.text for scene in plan.scenes for line in scene.narration}
-    changes = [{"lineId": edit.line_id, "before": before[edit.line_id], "after": edit.text}
-               for edit in review.edits if before[edit.line_id] != edit.text]
+    changes = [{"lineId": line.id, "before": before[line.id], "after": line.text}
+               for scene in reviewed.scenes for line in scene.narration if before[line.id] != line.text]
+    edited_ids = {change["lineId"] for change in changes}
+    issue_resolutions = [{**issue.model_dump(by_alias=True),
+                          "resolution": "repaired-and-rechecked" if issue.category == "sync"
+                          and visual_record["status"] == "passed" else "line-edited" if issue.location in edited_ids
+                          else "reported"} for issue in review.issues]
     write_json(run_dir / "review.json", {
         **record, "status": "completed", "scores": review.scores.model_dump(by_alias=True),
         "issues": [issue.model_dump(by_alias=True) for issue in review.issues], "changes": changes,
+        "issueResolutions": issue_resolutions, "visualReview": visual_record,
+        # Ordinary text edits retain the initial findings above; only an actual
+        # audit can report findings about the final plan.
+        "finalIssues": ([issue.model_dump(by_alias=True) for issue in final_review.issues]
+                        if needs_visual_repair or needs_factual_audit else None),
         "speechNotes": notes, "wordsBefore": summarize(plan)["words"], "wordsAfter": summarize(reviewed)["words"],
         "estimatedCostUsd": estimated_cost(attempts), "attempts": attempts})
     (run_dir / "scene-plan.draft.json").write_text(dump_plan(plan), encoding="utf-8", newline="\n")

@@ -588,7 +588,7 @@ def coverage_problems(plan) -> list[str]:
             events = scene.visual.events
             if not any(event.kind != "hold" for event in events):
                 problems.append(f"scenes[{s}]: a process needs at least one visible state change; "
-                                "use arrive, start or finish, or choose a supporting template")
+                                "use arrive, start, finish or open, or choose a supporting template")
             for index in range(len(scene.narration)):
                 if not any((event.start_line, event.start_offset) < (index, 1)
                            and (index, 0) < (event.end_line, event.end_offset) for event in events):

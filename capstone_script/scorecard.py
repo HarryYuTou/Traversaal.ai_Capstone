@@ -40,6 +40,7 @@ def run_checks(run_dir: Path, min_seconds: float = MIN_SECONDS) -> dict:
     plan = _read(run_dir / "scene-plan.json") or {}
     llm = _read(run_dir / "llm-response.json")
     review = _read(run_dir / "review.json")
+    extension = _read(run_dir / "duration-extension.json")
     manifest = _read(run_dir / "audio-manifest.json")
     info = _read(run_dir / "video-info.json")
     failures = []
@@ -92,13 +93,25 @@ def run_checks(run_dir: Path, min_seconds: float = MIN_SECONDS) -> dict:
 
     # The animation report is written before rendering, so read it even when the render did not finish.
     motion = (info or {}).get("motionInspection") or _read(run_dir / "motion-inspection.json")
+    review_cost = (review or {}).get("estimatedCostUsd", 0.0)
+    if extension:
+        if "initialReviewCostUsd" in extension:
+            review_cost = extension["initialReviewCostUsd"] + extension.get("estimatedCostUsd", 0.0)
+        else:
+            # Older extension records include only generation costs. The current
+            # review plus archived/candidate reviews account for each review once.
+            review_cost += extension.get("estimatedCostUsd", 0.0)
+            for item in extension.get("rounds", []):
+                folder = item.get("originalArtifacts") or item.get("directory")
+                if folder:
+                    review_cost += (_read(run_dir / folder / "review.json") or {}).get("estimatedCostUsd", 0.0)
     checks = {
         "run": run_dir.name, "path": str(run_dir),
         "topic": spec.get("topic") or plan.get("title") or run_dir.name,
         "title": plan.get("title"), "targetSeconds": spec.get("targetDurationSec"),
         "live": live, "stages": stages, "seconds": seconds, "lengthOk": length_ok,
         "motionInspection": motion["status"] if motion else None,
-        "costUsd": round((llm or {}).get("estimatedCostUsd", 0.0) + (review or {}).get("estimatedCostUsd", 0.0), 4),
+        "costUsd": round((llm or {}).get("estimatedCostUsd", 0.0) + review_cost, 4),
         "reviewScores": review["scores"] if review and review.get("status") == "completed" else None,
         "failures": failures,
     }

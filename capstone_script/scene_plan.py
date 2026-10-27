@@ -299,7 +299,7 @@ class ProcessOccupancy(_Model):
 class ProcessEvent(_Model):
     """A causal state change or deliberate hold, before layout and measured speech timing."""
 
-    kind: Literal["arrive", "start", "finish", "hold"]
+    kind: Literal["arrive", "start", "finish", "open", "hold"]
     actor_ids: list[Id] = Field(max_length=8)
     station_ids: list[Id] = Field(max_length=2)
     start_line: Annotated[int, Field(ge=0)]
@@ -559,6 +559,10 @@ def process_problems(visual: ProcessVisual, line_count: int, where: str) -> list
     prefix = f"{where}.visual"
     actors = {actor.id for actor in visual.actors}
     stations = {station.id for station in visual.stations}
+    # An authored opening is the only way to change station availability. Other
+    # stations start open, preserving existing plans without adding required fields.
+    closed = {station for event in visual.events if event.kind == "open" for station in event.station_ids}
+    open_stations = stations - closed
     for key in ("actors", "stations"):
         ids = [item.id for item in getattr(visual, key)]
         problems += [f"{prefix}.{key}[{index}].id: duplicate id {item!r}"
@@ -581,6 +585,8 @@ def process_problems(visual: ProcessVisual, line_count: int, where: str) -> list
             problems.append(f"{at}.actorId: {item.actor_id!r} already occupies a queue or service position")
         if item.station_id in occupied:
             problems.append(f"{at}.stationId: {item.station_id!r} is already occupied")
+        if item.station_id in closed:
+            problems.append(f"{at}.stationId: a station with an open event is initially closed and cannot serve an actor")
         occupied[item.station_id] = item.actor_id
         seen.add(item.actor_id)
     previous_end = None
@@ -607,6 +613,11 @@ def process_problems(visual: ProcessVisual, line_count: int, where: str) -> list
         if event.kind == "hold":
             if event.actor_ids or event.station_ids:
                 problems.append(f"{at}: hold requires empty actorIds and stationIds")
+        elif event.kind == "open":
+            if event.actor_ids or not event.station_ids:
+                problems.append(f"{at}: open requires empty actorIds and at least one stationId")
+            if any(station in open_stations for station in event.station_ids):
+                problems.append(f"{at}.stationIds: open requires closed stations; a station cannot open twice")
         elif not event.actor_ids:
             problems.append(f"{at}.actorIds: {event.kind} needs at least one actor")
         if event.kind == "arrive":
@@ -622,6 +633,8 @@ def process_problems(visual: ProcessVisual, line_count: int, where: str) -> list
                     problems.append(f"{at}.actorIds: start must take the next actors from the front of the queue, in order")
                 if any(station in occupied for station in event.station_ids):
                     problems.append(f"{at}.stationIds: start requires free stations")
+                if any(station not in open_stations for station in event.station_ids):
+                    problems.append(f"{at}.stationIds: start requires open stations; open the station before service starts")
             elif any(occupied.get(station) != actor
                      for actor, station in zip(event.actor_ids, event.station_ids)):
                 problems.append(f"{at}: finish must pair each actor with the station currently serving that actor")
@@ -630,6 +643,8 @@ def process_problems(visual: ProcessVisual, line_count: int, where: str) -> list
         if event.kind == "arrive":
             queue.extend(event.actor_ids)
             seen.update(event.actor_ids)
+        elif event.kind == "open":
+            open_stations.update(event.station_ids)
         elif event.kind == "start":
             del queue[:len(event.actor_ids)]
             occupied.update(zip(event.station_ids, event.actor_ids))

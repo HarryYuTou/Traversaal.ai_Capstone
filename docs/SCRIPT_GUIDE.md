@@ -66,8 +66,11 @@ python -m unittest discover -s tests -v
 `--duration` accepts 30–600 seconds. A small request first selects visual
 templates. Up to 180 seconds, one subsequent request writes the whole plan;
 longer videos are planned chapter by chapter (see below).
-`--offline` uses the cached Kokoro model; omit it on the first narration. Every
-command refuses an existing output directory.
+`--offline` uses the cached Kokoro model; omit it on the first narration. It
+does not disable Claude calls for planning, review or duration extension.
+New plan/narration runs require a fresh output directory. The explicit
+`ensure-duration` command can extend an existing narrated run; see
+[minimum-duration checks](QUICKSTART.md#minimum-duration-checks).
 
 ## The ScenePlan contract
 
@@ -190,7 +193,10 @@ seconds select their visual templates once, then are planned in two stages.
 2. **Chapters.** Each chapter is planned like a short video, in order, with the
    same validation, length and highlight checks. The request carries the whole
    outline, the chapter's key points and the previous chapter's last three
-   lines, and `prompts/chapter-planner.txt` adds the rules for chapters: only
+   lines. When the preceding scene uses process or motion, it also carries
+   object identities and visual context; process context includes the ending
+   queue, service occupancy and completed actors. `prompts/chapter-planner.txt`
+   adds the rules for chapters: only
    the first chapter opens the video, only the last one ends with the summary,
    and every other chapter starts with one line that links to the one before.
    A chapter or the whole video may use process or motion throughout;
@@ -210,18 +216,31 @@ with `prompts/script-reviewer.txt`, which reads it the way a listener hears it
 once. The reviewer scores the draft from 1 to 5 on clarity, flow, accuracy,
 engagement and audience fit, lists the issues it finds (repetition, flow,
 clarity, accuracy, speech and highlight sync) and rewrites the lines that need
-it. Edits replace the text of existing lines only: ids, highlights and visuals
-stay, so the reviewed plan has the same structure and passes the same checks,
-and its word count must stay within the video's range. A local scan for
+it. Ordinary line edits preserve ids, highlights and visuals, and must pass
+the plan and word-count checks. Narration in scenes with sync issues is
+protected from edits that would disguise a missing demonstration. A local scan for
 symbols and abbreviations the voice may misread is sent along as hints. The
 voice's phonemizer reads common acronyms correctly (AI, LLM, DNS, HTTPS, GPU,
 API, URL and PDF letter by letter, SQL as "sequel", NASA as a word) and reads
 numbers and "10%" as words, but it says "e.g." as "ee-jee" and "vs." as
 "viz", so the scan flags abbreviations, not acronyms. Invalid edits get one repair request. Review a plan before narrating
 it; a narrated run is refused because its audio would no longer match.
-Process review also preserves event anchors, actor/station references and
-initial occupancy. A misleading demonstration is reported as an issue, not
-silently justified by changing the narration's meaning.
+
+Sync issues trigger one structural repair per affected scene, with the request
+helper's single validation retry. The repair may change visuals, events and
+purpose while retaining the scene template and exact narration. It preserves
+object identity, with limited restoration of established colors or uniquely
+identified continuing station IDs. Replacements pass full-plan and event
+coverage checks. A separate final audit assesses the resulting plan with
+`edits: []`; remaining sync issues or medium/high accuracy issues fail the
+review rather than publishing a supposedly repaired plan. Relabeling an
+unshown comparison as an accuracy issue does not make it acceptable.
+An initial medium/high accuracy issue also triggers this immutable audit,
+even when the reviewer reports no sync issue, so factual rewrites are verified.
+`review.json` records repair status, affected scenes,
+issue resolutions and remaining issues, and the original plan is retained.
+`finalIssues` is populated only after an actual final audit; otherwise it is
+null and the initial findings remain in `issues` with their edit resolutions.
 
 ### Evaluation
 
@@ -258,13 +277,19 @@ minutes.
 | `narration-preview.wav` | `narrate`, `run` | All lines with fixed 0.2 / 0.1 / 0.2 s scene pauses, for listening only |
 | `preview.html` | `narrate`, `run`, `preview` | Listening preview; inspect the rendered MP4 for animated staging |
 | `video/timeline.json` | `timeline`, `render` | Measured frame timing; process scenes become motion scenes with a source-event `processTrace` |
+| `duration-check.json` | Minimum-duration check, `render` | Target, required minimum, actual measured duration and pass state |
+| `duration-extension.json` | Duration extension | Attempt history, promoted content rounds, costs and any failure |
 
 Open `preview.html` from the run folder in a browser. The preview pauses are
 not the frame-accurate timeline; that stays with the timeline module.
 Process compilation rejects measured event spans too short to show travel,
 work and departure. See [timing floors](MOTION_GUIDE.md#compilation-and-readable-timing).
-It does not silently stretch the narration or manufacture duration to meet
-the target; revise the source plan and re-narrate when needed.
+It does not stretch narration or add silence to meet the target. An enabled
+minimum-duration check can add reviewed explanatory scenes and reuse unchanged
+audio, with at most two successfully promoted content extensions. New requests
+of 420 seconds or more enable a 420-second minimum by default; older specs
+without `minimumDurationSec` remain exempt. See the
+[quickstart](QUICKSTART.md#minimum-duration-checks) for opt-out and repair commands.
 
 ## Measured results
 

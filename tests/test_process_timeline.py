@@ -5,11 +5,12 @@ import hashlib
 import itertools
 import json
 import math
+from pathlib import Path
 import unittest
 
 from capstone_script.process import (
     ACTOR_SIZE, MIN_ARRIVAL_FRAMES, MIN_COMPLETE_FRAMES, MIN_EXIT_TRAVEL_FRAMES,
-    MIN_FADE_FRAMES, MIN_WORK_FRAMES, ProcessCompileError, compile_process_visual,
+    MIN_FADE_FRAMES, MIN_OPEN_FRAMES, MIN_WORK_FRAMES, ProcessCompileError, compile_process_visual,
 )
 from capstone_script.scene_plan import dump_plan, validate_plan
 from capstone_script.timeline import (
@@ -101,6 +102,78 @@ class ProcessTimelineTests(unittest.TestCase):
         self.assertEqual(trace[2]["completedAfter"], ["a", "b"])
         self.assertEqual(trace[2]["serviceAfter"], [])
         self.assertEqual(trace[3]["queueAfter"], ["c"])
+
+    def test_open_keeps_actors_and_stations_in_place_then_enables_service(self):
+        data = process_plan()
+        data["scenes"][0]["visual"]["events"] = [event("hold"),
+                                                    event("open", stations=("two",), line=1),
+                                                    event("start", ("a", "b"), ("one", "two"), 2),
+                                                    event("hold", line=3)]
+        scene = build(data)["scenes"][0]
+        trace = scene["processTrace"]
+        opening = trace["events"][1]
+        self.assertEqual(trace["initialOpenStationIds"], ["one"])
+        self.assertEqual(trace["finalOpenStationIds"], ["one", "two"])
+        self.assertEqual(opening["openStationsBefore"], ["one"])
+        self.assertEqual(opening["openStationsAfter"], ["one", "two"])
+        self.assertEqual(opening["queueBefore"], opening["queueAfter"])
+        self.assertEqual(opening["serviceBefore"], opening["serviceAfter"])
+        self.assertEqual(opening["minRequiredFrames"], MIN_OPEN_FRAMES)
+        phase = opening["phases"][0]
+        self.assertEqual(phase, {"kind": "open", "actorIds": [], "stationIds": ["two"],
+                                "from": opening["from"], "durationInFrames": opening["durationInFrames"]})
+        for frame in (scene["from"], opening["from"], opening["from"] + opening["durationInFrames"]):
+            state = states_at(scene["visual"], frame)
+            self.assertAlmostEqual(state["a"]["x"], 650)
+            self.assertAlmostEqual(state["two"]["x"], 950)
+            self.assertEqual(state["two"]["opacity"], 1)
+        self.assert_geometry(scene)
+
+    def test_existing_plans_keep_all_stations_open_without_added_open_events(self):
+        trace = build()["scenes"][0]["processTrace"]
+        self.assertEqual(trace["initialOpenStationIds"], ["one", "two"])
+        self.assertTrue(all(event["openStationsBefore"] == event["openStationsAfter"] == ["one", "two"]
+                            for event in trace["events"]))
+
+    def test_open_minimum_is_measured_and_rejects_unreadable_speech_span(self):
+        data = process_plan()
+        data["scenes"][0]["visual"]["events"] = [event("open", stations=("one", "two"))]
+        with self.assertRaisesRegex(TimelineError, f"at least {MIN_OPEN_FRAMES} are needed"):
+            build(data, frames=MIN_OPEN_FRAMES - 1)
+        trace = build(data, frames=MIN_OPEN_FRAMES)["scenes"][0]["processTrace"]
+        self.assertEqual(trace["initialOpenStationIds"], [])
+        self.assertEqual(trace["finalOpenStationIds"], ["one", "two"])
+
+    def test_counter_comparison_fixture_proves_two_vs_one_completed_service_rounds(self):
+        path = Path(__file__).resolve().parents[1] / "fixtures" / "scene-plan.process-counter-comparison.json"
+        data = json.loads(path.read_text())
+        timeline = build(data)
+        baseline, replay = timeline["scenes"]
+        self.assertEqual(baseline["processTrace"]["initialQueue"], replay["processTrace"]["initialQueue"])
+        self.assertEqual(baseline["processTrace"]["initialService"], replay["processTrace"]["initialService"])
+        # Count observed completion rounds before the same last actor starts, not
+        # animation seconds, which follow spoken explanation rather than a clock.
+        rounds = []
+        for scene in timeline["scenes"]:
+            before_last = []
+            for event_data in scene["processTrace"]["events"]:
+                if event_data["kind"] == "start" and "customer-c" in event_data["actorIds"]:
+                    break
+                before_last.append(event_data)
+            rounds.append(sum(event_data["kind"] == "finish" for event_data in before_last))
+            self.assert_geometry(scene)
+        self.assertEqual(rounds, [2, 1])
+        baseline_entities = {entity["id"]: entity for entity in baseline["visual"]["entities"]}
+        replay_entities = {entity["id"]: entity for entity in replay["visual"]["entities"]}
+        for entity_id in baseline_entities:
+            for key in ("kind", "x", "y", "color", "label"):
+                self.assertEqual(baseline_entities[entity_id][key], replay_entities[entity_id][key])
+        self.assertEqual(baseline["processTrace"]["initialOpenStationIds"], ["counter-1"])
+        self.assertEqual(baseline["processTrace"]["finalOpenStationIds"], replay["processTrace"]["initialOpenStationIds"])
+        opening, result_hold = baseline["processTrace"]["events"][-2:]
+        self.assertEqual((opening["kind"], result_hold["kind"]), ("open", "hold"))
+        self.assertEqual(opening["from"] + opening["durationInFrames"], result_hold["from"])
+        self.assertGreater(result_hold["durationInFrames"], opening["durationInFrames"])
 
     def test_complete_then_exit_then_fade_are_sequential_and_work_precedes_them(self):
         scene = build()["scenes"][0]

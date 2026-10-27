@@ -98,6 +98,30 @@ class PreviewTests(unittest.TestCase):
         self.assertEqual(beats[0]["description"], "Parcel begins processing at Packing.")
         self.assertEqual(beats[1]["description"], "No new process event is scheduled on this line.")
 
+    def test_station_opening_beats_use_station_names_and_respect_line_offsets(self):
+        scene = {"visual": {"actorKind": "person", "actors": [],
+                 "stations": [{"id": "one", "label": "Counter 1"}, {"id": "two", "label": "Counter 2"}],
+                 "events": [{"kind": "open", "actorIds": [], "stationIds": ["two"],
+                             "startLine": 0, "endLine": 1, "startOffset": 1, "endOffset": 1},
+                            {"kind": "open", "actorIds": [], "stationIds": ["one", "two"],
+                             "startLine": 2, "endLine": 3, "startOffset": 0, "endOffset": 0}]},
+                 "narration": [{"id": str(index)} for index in range(4)]}
+        beats = process_beats(scene)
+        self.assertEqual(beats[0]["description"], "No new process event is scheduled on this line.")
+        self.assertEqual(beats[1]["description"], "Counter 2 opens for service.")
+        self.assertEqual(beats[2]["description"], "Counter 1, Counter 2 open for service.")
+        self.assertEqual(beats[3]["description"], "No new process event is scheduled on this line.")
+
+    def test_counter_comparison_builds_preview_after_narration(self):
+        fixture = Path(__file__).resolve().parents[1] / "fixtures/scene-plan.process-counter-comparison.json"
+        self.narrate(json.loads(fixture.read_text(encoding="utf-8")))
+        data = embedded(build_preview(self.run).read_text(encoding="utf-8"))
+        self.assertEqual(len(data["blocks"]), 12)
+        self.assertEqual(data["motionBeats"]["scene-01"][-1]["description"],
+                         "Counter 2 opens for service; The current process state remains visible.")
+        self.assertEqual(len(data["motionBeats"]["scene-01"]), 7)
+        self.assertEqual(len(data["motionBeats"]["scene-02"]), 5)
+
     def test_preview_links_a_completed_render_but_not_a_partial_file(self):
         self.narrate()
         video = self.run / "video.mp4"

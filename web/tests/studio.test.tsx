@@ -62,7 +62,7 @@ describe('Studio workflow', () => {
     fireEvent.click(button);
     fireEvent.click(button);
     expect(api.createJob).toHaveBeenCalledTimes(1);
-    expect(api.createJob).toHaveBeenCalledWith(expect.objectContaining({ topic: request.topic, audience: 'High school students', durationSeconds: 420, source: 'topic' }));
+    expect(api.createJob).toHaveBeenCalledWith(expect.objectContaining({ topic: request.topic, audience: 'High school students', durationSeconds: 420, minimumDurationSec: 420, source: 'topic' }));
     await act(async () => { resolve({ ...baseJob, request: { ...request, durationSeconds: 420 } }); });
     expect((screen.getByRole('button', { name: 'Generation in progress' }) as HTMLButtonElement).disabled).toBe(true);
     expect(localStorage.getItem(JOB_KEY)).toBe(baseJob.id);
@@ -74,7 +74,34 @@ describe('Studio workflow', () => {
     await screen.findByRole('button', { name: /Setup needed/ });
     await userEvent.click(screen.getByRole('button', { name: 'Try a sample' }));
     await userEvent.click(screen.getByRole('button', { name: 'Generate sample video' }));
-    expect(api.createJob).toHaveBeenCalledWith(expect.objectContaining({ source: 'sample', topic: health.sample.topic, audience: health.sample.audience, durationSeconds: 45, review: false }));
+    expect(api.createJob).toHaveBeenCalledWith(expect.objectContaining({ source: 'sample', topic: health.sample.topic, audience: health.sample.audience, durationSeconds: 45, minimumDurationSec: 0, review: false }));
+  });
+
+  it('makes the Level 1 floor visible and allows explicitly opting out', async () => {
+    render(<App />);
+    await screen.findByRole('button', { name: /Studio ready/ });
+    await userEvent.click(screen.getByRole('button', { name: 'How GPS works' }));
+    await userEvent.selectOptions(screen.getByLabelText('Target length'), '420');
+    const minimum = screen.getByRole('checkbox', { name: /Level 1 duration check/ }) as HTMLInputElement;
+    expect(minimum.checked).toBe(true);
+    expect(screen.getByText(/At least 7 minutes, checked against the completed MP4/)).toBeTruthy();
+    await userEvent.click(minimum);
+    await userEvent.click(screen.getByRole('button', { name: 'Generate video' }));
+    expect(api.createJob).toHaveBeenCalledWith(expect.objectContaining({ durationSeconds: 420, minimumDurationSec: 0 }));
+  });
+
+  it('shows target, actual runtime and the measured minimum result', async () => {
+    localStorage.setItem(JOB_KEY, baseJob.id);
+    vi.mocked(api.job).mockResolvedValue({ ...complete,
+      request: { ...request, durationSeconds: 420, minimumDurationSec: 420 },
+      result: { ...complete.result!, durationSeconds: 431.2,
+        durationCheck: { targetDurationSec: 420, minimumDurationSec: 420, actualDurationSec: 431.2, measurement: 'rendered-mp4', passed: true } },
+    });
+    render(<App />);
+    await screen.findByRole('link', { name: 'Download MP4' });
+    expect(screen.getByText('Target 7:00')).toBeTruthy();
+    expect(screen.getByText('Actual 7:11')).toBeTruthy();
+    expect(screen.getByText('Minimum 7:00 · Passed')).toBeTruthy();
   });
 
   it('shows setup instead of making a paid request when topic generation is unavailable', async () => {

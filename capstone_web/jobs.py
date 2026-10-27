@@ -3,6 +3,7 @@
 import copy
 from datetime import datetime, timezone
 import json
+import math
 import os
 from pathlib import Path
 import queue
@@ -14,6 +15,7 @@ import threading
 from uuid import uuid4
 
 from .health import ROOT, SAMPLE
+from capstone_script.duration import requested_minimum
 
 JOB_ID = re.compile(r"^[0-9a-f]{32}$")
 EVENT_PREFIX = "CAPSTONE_EVENT:"
@@ -31,7 +33,7 @@ class RequestError(ValueError):
 def validate_request(body):
     if not isinstance(body, dict):
         raise RequestError("Send a JSON object with the video settings.")
-    allowed = {"topic", "audience", "durationSeconds", "review", "theme", "music", "draft", "source"}
+    allowed = {"topic", "audience", "durationSeconds", "minimumDurationSec", "review", "theme", "music", "draft", "source"}
     if body.keys() - allowed:
         raise RequestError("Unknown request fields: " + ", ".join(sorted(body.keys() - allowed)))
     result = {"review": True, "theme": "light", "music": True, "draft": False, "source": "topic", **body}
@@ -54,6 +56,14 @@ def validate_request(body):
         raise RequestError("source must be topic or sample.")
     if result["source"] == "sample":
         result.update({key: SAMPLE[key] for key in ("topic", "audience", "durationSeconds")}, review=False)
+        result["minimumDurationSec"] = 0
+    else:
+        try:
+            if "minimumDurationSec" in result and result["minimumDurationSec"] is None:
+                raise ValueError("minimumDurationSec must be a whole number, not null.")
+            result["minimumDurationSec"] = requested_minimum(duration, result.get("minimumDurationSec"))
+        except ValueError as exc:
+            raise RequestError(str(exc)) from None
     return result
 
 
@@ -169,6 +179,13 @@ class JobRunner:
                 self.store.update(job_id, status="running", stage=first,
                                   message="Starting the built-in sample." if first == "narrating" else "Planning your video.")
                 result = self.executor(job_id, lambda event: self._event(job_id, event))
+                minimum = request.get("minimumDurationSec", 0)
+                if minimum and (not isinstance(result, dict)
+                                or type(result.get("durationSeconds")) not in (int, float)
+                                or not math.isfinite(result["durationSeconds"])
+                                or not result["durationSeconds"] >= minimum):
+                    raise WorkerError(f"The generated video did not meet the {minimum} second minimum. "
+                                      "It has not been marked ready; inspect the duration check before retrying.")
                 if not self.stop.is_set():
                     self.store.update(job_id, status="completed", stage="completed",
                                       message="Your video is ready to play and download.", result=result, error=None)

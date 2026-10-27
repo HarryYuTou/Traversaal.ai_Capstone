@@ -22,6 +22,7 @@ MIN_COMPACTION_FRAMES = 12
 MIN_COMPLETE_FRAMES = 12
 MIN_EXIT_TRAVEL_FRAMES = 24
 MIN_FADE_FRAMES = 8
+MIN_OPEN_FRAMES = 18
 
 
 class ProcessCompileError(ValueError):
@@ -66,6 +67,9 @@ def compile_process_visual(visual: ProcessVisual, lines: list[dict], scene_start
     station_clearance = {station.id: EXIT_CLEARANCE + (10 if station.kind == "server" else 0)
                          for station in visual.stations}
     queue = list(visual.initial_queue)
+    initially_closed = {station for event in visual.events if event.kind == "open" for station in event.station_ids}
+    initial_open = [station.id for station in visual.stations if station.id not in initially_closed]
+    open_stations = set(initial_open)
     service = {item.station_id: item.actor_id for item in visual.initial_service}
     completed = []
     active_since = {item.actor_id: scene_start for item in visual.initial_service}
@@ -126,6 +130,8 @@ def compile_process_visual(visual: ProcessVisual, lines: list[dict], scene_start
             minimum = MIN_START_TRAVEL_FRAMES + MIN_WORK_FRAMES
         elif event.kind == "finish":
             minimum = MIN_COMPLETE_FRAMES + MIN_EXIT_TRAVEL_FRAMES + MIN_FADE_FRAMES
+        elif event.kind == "open":
+            minimum = MIN_OPEN_FRAMES
         else:
             minimum = 1
         if duration < minimum:
@@ -133,9 +139,17 @@ def compile_process_visual(visual: ProcessVisual, lines: list[dict], scene_start
                                       f"at least {minimum} are needed for {len(event.actor_ids)} actor(s). "
                                       "Use longer narrated lines or span additional lines.")
         before_queue, before_service, before_completed = list(queue), _service_list(service), list(completed)
+        before_open = [station.id for station in visual.stations if station.id in open_stations]
         movement_end = start
         phases = []
-        if event.kind == "arrive":
+        if event.kind == "open":
+            # Opening is shown by the renderer from this explicit, measured phase;
+            # the station stays in place while its CLOSED marker becomes OPEN.
+            phases.append({"kind": "open", "actorIds": [], "stationIds": list(event.station_ids),
+                           "from": start, "durationInFrames": duration})
+            open_stations.update(event.station_ids)
+            movement_end = end
+        elif event.kind == "arrive":
             for offset, actor_id in enumerate(event.actor_ids):
                 actor_start = start + duration * offset // len(event.actor_ids)
                 actor_end = start + duration * (offset + 1) // len(event.actor_ids)
@@ -208,6 +222,8 @@ def compile_process_visual(visual: ProcessVisual, lines: list[dict], scene_start
                        "queueBefore": before_queue, "queueAfter": list(queue),
                        "serviceBefore": before_service, "serviceAfter": _service_list(service),
                        "completedBefore": before_completed, "completedAfter": list(completed),
+                       "openStationsBefore": before_open,
+                       "openStationsAfter": [station.id for station in visual.stations if station.id in open_stations],
                        "movementEndFrame": movement_end, "minRequiredFrames": minimum, "phases": phases})
 
     for actor_id, start in active_since.items():
@@ -229,6 +245,8 @@ def compile_process_visual(visual: ProcessVisual, lines: list[dict], scene_start
               "activities": sorted(activities, key=lambda activity: (activity["from"], activity["entityId"]))}
     trace = {"sourceTemplate": "process", "actorIds": [actor.id for actor in visual.actors],
              "stationEntityIds": [station.id for station in visual.stations],
+             "initialOpenStationIds": initial_open,
+             "finalOpenStationIds": [station.id for station in visual.stations if station.id in open_stations],
              "initialQueue": list(visual.initial_queue),
              "initialService": [item.model_dump(by_alias=True) for item in visual.initial_service],
              "finalQueue": list(queue), "finalService": _service_list(service), "completed": list(completed),

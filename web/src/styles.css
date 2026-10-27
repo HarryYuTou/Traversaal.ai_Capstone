@@ -112,7 +112,7 @@ h1 { font-size: clamp(30px, 3.1vw, 40px); font-weight: 540; letter-spacing: -1.6
 .source-switch button { display: inline-flex; justify-content: center; align-items: center; gap: 7px; min-height: 35px; border: 1px solid transparent; border-radius: 5px; background: transparent; font-size: 11px; color: #828878; }
 .source-switch button[aria-pressed="true"] { background: white; color: #405338; box-shadow: 0 1px 3px #2632210b; border-color: #e5e8df; font-weight: 600; }
 .field { margin-bottom: 20px; }
-.field label { display: block; font-size: 12px; font-weight: 560; color: #41483c; margin-bottom: 9px; }
+.field label:not(.toggle-row) { display: block; font-size: 12px; font-weight: 560; color: #41483c; margin-bottom: 9px; }
 .textarea-wrap { position: relative; }
 textarea, input:not([type="checkbox"]), select { width: 100%; color: #35412f; background: #fff; border: 1px solid #dfe4d8; border-radius: 6px; font-size: 13px; }
 textarea::placeholder, input::placeholder { color: #a3a99c; opacity: 1; }

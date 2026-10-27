@@ -4,6 +4,7 @@ export type VideoRequest = {
   topic: string;
   audience: string;
   durationSeconds: number;
+  minimumDurationSec?: number;
   review: boolean;
   theme: 'light' | 'night';
   music: boolean;
@@ -27,6 +28,13 @@ export type Job = {
     thumbnailUrl: string | null;
     subtitlesUrl: string | null;
     durationSeconds: number;
+    durationCheck?: {
+      targetDurationSec: number | null;
+      minimumDurationSec: number;
+      actualDurationSec: number;
+      measurement: 'narrated-timeline' | 'rendered-mp4';
+      passed: boolean | null;
+    };
     width: number;
     height: number;
     bytes: number;

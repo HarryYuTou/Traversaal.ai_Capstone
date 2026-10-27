@@ -7,17 +7,20 @@ import {Illustration, type Palette} from './Illustration';
 import {placeActorLabels} from './labels';
 import {fitMotionViewport, motionStageRect} from './camera';
 import {illustrationPoseAtFrame} from './pose';
-import {processStageLayout, processStateAtFrame} from './processState';
+import {processStageLayout, processStateAtFrame, stationStateAtFrame} from './processState';
+import {processViewportAtFrame, type ProcessPresentation} from './processPresentation';
 
-type Props = {scene: Extract<TimelineScene, {template: 'motion'}>; label: string};
+type Props = {scene: Extract<TimelineScene, {template: 'motion'}>; label: string; presentation?: ProcessPresentation};
 
 /** A shared illustrated stage: actors perform the explanation, with only a title and small labels. */
-export const MotionScene: React.FC<Props> = ({scene, label}) => {
+export const MotionScene: React.FC<Props> = ({scene, label, presentation}) => {
   const theme = useTheme();
   const frame = scene.from + useCurrentFrame();
   const program = useMemo(() => compileMotion(scene.visual), [scene.visual]);
-  const viewport = useMemo(() => fitMotionViewport(program), [program]);
-  const {width, height} = useVideoConfig();
+  const wideViewport = useMemo(() => presentation?.viewport ?? fitMotionViewport(program), [program, presentation]);
+  const {width, height, fps} = useVideoConfig();
+  const viewport = scene.processTrace && presentation
+    ? processViewportAtFrame(program, scene.processTrace, wideViewport, frame, fps) : wideViewport;
   const baseStage = motionStageRect(width, height);
   const processLayout = scene.processTrace ? processStageLayout(baseStage, height) : null;
   const stage = baseStage;
@@ -51,7 +54,8 @@ export const MotionScene: React.FC<Props> = ({scene, label}) => {
           return <g key={entity.id} opacity={state.opacity} transform={`translate(${point.x} ${point.y})`}>
             <g transform={`rotate(${state.rotation % 360}) scale(${state.size})`}>
               <Illustration entity={entity} state={state} palette={palette} prefix={prefix}
-                pose={illustrationPoseAtFrame(prepared, frame)} />
+                pose={illustrationPoseAtFrame(prepared, frame)}
+                station={scene.processTrace ? stationStateAtFrame(scene.processTrace, entity.id, frame) : null} />
             </g>
           </g>;
         })}

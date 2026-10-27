@@ -5,3 +5,5 @@ Long videos
 - Prefer coherent visual explanations with purposeful actions. A chapter or whole video may use process or motion throughout; do not insert a text slide just for template variety. Prefer two or three continuous scenes when their narration fits.
 - Process event and motion action line indices always refer to narration within the same scene, starting at zero. They do not refer to chapter-wide or video-wide lines.
 - For process, each scene declares its initial queue and service occupancy explicitly. Preserve continuing actors and state, or clearly introduce a new illustrative scenario. The compiler does not infer cross-scene history. Keep new conditions visibly demonstrated rather than discussing them over an unrelated unchanged state.
+
+- When previous-chapter visual continuity is supplied, preserve the established object ids, colors and ending queue/service state for a continuing example. Completed actors stay departed. Explicitly announce a replay or a new example before resetting its state.

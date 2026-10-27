@@ -1,10 +1,11 @@
 import React from 'react';
 import type {EntityState} from './engine';
+import type {StationState} from './processState';
 import type {MotionColor, MotionEntity} from './types';
 import {limbPath, personLimbs, workbenchPress, type ActivityPose, type IllustrationPose} from './pose';
 
 export type Palette = Record<MotionColor, string> & {paper: string; soft: string; line: string};
-type Props = {entity: MotionEntity; state: EntityState; palette: Palette; prefix: string; pose?: IllustrationPose};
+type Props = {entity: MotionEntity; state: EntityState; palette: Palette; prefix: string; pose?: IllustrationPose; station?: StationState | null};
 
 /** Service-time progress is an event cue, not a numerical measure or an invented percentage. */
 const ActivityMark: React.FC<{activity: ActivityPose; palette: Palette; color: string}> = ({activity, palette: p, color}) => (
@@ -21,8 +22,8 @@ const ActivityMark: React.FC<{activity: ActivityPose; palette: Palette; color: s
 );
 
 /** Original small vector illustrations. All actors share the same ink, stroke weight and materials. */
-export const Illustration: React.FC<Props> = ({entity, state, palette: p, prefix, pose}) => {
-  const color = p[entity.color];
+export const Illustration: React.FC<Props> = ({entity, state, palette: p, prefix, pose, station}) => {
+  const color = station && !station.open ? p.muted : p[entity.color];
   const stroke = {stroke: p.ink, strokeWidth: 2.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const};
   const filled = {...stroke, fill: p.paper};
   const clip = `${prefix}-${entity.id}-surface`;
@@ -186,7 +187,18 @@ export const Illustration: React.FC<Props> = ({entity, state, palette: p, prefix
   const mark = entity.kind === 'counter' ? {x: 24, y: -34}
     : entity.kind === 'workbench' ? {x: -13, y: -20}
       : entity.kind === 'person' ? {x: 0, y: 15} : {x: 0, y: 0};
-  return <g>{content}{activity ? <g transform={`translate(${mark.x} ${mark.y})`}>
+  return <g><g opacity={station && !station.open ? 0.5 : 1}>{content}</g>{station ? <g data-station-state={station.open ? 'open' : 'closed'}>
+    <rect x={-43} y={12} width={86} height={25} rx={4} fill={p.paper}
+      stroke={station.open ? p.secondary : p.muted} strokeWidth={2} />
+    <circle cx={-31} cy={24.5} r={3.5} fill={station.open ? p.secondary : p.muted} />
+    <text x={5} y={29} textAnchor="middle" fontSize={11} fontWeight={750}
+      letterSpacing={0.5} fill={station.open ? p.ink : p.muted}>
+      {station.open ? 'OPEN' : station.openingProgress > 0 ? 'OPENING' : 'CLOSED'}
+    </text>
+    {!station.open && station.openingProgress > 0 ?
+      <path d="M-39 34H39" pathLength={1} stroke={p.secondary} strokeWidth={3}
+        strokeDasharray={`${station.openingProgress} 1`} /> : null}
+  </g> : null}{activity ? <g transform={`translate(${mark.x} ${mark.y})`}>
     <ActivityMark activity={activity} palette={p} color={color} />
   </g> : null}</g>;
 };

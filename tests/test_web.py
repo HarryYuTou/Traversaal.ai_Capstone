@@ -31,6 +31,16 @@ def ready(**overrides):
 
 
 class ValidationTests(unittest.TestCase):
+    def test_level1_presets_require_seven_minutes_and_samples_remain_short(self):
+        self.assertEqual(validate_request(request_body(durationSeconds=420))["minimumDurationSec"], 420)
+        self.assertEqual(validate_request(request_body(durationSeconds=600))["minimumDurationSec"], 420)
+        self.assertEqual(validate_request(request_body())["minimumDurationSec"], 0)
+        self.assertEqual(validate_request(request_body(durationSeconds=420, minimumDurationSec=0))["minimumDurationSec"], 0)
+        self.assertEqual(validate_request(request_body(source="sample", durationSeconds=420))["minimumDurationSec"], 0)
+        for minimum in (True, 30.0, 29, -1, 421, None):
+            with self.subTest(minimum=minimum), self.assertRaises(RequestError):
+                validate_request(request_body(durationSeconds=420, minimumDurationSec=minimum))
+
     def test_normalizes_text_and_fixed_sample(self):
         self.assertEqual(validate_request(request_body(topic="  Hello  "))["topic"], "Hello")
         sample = validate_request(request_body(source="sample", theme="night", draft=True))
@@ -87,6 +97,22 @@ class HealthTests(unittest.TestCase):
 
 
 class PersistenceAndQueueTests(unittest.TestCase):
+    def test_queue_cannot_mark_a_short_level1_result_ready(self):
+        for actual in (384.683, 419.999, float("nan"), float("inf"), None):
+            with self.subTest(actual=actual), tempfile.TemporaryDirectory() as directory:
+                store = JobStore(directory)
+                job = store.create(validate_request(request_body(durationSeconds=420)))
+                runner = JobRunner(store, executor=lambda *_: {"durationSeconds": actual})
+                try:
+                    runner.submit(job)
+                    self.assert_queue_drains(runner)
+                    saved = store.get(job["id"])
+                    self.assertEqual(saved["status"], "failed")
+                    self.assertIsNone(saved["result"])
+                    self.assertIn("420 second minimum", saved["error"])
+                finally:
+                    runner.close()
+
     def assert_queue_drains(self, runner):
         drained = threading.Event()
 
@@ -526,6 +552,45 @@ class AccountTests(unittest.TestCase):
 
 
 class WorkerTests(unittest.TestCase):
+    def test_level1_worker_repairs_before_render_and_rejects_short_actual_output(self):
+        from capstone_script.duration import DurationError
+        from capstone_script.scene_plan import dump_plan, load_plan
+        from capstone_web.health import ROOT
+        plan = load_plan(ROOT / "fixtures/scene-plan.valid.json")
+        events, order = [], []
+
+        def planning(output, spec, *args, **kwargs):
+            self.assertEqual(spec["minimumDurationSec"], 420)
+            output.mkdir()
+            (output / "scene-plan.json").write_text(dump_plan(plan))
+            return plan
+
+        def repair(output, *args, **kwargs):
+            order.append("repair")
+            (output / "video").mkdir()
+            (output / "video/timeline.json").write_text("{}")
+            return plan
+
+        def render(*args, **kwargs):
+            order.append("render")
+            return {"probedSeconds": 384.683, "width": 960, "height": 540, "bytes": 2000,
+                    "durationCheck": {"passed": True}}
+
+        with tempfile.TemporaryDirectory() as directory, \
+                patch("anthropic.Anthropic"), patch("capstone_script.planner.load_env_file"), \
+                patch("capstone_script.planner.write_plan_run", side_effect=planning), \
+                patch("capstone_script.narrate.narrate_plan"), \
+                patch("capstone_script.duration.ensure_minimum_duration", side_effect=repair), \
+                patch("capstone_script.timeline.write_timeline") as timeline, \
+                patch("capstone_script.render.render_video", side_effect=render), \
+                patch("capstone_web.worker.traceback.print_exc"), self.assertRaises(DurationError):
+            generate({"id": "a" * 32, "request": validate_request(request_body(durationSeconds=420, review=False))},
+                     Path(directory), events.append)
+        self.assertEqual(order, ["repair", "render"])
+        timeline.assert_not_called()
+        self.assertFalse(any(event["type"] == "result" for event in events))
+        self.assertIn("duration requirement", events[-1]["message"])
+
     def test_topic_plans_reviews_reloads_and_then_narrates(self):
         from capstone_script.scene_plan import dump_plan, load_plan
         from capstone_web.health import ROOT

@@ -1,0 +1,310 @@
+{
+  "schemaVersion": "1",
+  "projectId": "counter-comparison",
+  "title": "Why a Second Counter Reduces Waiting",
+  "scenes": [
+    {
+      "id": "scene-01",
+      "purpose": "Show the same orange customer waiting through two observed service completions, then visibly open the second counter.",
+      "template": "process",
+      "visual": {
+        "title": "One counter: two rounds of waiting",
+        "actorKind": "person",
+        "actors": [
+          {
+            "id": "customer-a",
+            "color": "ink",
+            "label": ""
+          },
+          {
+            "id": "customer-b",
+            "color": "secondary",
+            "label": ""
+          },
+          {
+            "id": "customer-c",
+            "color": "accent",
+            "label": ""
+          }
+        ],
+        "stations": [
+          {
+            "id": "counter-1",
+            "label": "Counter 1",
+            "kind": "counter",
+            "color": "ink"
+          },
+          {
+            "id": "counter-2",
+            "label": "Counter 2",
+            "kind": "counter",
+            "color": "ink"
+          }
+        ],
+        "initialQueue": [
+          "customer-a",
+          "customer-b",
+          "customer-c"
+        ],
+        "initialService": [],
+        "events": [
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 0,
+            "endLine": 0,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "start",
+            "actorIds": [
+              "customer-a"
+            ],
+            "stationIds": [
+              "counter-1"
+            ],
+            "startLine": 1,
+            "endLine": 1,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "finish",
+            "actorIds": [
+              "customer-a"
+            ],
+            "stationIds": [
+              "counter-1"
+            ],
+            "startLine": 2,
+            "endLine": 2,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "start",
+            "actorIds": [
+              "customer-b"
+            ],
+            "stationIds": [
+              "counter-1"
+            ],
+            "startLine": 3,
+            "endLine": 3,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "finish",
+            "actorIds": [
+              "customer-b"
+            ],
+            "stationIds": [
+              "counter-1"
+            ],
+            "startLine": 4,
+            "endLine": 4,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "start",
+            "actorIds": [
+              "customer-c"
+            ],
+            "stationIds": [
+              "counter-1"
+            ],
+            "startLine": 5,
+            "endLine": 5,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "open",
+            "actorIds": [],
+            "stationIds": [
+              "counter-2"
+            ],
+            "startLine": 6,
+            "endLine": 6,
+            "startOffset": 0.0,
+            "endOffset": 0.35
+          },
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 6,
+            "endLine": 6,
+            "startOffset": 0.35,
+            "endOffset": 1.0
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-01-line-01",
+          "text": "Start with three people waiting. Assume equal service rounds; we will count completed rounds before the orange customer starts."
+        },
+        {
+          "id": "scene-01-line-02",
+          "text": "Only the first counter is open, so the first customer steps forward."
+        },
+        {
+          "id": "scene-01-line-03",
+          "text": "The first round finishes. The orange customer still waits behind one person."
+        },
+        {
+          "id": "scene-01-line-04",
+          "text": "The second customer moves forward. The orange customer stays in line."
+        },
+        {
+          "id": "scene-01-line-05",
+          "text": "A second service round finishes before the orange customer can move forward."
+        },
+        {
+          "id": "scene-01-line-06",
+          "text": "Now the orange customer starts, after waiting through two complete service rounds."
+        },
+        {
+          "id": "scene-01-line-07",
+          "text": "The second counter now opens. Next, replay the same arrivals with this extra capacity."
+        }
+      ]
+    },
+    {
+      "id": "scene-02",
+      "purpose": "Explicitly replay identical arrivals and equal service rounds so the orange customer starts after one observed simultaneous completion round.",
+      "template": "process",
+      "visual": {
+        "title": "Same arrivals, two counters: one round",
+        "actorKind": "person",
+        "actors": [
+          {
+            "id": "customer-a",
+            "color": "ink",
+            "label": ""
+          },
+          {
+            "id": "customer-b",
+            "color": "secondary",
+            "label": ""
+          },
+          {
+            "id": "customer-c",
+            "color": "accent",
+            "label": ""
+          }
+        ],
+        "stations": [
+          {
+            "id": "counter-1",
+            "label": "Counter 1",
+            "kind": "counter",
+            "color": "ink"
+          },
+          {
+            "id": "counter-2",
+            "label": "Counter 2",
+            "kind": "counter",
+            "color": "ink"
+          }
+        ],
+        "initialQueue": [
+          "customer-a",
+          "customer-b",
+          "customer-c"
+        ],
+        "initialService": [],
+        "events": [
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 0,
+            "endLine": 0,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "start",
+            "actorIds": [
+              "customer-a",
+              "customer-b"
+            ],
+            "stationIds": [
+              "counter-1",
+              "counter-2"
+            ],
+            "startLine": 1,
+            "endLine": 1,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "finish",
+            "actorIds": [
+              "customer-a",
+              "customer-b"
+            ],
+            "stationIds": [
+              "counter-1",
+              "counter-2"
+            ],
+            "startLine": 2,
+            "endLine": 2,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "start",
+            "actorIds": [
+              "customer-c"
+            ],
+            "stationIds": [
+              "counter-1"
+            ],
+            "startLine": 3,
+            "endLine": 3,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 4,
+            "endLine": 4,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-02-line-01",
+          "text": "Replay the same three people, in the same order, with the same equal service rounds."
+        },
+        {
+          "id": "scene-02-line-02",
+          "text": "Both counters are open, so the first two customers start together."
+        },
+        {
+          "id": "scene-02-line-03",
+          "text": "One equal service round finishes, and both customers leave their counters together."
+        },
+        {
+          "id": "scene-02-line-04",
+          "text": "The orange customer now starts after just one completed service round."
+        },
+        {
+          "id": "scene-02-line-05",
+          "text": "One round of waiting instead of two: the second counter helps under these same conditions."
+        }
+      ]
+    }
+  ]
+}

@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 from capstone_script.__main__ import main
 from capstone_script.planner import PlannerError, make_spec, write_json
-from capstone_script.review import speech_notes, write_review
+from capstone_script.review import check_review, review_request, speech_notes, write_review
 from capstone_script.scene_plan import load_plan
 from test_planner import TOPIC, FakeClient, model_output, response
 
@@ -51,6 +51,7 @@ class ReviewTests(unittest.TestCase):
         self.assertEqual(self.saved("scene-plan.draft.json"), json.loads(VALID.read_text(encoding="utf-8")))
         record = self.saved("review.json")
         self.assertEqual(record["status"], "completed")
+        self.assertIsNone(record["finalIssues"])
         self.assertEqual(record["scores"]["audienceFit"], 4)
         self.assertEqual(changes, record["changes"])
         self.assertEqual(changes[0]["after"], NEW_TEXT)
@@ -86,6 +87,18 @@ class ReviewTests(unittest.TestCase):
         with self.assertRaisesRegex(FileExistsError, "already narrated"):
             write_review(self.run_dir, client)
         self.assertEqual(client.calls, [])
+
+    def test_duration_repair_uses_measured_word_budget(self):
+        plan = load_plan(VALID)
+        spec = {"topic": TOPIC, "audience": "Students", "targetDurationSec": 30, "reviewWordTarget": 214}
+        result, problems = check_review(json.dumps(review_output(edits=[])), plan, spec)
+        self.assertEqual(problems, [])
+        self.assertIsNotNone(result)
+        self.assertIn("do not shrink", review_request(plan, spec, []))
+        edits = [{"lineId": line.id, "text": "Short line."} for line in plan.scenes[0].narration]
+        result, problems = check_review(json.dumps(review_output(edits=edits)), plan, spec)
+        self.assertIsNone(result)
+        self.assertIn("210 to 235", " ".join(problems))
 
     def test_speech_notes_flag_symbols_and_abbreviations(self):
         data = json.loads(VALID.read_text(encoding="utf-8"))

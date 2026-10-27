@@ -6,6 +6,7 @@ from pathlib import Path
 import sys
 
 from .evaluate import evaluate
+from .duration import ensure_minimum_duration, read_spec, requested_minimum
 from .narrate import narrate_plan
 from .planner import attach_reference_url, load_env_file, make_spec, write_plan_run
 from .reference import fetch_reference
@@ -58,6 +59,7 @@ def _write_plan(args):
     if args.reference and args.reference_url:
         raise ValueError("Use --reference or --reference-url, not both.")
     spec, reference_text = make_spec(args.topic, args.audience, args.duration, args.reference)
+    spec["minimumDurationSec"] = requested_minimum(args.duration, args.minimum_duration)
     _new_output(args.out)
     if args.reference_url:
         reference_text = fetch_reference(args.reference_url)
@@ -107,6 +109,10 @@ def _narrate(args, plan) -> int:
     reused = f"{manifest['reusedLines']} reused | " if manifest["reusedLines"] else ""
     print(f"{len(manifest['blocks'])} lines | {reused}{manifest['totalSpeechSeconds']:.1f} s of speech | "
           f"preview {manifest['preview']['durationSeconds']:.1f} s: {manifest['preview']['audioPath']}")
+    if read_spec(args.out).get("minimumDurationSec"):
+        ensure_minimum_duration(args.out, None, _engine_factory(args.offline, args.threads),
+                                _reference_for(args.out), speed=args.speed, threads=args.threads,
+                                offline=args.offline, progress=_print, client_factory=_client)
     print(f"Preview: {build_preview(args.out).resolve()}")
     if getattr(args, "render", False):
         _render(args.out, args)
@@ -135,6 +141,8 @@ def _add_plan_options(parser):
     parser.add_argument("--audience", default="Curious adults with no background in the topic")
     parser.add_argument("--duration", type=int, default=75,
                         help="Target video length in seconds (30-600; over 180 is planned chapter by chapter)")
+    parser.add_argument("--minimum-duration", type=int,
+                        help="Measured minimum seconds; default 420 for targets of 420+ seconds, otherwise off. Use 0 to disable.")
     parser.add_argument("--reference", type=Path, help="Facts file the script must stay within")
     parser.add_argument("--reference-url",
                         help="Web page the script must stay within; its text is saved as reference.md in the run")
@@ -173,6 +181,14 @@ def main(argv=None):
     render.add_argument("--draft", action="store_true", help="Render at half size (960x540), for quick checks")
     render.add_argument("--share", action="store_true", help="Also write video-720p.mp4, a smaller copy for sharing")
     _add_look_options(render)
+    duration = sub.add_parser("ensure-duration", help="Extend an existing narrated run with useful content to meet a minimum.")
+    duration.add_argument("--run", type=Path, required=True)
+    duration.add_argument("--minimum-duration", type=int, default=420)
+    duration.add_argument("--render", action="store_true")
+    duration.add_argument("--draft", action="store_true")
+    duration.add_argument("--share", action="store_true")
+    _add_voice_options(duration)
+    _add_look_options(duration)
     evaluation = sub.add_parser("evaluate", help="Plan and review a list of topics and summarize the results.")
     evaluation.add_argument("--topics", type=Path, required=True,
                             help="JSON list of {topic, audience, duration}, such as fixtures/evaluation-topics.json")
@@ -224,6 +240,21 @@ def main(argv=None):
             return 0
         if args.command == "render":
             _render(args.run, args)
+            return 0
+        if args.command == "ensure-duration":
+            from .planner import write_json
+            spec = read_spec(args.run)
+            if not spec:
+                raise ValueError("Duration repair needs the original project-spec.json with topic and audience.")
+            spec["minimumDurationSec"] = requested_minimum(spec["targetDurationSec"], args.minimum_duration)
+            write_json(args.run / "project-spec.json", spec)
+            load_env_file()
+            ensure_minimum_duration(args.run, None, _engine_factory(args.offline, args.threads),
+                                    _reference_for(args.run), speed=args.speed, threads=args.threads,
+                                    offline=args.offline, progress=_print, client_factory=_client)
+            print(f"Preview: {build_preview(args.run).resolve()}")
+            if args.render:
+                _render(args.run, args)
             return 0
         if args.command == "evaluate":
             topics = json.loads(args.topics.read_text(encoding="utf-8"))

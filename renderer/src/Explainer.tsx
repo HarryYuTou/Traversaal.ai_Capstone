@@ -12,10 +12,12 @@ import {MapScene} from './scenes/MapScene';
 import {QuoteScene} from './scenes/QuoteScene';
 import {StatScene} from './scenes/StatScene';
 import {MotionScene} from './motion/MotionScene';
+import {processPresentations, type ProcessPresentation} from './motion/processPresentation';
+import {timelineLengthText} from './duration';
 import {ThemeContext, motion, themes} from './theme';
 import type {Timeline, TimelineScene} from './types';
 
-const SceneView: React.FC<{scene: TimelineScene; label: string}> = ({scene, label}) => {
+const SceneView: React.FC<{scene: TimelineScene; label: string; presentation?: ProcessPresentation}> = ({scene, label, presentation}) => {
   switch (scene.template) {
     case 'concept':
       return <ConceptScene scene={scene} label={label} />;
@@ -34,16 +36,10 @@ const SceneView: React.FC<{scene: TimelineScene; label: string}> = ({scene, labe
     case 'map':
       return <MapScene scene={scene} label={label} />;
     case 'motion':
-      return <MotionScene scene={scene} label={label} />;
+      return <MotionScene scene={scene} label={label} presentation={presentation} />;
   }
 };
 
-const lengthText = (timeline: Timeline) => {
-  const minutes = Math.round(timeline.durationInFrames / timeline.fps / 60);
-  const length = minutes >= 1 ? `about ${minutes} minute${minutes === 1 ? '' : 's'}` : 'under a minute';
-  const chapters = timeline.chapters.length;
-  return chapters ? `${chapters} chapters · ${length}` : length;
-};
 
 type Part = {key: string; from: number; durationInFrames: number; content: React.ReactNode};
 
@@ -52,9 +48,10 @@ export const Explainer: React.FC<Timeline> = (timeline) => {
   const theme = themes[timeline.theme ?? 'light'] ?? themes.light;
   const chapters = new Map(timeline.chapters.map((chapter) => [chapter.id, chapter]));
   const lines = timeline.scenes.flatMap((scene) => scene.lines);
+  const presentations = React.useMemo(() => processPresentations(timeline.scenes), [timeline.scenes]);
   const parts: Part[] = [
     {key: 'Title', from: 0, durationInFrames: timeline.titleFrames,
-      content: <TitleCard title={timeline.title} subtitle={lengthText(timeline)} />},
+      content: <TitleCard title={timeline.title} subtitle={timelineLengthText(timeline)} />},
     ...timeline.chapters.map((chapter) => ({
       key: `Chapter ${chapter.number}`, from: chapter.from, durationInFrames: chapter.cardFrames,
       content: <ChapterCard chapter={chapter} total={timeline.chapters.length} />,
@@ -63,7 +60,7 @@ export const Explainer: React.FC<Timeline> = (timeline) => {
       const chapter = scene.chapterId ? chapters.get(scene.chapterId) : undefined;
       const label = chapter ? `Chapter ${chapter.number} · ${chapter.title}` : timeline.title;
       return {key: scene.id, from: scene.from, durationInFrames: scene.durationInFrames,
-        content: <SceneView scene={scene} label={label} />};
+        content: <SceneView scene={scene} label={label} presentation={presentations.get(scene.id)} />};
     }),
   ].sort((a, b) => a.from - b.from);
   return (

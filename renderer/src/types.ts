@@ -36,13 +36,16 @@ export type MapVisual = {title: string; region: string; areas: MapArea[]; places
 
 export type ProcessOccupancy = {actorId: string; stationId: string};
 export type ProcessPhase = {
-  kind: 'arrive' | 'to-service' | 'compact-queue' | 'complete' | 'exit' | 'fade';
+  kind: 'arrive' | 'to-service' | 'compact-queue' | 'complete' | 'exit' | 'fade' | 'open';
+  stationIds?: string[];
   actorIds: string[];
   from: number;
   durationInFrames: number;
 };
 export type ProcessTraceEvent = {
-  kind: 'arrive' | 'start' | 'finish' | 'hold';
+  kind: 'arrive' | 'start' | 'finish' | 'hold' | 'open';
+  openStationsBefore?: string[];
+  openStationsAfter?: string[];
   from: number;
   durationInFrames: number;
   actorIds: string[];
@@ -60,6 +63,8 @@ export type ProcessTrace = {
   sourceTemplate: 'process';
   actorIds: string[];
   stationEntityIds: string[];
+  initialOpenStationIds?: string[];
+  finalOpenStationIds?: string[];
   initialQueue: string[];
   initialService: ProcessOccupancy[];
   finalQueue: string[];
