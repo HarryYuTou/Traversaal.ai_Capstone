@@ -68,6 +68,8 @@ starting a job that can download it.
 2. For a topic, select a target from 30 seconds to ten minutes. Outputs use
    English narration; plans over three minutes are created chapter by chapter.
    The final length is determined by real speech, pauses, and title cards.
+   For seven- and ten-minute targets, **Level 1 duration check** defaults on
+   and requires at least 420 seconds. Turn it off to use an estimated target.
 3. Open **Video settings** to choose Light or Night, background music,
    optional script review, and a 540p quick draft. Full output is 1080p.
    Sample generation uses the fixed sample script and skips planning/review.
@@ -76,6 +78,17 @@ starting a job that can download it.
    during narration, the number of completed lines.
 5. When generation succeeds, play the video, download the MP4, or download
    WebVTT subtitles. Review facts, pronunciation, and layout before sharing.
+   The result shows target and actual duration, plus the minimum check when enabled.
+
+When real narration falls below the enabled minimum, the worker adds useful
+explanatory content, reviews it and reuses unchanged audio. It permits at most
+two successfully promoted content extensions, then checks the rendered MP4
+again. It does not extend pauses or slow speech to pass. These extra planning
+and review calls incur API usage even when TTS uses cached offline models.
+Sample runs have no minimum; older saved specs without `minimumDurationSec`
+remain exempt. The CLI can opt an existing narrated output into repair with
+`python -m capstone_script ensure-duration --run <output-directory> --minimum-duration 420`;
+see the [quickstart](QUICKSTART.md#minimum-duration-checks) for requirements.
 
 The image shown before completion is an illustrative preview. It is not a
 live frame from the renderer. The workspace reports stages rather than an
@@ -156,6 +169,10 @@ and the original script. Long plans include chapter data. See the
 [script guide](SCRIPT_GUIDE.md) and [renderer guide](RENDERER_GUIDE.md) for
 the underlying artifacts. All files under `runs/` are ignored by Git.
 
+Minimum checks write `duration-check.json`; extension attempts are recorded in
+`duration-extension.json`. Replaced artifacts remain in
+`duration-attempt-*/previous/`, and failed candidates are retained separately.
+
 The lifecycle is `queued` → `running` → `completed` or `failed`. Running
 stages are `planning`, optional `reviewing`, `narrating`, and `rendering`.
 Sample runs start at narration. A job is completed only after the worker
@@ -211,6 +228,9 @@ A topic request has this shape:
 `topic`, `audience`, and `durationSeconds` are required. Duration must be a
 whole number between 30 and 600. Defaults are `source: "topic"`,
 `review: true`, `theme: "light"`, `music: true`, and `draft: false`.
+Optional `minimumDurationSec` defaults to 420 for new topic targets of at least
+420 seconds, otherwise zero. Set it to `0` to opt out, or a whole number from
+30 through the target duration. Null is rejected; sample requests force zero.
 Allowed themes are `light` and `night`. Unknown fields are rejected, and
 requests must use JSON with a body no larger than 16,384 bytes.
 
@@ -227,7 +247,9 @@ A job includes `id`, `status`, `stage`, `message`, `createdAt`, `updatedAt`,
 `request`, `error`, `result`, and `owner` (the account ID). Narration can add
 `lineProgress: {current, total}`. A successful result includes the title,
 video/download URLs, nullable thumbnail/subtitle URLs, measured duration,
-width, height, and byte count. Error responses use
+width, height, and byte count. New results also include `durationCheck` with
+`targetDurationSec`, `minimumDurationSec`, `actualDurationSec`, `measurement`
+and `passed` (null when no minimum applies). Error responses use
 `{"error":{"code":"...","message":"..."}}`.
 
 Typical errors are invalid input (400), not signed in or wrong password

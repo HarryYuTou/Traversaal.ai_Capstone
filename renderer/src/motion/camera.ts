@@ -15,8 +15,13 @@ export const motionStageRect = (width: number, height: number) => ({
  * travel; orbits include the entire physical circle. Max scale and rotation envelopes are conservative
  * even when property tracks run concurrently. Label margins are independent of actor scale.
  */
-export const fitMotionViewport = (program: MotionProgram): StageViewport => {
-  let left = 0; let top = 0; let right = STAGE_WIDTH; let bottom = STAGE_HEIGHT;
+export const fitMotionViewport = (program: MotionProgram, options: {
+  fitContent?: boolean; minimumWidth?: number; minimumHeight?: number;
+} = {}): StageViewport => {
+  let left = options.fitContent ? Infinity : 0;
+  let top = options.fitContent ? Infinity : 0;
+  let right = options.fitContent ? -Infinity : STAGE_WIDTH;
+  let bottom = options.fitContent ? -Infinity : STAGE_HEIGHT;
   const include = (x: number, y: number, rx: number, ry: number) => {
     left = Math.min(left, x - rx); right = Math.max(right, x + rx);
     top = Math.min(top, y - ry); bottom = Math.max(bottom, y + ry);
@@ -26,6 +31,9 @@ export const fitMotionViewport = (program: MotionProgram): StageViewport => {
   }
   for (const prepared of program.entities) {
     const {entity, actions} = prepared;
+    // A never-visible future actor must not pull a process shot toward its off-stage spawn point.
+    if (options.fitContent && entity.opacity <= 0.05 && !actions.some(({action}) =>
+      action.kind === 'opacity' && action.value > 0.05)) continue;
     const size = Math.max(entity.size, ...actions.filter(({action}) => action.kind === 'scale').map(({action}) => action.value));
     let extent = entityHalfExtents(entity.kind, size, entity.rotation);
     if (actions.some(({action}) => action.kind === 'rotate') && !['moon', 'planet'].includes(entity.kind)) {
@@ -53,9 +61,22 @@ export const fitMotionViewport = (program: MotionProgram): StageViewport => {
       }
     }
   }
+  if (!Number.isFinite(left)) return {...BASE_VIEWPORT};
+  if (options.fitContent) {
+    const width = Math.max(right - left, options.minimumWidth ?? 720);
+    const height = Math.max(bottom - top, options.minimumHeight ?? 320);
+    return {x: (left + right - width) / 2, y: (top + bottom - height) / 2, width, height};
+  }
   if (left === 0 && top === 0 && right === STAGE_WIDTH && bottom === STAGE_HEIGHT) return {...BASE_VIEWPORT};
   // Keep the authored aspect ratio so fitting changes scale uniformly, never distorts geometry.
   const width = Math.max(right - left, (bottom - top) * STAGE_WIDTH / STAGE_HEIGHT);
   const height = width * STAGE_HEIGHT / STAGE_WIDTH;
   return {x: (left + right - width) / 2, y: (top + bottom - height) / 2, width, height};
 };
+
+/** Process scenes are compiler-positioned. Remove unused authored margins, but share a single
+ * envelope across related shots so a counter does not jump merely because the queue got shorter. */
+export const fitProcessViewport = (programs: MotionProgram[]): StageViewport => fitMotionViewport({
+  entities: programs.flatMap((program) => program.entities),
+  paths: programs.flatMap((program) => program.paths),
+}, {fitContent: true});

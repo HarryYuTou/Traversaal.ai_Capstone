@@ -113,6 +113,51 @@ class ProcessContractTests(unittest.TestCase):
         self.assert_problem(lambda v: v["events"][2].update(stationIds=["two", "one"]), "currently serving")
         self.assert_problem(lambda v: v["events"][2].update(actorIds=["c"], stationIds=["one"]), "currently serving")
 
+    def test_open_is_a_narrated_station_transition_and_roundtrips_through_model_output(self):
+        data = process_plan()
+        data["scenes"][0]["visual"]["events"] = [event("open", stations=("two",)),
+                                                    event("start", ("a", "b"), ("one", "two"), 1),
+                                                    event("hold", line=2, end_line=3)]
+        plan = validate_plan(data)
+        self.assertEqual(json.loads(dump_plan(plan)), data)
+        self.assertEqual(coverage_problems(plan), [])
+        jsonschema.validate(data, json_schema())
+        output = as_model_output(data)
+        jsonschema.validate(output, output_schema(["process"]))
+        back, problems = from_model_output(output)
+        self.assertEqual(problems, [])
+        self.assertEqual(back, data)
+
+    def test_open_has_no_actors_and_requires_known_unique_station_ids(self):
+        for events, expected in [
+            ([event("open")], "open requires empty actorIds and at least one stationId"),
+            ([event("open", ("a",), ("two",))], "open requires empty actorIds"),
+            ([event("open", stations=("missing",))], "reference this scene's stations"),
+            ([event("open", stations=("two", "two"))], "must not repeat"),
+            ([event("open", stations=("two",)), event("open", stations=("two",), line=1)],
+             "cannot open twice"),
+        ]:
+            with self.subTest(expected=expected):
+                self.assert_problem(lambda v: v.update(events=events), expected)
+
+    def test_stations_with_an_open_event_cannot_serve_before_it(self):
+        self.assert_problem(lambda v: v.update(events=[event("start", ("a",), ("two",)),
+                                                       event("open", stations=("two",), line=1)]),
+                            "start requires open stations")
+        self.assert_problem(lambda v: v.update(initialService=[{"actorId": "c", "stationId": "two"}],
+                                               events=[event("open", stations=("two",))]),
+                            "initially closed and cannot serve an actor")
+
+    def test_open_station_ids_are_normalized(self):
+        data = process_plan()
+        v = data["scenes"][0]["visual"]
+        v["stations"][1]["id"] = "Second Counter"
+        v["events"] = [event("open", stations=("Second Counter",)),
+                       event("start", ("a",), ("Second Counter",), 1)]
+        plan = validate_plan(normalize_ids(data, "opening"))
+        self.assertEqual(plan.scenes[0].visual.events[0].station_ids, ["second-counter"])
+        self.assertEqual(plan.scenes[0].visual.events[1].station_ids, ["second-counter"])
+
     def test_event_shapes_and_references_are_checked(self):
         self.assert_problem(lambda v: v["events"][1].update(actorIds=["a"]), "hold requires empty")
         self.assert_problem(lambda v: v["events"][3].update(stationIds=["one"]), "arrive requires an empty")

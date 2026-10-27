@@ -16,6 +16,7 @@ import subprocess
 from time import perf_counter
 
 from .music import write_music
+from .duration import require_duration
 from .planner import write_json
 from .timeline import VIDEO_DIR, write_timeline
 
@@ -122,6 +123,7 @@ def render_video(run_dir: Path, draft: bool = False, share: bool = False, progre
         progress("Building the frame timeline, aligned narration and subtitles...")
         write_timeline(run_dir)
     timeline = json.loads(timeline_path.read_text(encoding="utf-8"))
+    require_duration(run_dir, timeline["durationSeconds"], "narrated-timeline")
     motion_inspection = inspect_motion(timeline_path, timeline, progress)
     props_path = render_props(timeline_path, theme, music, progress)
     command = render_command(props_path, output, draft)
@@ -132,12 +134,14 @@ def render_video(run_dir: Path, draft: bool = False, share: bool = False, progre
     if result.returncode != 0 or not output.is_file():
         raise RenderError("Remotion did not finish the video; see its messages above.")
     duration = probe_seconds(output)
+    duration_status = require_duration(run_dir, duration, "rendered-mp4")
     scale = 0.5 if draft else 1
     info = {"schemaVersion": "1", "videoPath": output.name, "draft": draft,
             "width": round(timeline["width"] * scale), "height": round(timeline["height"] * scale),
             "fps": timeline["fps"], "frames": timeline["durationInFrames"],
             "expectedSeconds": timeline["durationSeconds"], "probedSeconds": duration,
             "bytes": output.stat().st_size, "renderSeconds": round(seconds, 1), "theme": theme, "music": music,
+            "durationCheck": duration_status,
             "subtitles": [f"{VIDEO_DIR}/subtitles.srt", f"{VIDEO_DIR}/subtitles.vtt"]}
     if motion_inspection:
         info["motionInspection"] = motion_inspection

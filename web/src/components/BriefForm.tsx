@@ -25,6 +25,7 @@ export default function BriefForm({ value, onChange, onSubmit, health, disabled,
   const audienceRef = useRef<HTMLInputElement>(null);
   const [errors, setErrors] = useState<{ topic?: string; audience?: string }>({});
   const sample = value.source === 'sample';
+  const level1 = (value.minimumDurationSec ?? (value.durationSeconds >= 420 ? 420 : 0)) >= 420;
   const ready = sample ? health?.sampleReady : health?.liveReady;
   const update = (patch: Partial<VideoRequest>) => onChange({ ...value, ...patch });
   const changeSource = (source: VideoRequest['source']) => {
@@ -49,6 +50,7 @@ export default function BriefForm({ value, onChange, onSubmit, health, disabled,
         topic: health?.sample.topic || 'How does a message travel across the internet?',
         audience: health?.sample.audience || 'Curious adults with no networking background',
         durationSeconds: health?.sample.durationSeconds || 45,
+        minimumDurationSec: 0,
         review: false,
       } : { ...value, topic: value.topic.trim(), audience: value.audience.trim() });
     }}>
@@ -87,10 +89,14 @@ export default function BriefForm({ value, onChange, onSubmit, health, disabled,
           </div>
           <div className="field">
             <label htmlFor={`${id}-duration`}>Target length</label>
-            <div className="select-wrap"><Clock3 size={16} aria-hidden="true" /><select id={`${id}-duration`} value={value.durationSeconds} onChange={(event) => update({ durationSeconds: Number(event.target.value) })}>
+            <div className="select-wrap"><Clock3 size={16} aria-hidden="true" /><select id={`${id}-duration`} value={value.durationSeconds} onChange={(event) => {
+              const durationSeconds = Number(event.target.value);
+              update({ durationSeconds, minimumDurationSec: durationSeconds >= 420 ? 420 : 0 });
+            }}>
               {[30, 60, 90, 120, 180, 300, 420, 600].map((seconds) => <option key={seconds} value={seconds}>{seconds < 60 ? `${seconds} seconds` : seconds % 60 ? `${Math.floor(seconds / 60)} min ${seconds % 60} sec` : `${seconds / 60} minute${seconds === 60 ? '' : 's'}`}{seconds === 90 ? ' · Recommended' : ''}</option>)}
             </select><ChevronDown size={15} aria-hidden="true" /></div>
-            <p className="field-hint">{value.durationSeconds > 180 ? 'Longer videos are planned chapter by chapter.' : 'The final length follows the narration and may vary.'}</p>
+            <p className="field-hint">{level1 ? 'At least 7 minutes, checked against the completed MP4. Extra explanation is added if needed.' : value.durationSeconds > 180 ? 'Longer videos are planned chapter by chapter. The final length may vary.' : 'The final length follows the narration and may vary.'}</p>
+            {value.durationSeconds >= 420 && <label className="toggle-row"><span>Level 1 duration check<small>Require at least 7 minutes; extra content may take longer to generate</small></span><input type="checkbox" checked={level1} onChange={(event) => update({ minimumDurationSec: event.target.checked ? 420 : 0 })} /><span className="toggle-track" aria-hidden="true" /></label>}
           </div>
         </>}
 

@@ -24,6 +24,8 @@ def error_message(stage, exc):
         detail = "Claude rejected the request because of an account or rate limit. Check your API account before retrying."
     elif name in {"APIConnectionError", "APITimeoutError"}:
         detail = "Claude could not be reached. Check the server's network connection before retrying."
+    elif name == "DurationError":
+        detail = "The measured video did not pass its duration requirement. Review duration-check.json and duration-extension.json in this job's output."
     else:
         detail = f"The pipeline reported {name}. Check this job's local worker.log for details."
     return f"Generation failed during {stage}. {detail} No automatic retry was made by the web server."
@@ -32,6 +34,7 @@ def error_message(stage, exc):
 def generate(job, job_dir, emit_event=emit):
     """The caller marks completion only after every existing pipeline check succeeds."""
     from capstone_script.narrate import narrate_plan
+    from capstone_script.duration import duration_check, ensure_minimum_duration, requested_minimum
     from capstone_script.planner import load_env_file, make_spec, write_plan_run
     from capstone_script.render import render_video
     from capstone_script.review import write_review
@@ -42,6 +45,9 @@ def generate(job, job_dir, emit_event=emit):
     request = job["request"]
     output = Path(job_dir) / "output"
     stage = "narrating" if request["source"] == "sample" else "planning"
+    client, reference = None, None
+    minimum = 0 if request["source"] == "sample" else requested_minimum(
+        request["durationSeconds"], request.get("minimumDurationSec"))
 
     def update(name, message, **extras):
         nonlocal stage
@@ -60,6 +66,7 @@ def generate(job, job_dir, emit_event=emit):
             import anthropic
             client = anthropic.Anthropic()
             spec, reference = make_spec(request["topic"], request["audience"], request["durationSeconds"])
+            spec["minimumDurationSec"] = minimum
             plan = write_plan_run(output, spec, client, reference, progress=lambda message: print(message, flush=True))
             if request["review"]:
                 update("reviewing", "Claude is reviewing and improving the narration.")
@@ -81,8 +88,14 @@ def generate(job, job_dir, emit_event=emit):
 
         narrate_plan(plan, output, lambda: KokoroEngine(ROOT / ".cache/huggingface", offline, 2),
                      threads=2, offline=offline, progress=narration_progress)
+        if minimum:
+            update("narrating", "Checking the measured duration and adding explanation if the minimum is not met.")
+            plan = ensure_minimum_duration(output, client, lambda: KokoroEngine(ROOT / ".cache/huggingface", offline, 2),
+                                           reference, threads=2, offline=offline,
+                                           progress=lambda message: update("narrating", message))
         update("rendering", "Synchronizing narration, subtitles, and animated scenes.")
-        write_timeline(output)
+        if not (output / "video/timeline.json").exists():
+            write_timeline(output)
         update("rendering", "Remotion is rendering your MP4. This can take several minutes.")
         info = render_video(output, draft=request["draft"], theme=request["theme"], music=request["music"],
                             progress=lambda message: print(message, flush=True))
@@ -91,7 +104,13 @@ def generate(job, job_dir, emit_event=emit):
                   "thumbnailUrl": base + "/thumbnail.png" if info.get("thumbnail") and (output / "thumbnail.png").is_file() else None,
                   "subtitlesUrl": base + "/subtitles.vtt" if (output / "video/subtitles.vtt").is_file() else None,
                   "durationSeconds": info["probedSeconds"], "width": info["width"], "height": info["height"],
+                  "durationCheck": duration_check(
+                      {"targetDurationSec": request["durationSeconds"], "minimumDurationSec": minimum},
+                      info["probedSeconds"], "rendered-mp4"),
                   "bytes": info["bytes"], "title": plan.title}
+        if result["durationCheck"]["passed"] is False:
+            from capstone_script.duration import DurationError
+            raise DurationError("The rendered MP4 did not meet its minimum duration.")
         emit_event({"type": "result", "result": result})
         return result
     except Exception as exc:

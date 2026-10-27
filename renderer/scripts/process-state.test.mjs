@@ -7,7 +7,7 @@ const source = await readFile(new URL('../src/motion/processState.ts', import.me
 const {outputText} = ts.transpileModule(source, {compilerOptions: {
   module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022,
 }});
-const {processStateAtFrame, processStageLayout} = await import(
+const {processStateAtFrame, processStageLayout, stationStateAtFrame} = await import(
   `data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`);
 
 const phase = (kind, actorIds, from, durationInFrames) => ({kind, actorIds, from, durationInFrames});
@@ -112,4 +112,21 @@ test('process layout reserves readable scaled type and preserves the caption-saf
       assert.ok(stageTop < layout.container.y + layout.container.height);
     }
   }
+});
+
+
+test('station opens only at the exact authored phase endpoint and old timelines retain their look', () => {
+  const data = {...trace, initialOpenStationIds: ['one'], events: [
+    {kind: 'open', stationIds: ['two'], from: 100, durationInFrames: 60,
+      phases: [{kind: 'open', actorIds: [], stationIds: ['two'], from: 110, durationInFrames: 40}]},
+  ]};
+  assert.equal(stationStateAtFrame(trace, 'one', 200), null);
+  assert.equal(stationStateAtFrame(data, 'missing', 200), null);
+  assert.deepEqual(stationStateAtFrame(data, 'one', 0), {open: true, openingProgress: 0});
+  assert.deepEqual(stationStateAtFrame(data, 'two', 109), {open: false, openingProgress: 0});
+  assert.deepEqual(stationStateAtFrame(data, 'two', 130), {open: false, openingProgress: 0.5});
+  assert.equal(stationStateAtFrame(data, 'two', 149).open, false);
+  assert.deepEqual(stationStateAtFrame(data, 'two', 150), {open: true, openingProgress: 1});
+  [400, 10, 140, 0].forEach((frame) => stationStateAtFrame(data, 'two', frame));
+  assert.deepEqual(stationStateAtFrame(data, 'two', 130), {open: false, openingProgress: 0.5});
 });

@@ -50,6 +50,11 @@ export default function VideoPreview({ job, brief, onReset, restoring }: { job: 
     {result ? <div className="result-details">
       <h3>{result.title}</h3>
       <div className="result-meta"><span><Clock3 size={13} />{formatDuration(result.durationSeconds)}</span><span>{result.width} × {result.height}</span><span>{(result.bytes / 1_000_000).toFixed(1)} MB</span>{job?.request.source === 'sample' && <span>Sample script</span>}</div>
+      <div className="result-meta" aria-label="Duration verification">
+        <span>Target {formatDuration(result.durationCheck?.targetDurationSec ?? job!.request.durationSeconds)}</span>
+        <span>Actual {formatDuration(result.durationSeconds)}</span>
+        {result.durationCheck?.minimumDurationSec ? <span>{result.durationCheck.passed === true ? <><Check size={13} />Minimum {formatDuration(result.durationCheck.minimumDurationSec)} · Passed</> : <>Minimum {formatDuration(result.durationCheck.minimumDurationSec)} · Not passed</>}</span> : <span>No minimum required</span>}
+      </div>
       <div className="result-actions"><a className="primary-button" href={result.downloadUrl} download><ArrowDownToLine size={16} />Download MP4</a>{result.subtitlesUrl && <a className="secondary-button" href={result.subtitlesUrl} download><FileText size={15} />Subtitles</a>}<button type="button" className="text-button new-video" onClick={onReset}>New video<ArrowUpRight size={15} /></button></div>
     </div> : <div className="preview-caption">
       <span>{active ? 'You can refresh this page. We’ll keep your place.' : restoring ? 'Looking for your previous task.' : 'Animated scenes. A clear voice. Your idea, explained.'}</span>

@@ -8,6 +8,7 @@ short plan, every request gets at most one repair.
 """
 
 from functools import partial
+import json
 from typing import Annotated
 
 from pydantic import Field, StringConstraints, ValidationError
@@ -139,6 +140,36 @@ def chapter_request(spec: dict, outline: Outline, index: int, seconds: int, scen
     return text + _reference(reference_text)
 
 
+def visual_continuity(plan):
+    """Carry explicit identity and ending state across chapter boundaries."""
+    scene = plan.scenes[-1]
+    if scene.template not in ("process", "motion"):
+        return None
+    data = scene.visual.model_dump(mode="json", by_alias=True)
+    if scene.template == "process":
+        queue = list(data["initialQueue"])
+        service = {item["stationId"]: item["actorId"] for item in data["initialService"]}
+        completed = []
+        open_stations = {station["id"] for station in data["stations"]} - {
+            station for event in data["events"] if event["kind"] == "open" for station in event["stationIds"]}
+        for event in data["events"]:
+            if event["kind"] == "arrive":
+                queue.extend(event["actorIds"])
+            elif event["kind"] == "start":
+                queue = queue[len(event["actorIds"]):]
+                service.update(zip(event["stationIds"], event["actorIds"]))
+            elif event["kind"] == "finish":
+                for station in event["stationIds"]:
+                    completed.append(service.pop(station))
+            elif event["kind"] == "open":
+                open_stations.update(event["stationIds"])
+        data = {key: data[key] for key in ("actorKind", "actors", "stations")}
+        data.update(finalQueue=queue, finalService=[{"actorId": actor, "stationId": station}
+                                                  for station, actor in service.items()],
+                    completedActorIds=completed, openStationIds=sorted(open_stations))
+    return {"sceneTitle": scene.visual.title, "template": scene.template, "endingVisual": data}
+
+
 def merge_chapters(spec: dict, outline: Outline, plans: list):
     """One ScenePlan with globally numbered ids and a chapter per chapter plan."""
     scenes, bounds = [], []
@@ -176,8 +207,15 @@ def generate_long_plan(spec: dict, client, reference_text: str | None = None, pr
         chapter_spec = {"projectId": spec["projectId"], "targetDurationSec": chapter_seconds, "sceneCap": scene_cap}
         if "allowedTemplates" in spec:
             chapter_spec["allowedTemplates"] = spec["allowedTemplates"]
-        plan = request_json(client, system,
-                            chapter_request(spec, outline, index, chapter_seconds, scene_cap, previous, reference_text),
+        request = chapter_request(spec, outline, index, chapter_seconds, scene_cap, previous, reference_text)
+        continuity = visual_continuity(plans[-1]) if plans else None
+        if continuity:
+            request += ("\n\nPrevious chapter visual continuity:\n" + json.dumps(continuity) +
+                        "\nContinue these identities, colors and final state when the example continues. "
+                        "For motion, derive the ending state from its actions. If resetting a comparison "
+                        "or introducing a different example, explicitly say so in narration; do not silently "
+                        "resurrect completed actors or change their identities.")
+        plan = request_json(client, system, request,
                             schema, partial(review_plan, spec=chapter_spec, require_templates=False),
                             f"scene plan for chapter {index + 1} of {count}", attempts,
                             f"chapter-{index + 1:02d}", progress)

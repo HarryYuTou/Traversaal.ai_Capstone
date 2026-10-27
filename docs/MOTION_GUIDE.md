@@ -69,10 +69,12 @@ these required fields:
 Colors are `ink`, `accent`, `secondary` or `muted`. Actor and station IDs must
 be unique and distinct. Every actor not in the initial queue or service list
 starts outside the visible process. Each station can serve one actor, and
-each actor can occupy only one position. The station set is fixed within a
-scene; a different station setup begins a new scene with explicit initial
-state. Continuing actors must be initialized consistently rather than relying
-on the renderer to infer history across scenes.
+each actor can occupy only one position. Station positions are fixed within a
+scene. A station targeted by an `open` event starts closed; other stations
+start open, preserving existing plans. Declare a future station from the start
+so its opening changes availability without moving the other counters.
+Continuing actors must be initialized consistently; keep their IDs, colors and
+labels, and keep station IDs and ordering stable across related scenes.
 
 Every event has `kind`, `actorIds`, `stationIds`, `startLine`, `endLine`,
 `startOffset` and `endOffset`, all required. The line anchors have the same
@@ -83,13 +85,16 @@ actors belong in the same event, with actor/station arrays paired in order.
 | Event | State change |
 | --- | --- |
 | `arrive` | One or more never-visible actors join the queue's end; `stationIds` is `[]` |
-| `start` | Actors at the queue's front enter their paired free stations |
+| `start` | Actors at the queue's front enter their paired free, open stations |
 | `finish` | Currently served actors complete work at their paired stations, leave and disappear permanently within this scene |
+| `open` | `actorIds` is `[]`; `stationIds` names one or two initially closed stations that become available for service |
 | `hold` | Both ID arrays are `[]`; preserve the visible state for explanation and inspection |
 
 The next logical state is established at the event's end. A departed actor
 cannot be recycled as a new arrival. `start` cannot skip the front of the
-queue, and `finish` must match the current station occupancy. Python checks
+queue, and `finish` must match the current station occupancy. A station may
+open only once, cannot appear in `initialService` when initially closed, and
+cannot receive a `start` until its opening finishes. Python checks
 these rules beyond the exported JSON Schema. Planner coverage also requires
 each narration line to overlap an event or explicit hold, and at least one
 state-changing event per process scene. This is not a movement quota: a hold
@@ -106,6 +111,14 @@ actors reach their exit before fading. Ongoing work means activity, not a
 measured completion percentage. Only a `finish` event creates a completion
 cue.
 
+An opening retains the station in place and changes its visible `CLOSED` sign
+to `OPENING` during the authored interval, then `OPEN` at completion. Allow a result hold after opening so the
+new availability is readable before the next action or cut. For a comparison,
+show both conditions with the same actors and stated assumptions; announce a
+replay before resetting the queue. The checked-in
+`fixtures/scene-plan.process-counter-comparison.json` demonstrates two versus
+one completed service rounds without treating animation speed as real time.
+
 The renderer gives people distance-based walking poses and visible work
 gestures. Process route lines are hidden to avoid accumulating travel trails;
 the same routes still determine movement. A small state strip reads the
@@ -115,10 +128,18 @@ states and shown again once the transition settles; an actor leaves the total
 only after reaching the exit. These are counts of the illustrated example,
 not measured performance statistics.
 
+Process framing fits the visible cast and its complete routes instead of
+reserving empty stage margins. Consecutive process scenes in the same chapter
+that share actor and station IDs use a shared wide view. Long authored holds
+can ease into a closer view of the stationary cast and return before movement;
+the camera keeps the wide view during actions. This does not repair incorrect
+source identity or state: those remain planner and reviewer responsibilities.
+
 The resulting `video/timeline.json` scene uses `template: "motion"` for the
 existing renderer. Its `processTrace` records source events, measured frame
 intervals, phases and queue/service/completion states before and after each
-event. Generated actions retain their source event anchors for provenance;
+event. It also records `initialOpenStationIds`, `finalOpenStationIds` and each
+event's `openStationsBefore`/`openStationsAfter`. Generated actions retain their source event anchors for provenance;
 their absolute `from` and `durationInFrames` control playback. Expanded actions
 are not a replacement source plan and need not fit the source motion
 template's authored action-count limit.
@@ -130,6 +151,7 @@ At the pipeline's 30 fps, the compiler currently enforces these minimums:
 | `arrive` | 18 frames (0.6 s) per actor, entering sequentially |
 | `start` | 48 frames (1.6 s), reserving at least 18 travel frames and 30 visible work frames |
 | `finish` | 44 frames (about 1.47 s): at least 12 completion, 24 exit travel and 8 fade frames |
+| `open` | 18 frames (0.6 s), followed by a readable result hold when needed |
 | Visible service before `finish` | 30 frames (1 s), including for actors in `initialService` |
 | `hold` | A positive measured interval; one frame is structurally sufficient, not a recommended teaching duration |
 
@@ -189,7 +211,7 @@ appear as their first action starts; unreferenced paths can serve as static
 guides, such as an orbit. A scene permits up to 12 entities, 12 paths and 48
 actions.
 
-The renderer computes one fixed camera for the entire scene, including curve
+For authored `motion` scenes, the renderer computes one fixed camera for the entire scene, including curve
 overshoot, orbit radii, the largest object scale and room for labels. A scene
 that already fits keeps the authored framing. Larger trajectories are fitted
 uniformly into the stage, which is clipped away from the title and subtitles.
@@ -242,8 +264,12 @@ The planner prefers process events for supported arrival/service workflows
 and motion for other physical explanations. A video may use either template
 throughout; two or three coherent scenes are preferred when they satisfy
 narration limits. The output adapter keeps actor/station and entity/path
-references intact while cleaning IDs. Chapter merging and script review
-preserve event/action anchors and process initial state. A small
+references intact while cleaning IDs. Chapter requests carry the preceding
+scene's identities and ending state. Ordinary narration edits preserve visuals;
+reported sync issues instead trigger bounded structural repair and a final
+audit that cannot rewrite narration. Unresolved sync or medium/high accuracy
+issues in that audit stop the run. See
+[script review](SCRIPT_GUIDE.md#script-review). A small
 template-selection request chooses one
 to three visual families for each video. The detailed planning schema contains
 only those families and their referenced definitions, and the system prompt
@@ -285,7 +311,8 @@ avoid an accidental overlap before the intended docking.
 
 Current limits: this is a bounded 2D asset/action vocabulary, not unrestricted
 scene creation or a physics simulator. Entities persist within one scene;
-cross-scene character/camera continuity is not yet enforced. Semantic quality
+related process scenes share framing, but continuing state still needs explicit
+authored initialization and review. Semantic quality
 and factual correctness still require review. It does not reproduce every
 camera, character or editing technique in the professor's reference video.
 

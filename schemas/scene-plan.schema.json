@@ -1214,6 +1214,7 @@
             "arrive",
             "start",
             "finish",
+            "open",
             "hold"
           ],
           "title": "Kind",

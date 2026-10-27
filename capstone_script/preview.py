@@ -55,6 +55,7 @@ def process_beats(scene):
                 "arrive": f"{actors} {'arrives and joins' if singular else 'arrive and join'} the waiting line",
                 "start": f"{actors} {'begins' if singular else 'begin'} processing at {destinations}",
                 "finish": f"{actors} {'finishes' if singular else 'finish'} at {destinations} and {'leaves' if singular else 'leave'}",
+                "open": f"{destinations} {'opens' if len(event['stationIds']) == 1 else 'open'} for service",
                 "hold": "The current process state remains visible",
             }[event["kind"]])
         beats.append({"narrationId": line["id"], "description":

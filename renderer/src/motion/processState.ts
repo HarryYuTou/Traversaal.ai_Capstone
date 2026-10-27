@@ -50,3 +50,23 @@ export const processStageLayout = <T extends {x: number; y: number; width: numbe
     inset: 20 * scale, titleFontSize: 56 * scale,
     strip: {fontSize: 30 * scale, height: 36 * scale, marginTop: 14 * scale, marginBottom: 16 * scale}};
 };
+
+export type StationState = {open: boolean; openingProgress: number};
+
+/** Station availability follows the same completed-phase boundary as the process compiler.
+ * Older timelines without availability metadata retain their existing appearance. */
+export const stationStateAtFrame = (trace: ProcessTrace, stationId: string, frame: number): StationState | null => {
+  if (!trace.stationEntityIds.includes(stationId) || !trace.initialOpenStationIds) return null;
+  let open = trace.initialOpenStationIds.includes(stationId);
+  let openingProgress = 0;
+  for (const event of trace.events) {
+    if (event.kind !== 'open' || !event.stationIds.includes(stationId)) continue;
+    const phase = event.phases.find((part) => part.kind === 'open' &&
+      (!part.stationIds || part.stationIds.includes(stationId)));
+    const start = phase?.from ?? event.from;
+    const duration = phase?.durationInFrames ?? event.durationInFrames;
+    if (frame >= start + duration) {open = true; openingProgress = 1;}
+    else if (frame >= start) openingProgress = clamp((frame - start) / Math.max(1, duration));
+  }
+  return {open, openingProgress};
+};

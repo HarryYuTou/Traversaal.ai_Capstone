@@ -42,7 +42,8 @@ by linking a Console organization; see the [current API credits guide](https://p
 
 The first narration downloads the Kokoro voice model (about 328 MB) and the
 first render downloads a headless Chrome for Remotion (about 113 MB). After
-that, add `--offline` to use the cached voice model.
+that, add `--offline` to use the cached voice model. This flag applies only to
+TTS; planning, review and any needed content extension still use the Claude API.
 
 ## 2. Make a video
 
@@ -53,11 +54,11 @@ python -m capstone_script run --topic "How does GPS know where you are?" --audie
 | Step | What happens | Time on a laptop CPU (90 s video) |
 | --- | --- | --- |
 | Plan | Claude selects up to three visual templates, then writes scenes and narration; videos over 3 minutes are planned chapter by chapter | Older slide baseline: 30 s (3–4 min for 7 minutes); motion plans can take longer |
-| Review | Claude scores the script and rewrites weak lines | 30–40 s |
+| Review | Claude scores and edits narration; sync issues trigger visual repair and a final audit | Older narration-only baseline: 30–40 s; visual repair adds requests |
 | Narrate | Kokoro voices every line on the CPU | 1–2 min (about 4 min for 7 minutes with `--threads 4`) |
 | Render | Process events compile into safe positions and phased motion; Remotion draws motion scenes or slides, captions and audio into `video.mp4` | about 2 min (9 min for 7 minutes); older slide measurements |
 
-`--duration` takes 30 to 600 seconds. Every command refuses an existing
+`--duration` takes 30 to 600 seconds. New plan/narration runs require a fresh
 output folder, so pick a new `--out` each time. Leave out `--render` to stop
 after narration, add `--draft` for a quicker half-size render, and add
 `--share` for a 720p copy small enough to email or upload.
@@ -86,6 +87,30 @@ python -m capstone_script run --topic "Why does a queue grow, and when does addi
 This command uses the real API and local narration. It is a reproduction
 recipe, not an assertion that a particular run has passed visual acceptance.
 
+### Minimum-duration checks
+
+New `plan`/`run` requests with `--duration 420` or more enable a measured
+420-second minimum. After real TTS, a short video receives useful explanatory
+scenes before its conclusion, followed by review and narration that reuses
+unchanged audio. At most two successfully promoted content extensions are
+allowed. The renderer checks the completed MP4 again; a short result cannot
+pass. Speech speed and silent pauses are not stretched to fill the gap.
+
+Use `--minimum-duration 0` on a new request to opt out. Older run specs without
+`minimumDurationSec` retain their original behavior. To opt an existing
+narrated run into the check, keep its `project-spec.json` and run:
+
+```bash
+python -m capstone_script ensure-duration --run runs/gps-long-01 --minimum-duration 420 --offline --render
+```
+
+The minimum cannot exceed that run's target. This command preserves replaced
+audio/video artifacts under `duration-attempt-*/previous/`. Failed candidates
+remain available for inspection and do not replace the current run. Extra
+content requires a configured Claude API credential even with `--offline`;
+an already sufficient run needs no extension request. See
+`duration-check.json` and `duration-extension.json` for measurements and history.
+
 ## 3. Check the result
 
 In the run folder:
@@ -96,6 +121,8 @@ In the run folder:
 | `preview.html` | Listening preview with captions and slide highlights; inspect the MP4 for motion scenes |
 | `scene-plan.json` | Every scene's authored visuals, process events or motion actions, and narration lines |
 | `review.json` | The review's scores, issues and every rewritten line |
+| `duration-check.json` | Target, required minimum, actual duration and pass state |
+| `duration-extension.json` | Additional-content attempts, preserved artifacts and costs, when a minimum is enabled |
 | `video-720p.mp4` | With `--share`: a copy about a quarter of the size |
 | `thumbnail.png` | The title card as an image |
 | `video/subtitles.srt` | Subtitles for uploading with the video |

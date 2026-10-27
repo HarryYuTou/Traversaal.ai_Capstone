@@ -94,6 +94,19 @@ class CheckTests(unittest.TestCase):
                 self.assertFalse(checks["automaticPass"])
                 self.assertIn(reason, checks["failures"])
 
+    def test_duration_repair_costs_include_all_reviews_without_double_counting(self):
+        run = make_run(self.root, "extended")
+        write(run / "duration-extension.json", {"initialReviewCostUsd": 0.25, "estimatedCostUsd": 0.8})
+        self.assertEqual(run_checks(run)["costUsd"], 2.3)
+
+    def test_old_duration_record_keeps_original_and_candidate_review_costs(self):
+        run = make_run(self.root, "old-extended")
+        (run / "attempt-01").mkdir()
+        write(run / "attempt-01/review.json", {"estimatedCostUsd": 0.1})
+        write(run / "duration-extension.json", {"estimatedCostUsd": 0.2,
+                                                "rounds": [{"directory": "attempt-01"}]})
+        self.assertEqual(run_checks(run)["costUsd"], 1.8)
+
     def test_animation_report_is_read_even_without_a_render(self):
         run = make_run(self.root, "stopped", render=False)
         write(run / "motion-inspection.json", {"status": "geometry-and-timing-checks-passed", "scenes": []})

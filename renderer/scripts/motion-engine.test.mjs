@@ -25,8 +25,9 @@ const moduleUrl = async (file) => {
 const load = async (name) => import(await moduleUrl(new URL(`../src/motion/${name}.ts`, import.meta.url)));
 const {compileMotion, displayedPaths, entityAtFrame, pathGeometry, pointOnPath, toStage} =
   await load('engine');
-const {BASE_VIEWPORT, fitMotionViewport, motionStageRect} = await load('camera');
+const {BASE_VIEWPORT, fitMotionViewport, fitProcessViewport, motionStageRect} = await load('camera');
 const {entityHalfExtents, labelMetrics} = await load('metrics');
+const {processPresentations, processViewportAtFrame} = await load('processPresentation');
 const {placeActorLabels} = await load('labels');
 const {activityAtFrame, movementPoseAtFrame, illustrationPoseAtFrame, personLimbs, workbenchPress} = await load('pose');
 const {Illustration} = await import(await moduleUrl(new URL('../src/motion/Illustration.tsx', import.meta.url)));
@@ -326,4 +327,87 @@ test('new station assets render real geometry and only show event feedback insid
       inside(actorBox(entity, state(p, frame)), fitMotionViewport(p));
     }
   }
+});
+
+
+const processScene = (id, visual, trace, chapterId = 'chapter-1') => ({
+  id, chapterId, from: 100, durationInFrames: 500, lines: [], template: 'motion', visual, processTrace: trace,
+});
+const cameraTrace = {sourceTemplate: 'process', actorIds: ['ship'], stationEntityIds: ['desk'],
+  events: [{kind: 'hold', from: 100, durationInFrames: 200}, {kind: 'start', from: 300, durationInFrames: 100}]};
+const cameraVisual = {title: 'A process', paths: [], entities: [
+  {...actor, kind: 'person', x: 55, y: 50, label: 'Customer'},
+  {...actor, id: 'desk', kind: 'counter', x: 79, y: 50, color: 'secondary', label: 'Counter 1'},
+  {...actor, id: 'unused', x: -1000, opacity: 0},
+], actions: [action('move', 300, 100, {x: 95, y: 10})]};
+
+test('process content framing ignores never-visible cast while keeping all actual movement and labels', () => {
+  const p = compileMotion(cameraVisual);
+  const viewport = fitProcessViewport([p]);
+  assert.ok(viewport.width < 1200, 'empty spawn points must not create empty canvas');
+  for (let frame = 100; frame <= 400; frame++) {
+    for (const prepared of p.entities) {
+      const current = entityAtFrame(prepared, frame);
+      if (current.opacity > 0.05) inside(actorBox(prepared.entity, current), viewport);
+    }
+  }
+});
+
+test('related process scenes share the same wide frame without mutating colors or unrelated chapters', () => {
+  const a = processScene('a', cameraVisual, cameraTrace);
+  const alternate = {...cameraVisual, entities: cameraVisual.entities.map((entity) => entity.id === 'ship'
+    ? {...entity, x: 40, color: 'secondary'} : entity)};
+  const b = processScene('b', alternate, cameraTrace);
+  const c = processScene('c', cameraVisual, cameraTrace, 'chapter-2');
+  const source = JSON.stringify([a, b, c]);
+  const presentations = processPresentations([a, b, c]);
+  assert.deepEqual(presentations.get('a').viewport, presentations.get('b').viewport);
+  assert.notDeepEqual(presentations.get('b').viewport, presentations.get('c').viewport);
+  assert.equal(JSON.stringify([a, b, c]), source);
+  assert.equal(b.visual.entities[0].color, 'secondary', 'authored color-referenced content is preserved');
+  const split = processPresentations([a, {...b, id: 'unrelated', processTrace: {...cameraTrace, actorIds: ['other']}}]);
+  assert.notDeepEqual(split.get('a').viewport, split.get('unrelated').viewport);
+});
+
+test('detail framing is deterministic, bounded, and contains all visible bodies and labels throughout holds', () => {
+  const p = compileMotion(cameraVisual);
+  const wide = fitProcessViewport([p]);
+  const camera = (frame) => processViewportAtFrame(p, cameraTrace, wide, frame, 30);
+  const middle = camera(200);
+  assert.ok(middle.width < wide.width || middle.height < wide.height, 'long hold creates a useful detail shot');
+  assert.ok(wide.width / middle.width <= 1.45 + 1e-8);
+  assert.ok(wide.height / middle.height <= 1.45 + 1e-8);
+  for (let frame = 90; frame <= 410; frame++) {
+    const viewport = camera(frame);
+    const actors = p.entities.map((prepared) => ({prepared, state: entityAtFrame(prepared, frame)}));
+    for (const {prepared, state: current} of actors) {
+      if (current.opacity > 0.05) inside(actorBox(prepared.entity, current), viewport);
+    }
+    for (const label of placeActorLabels(actors, viewport)) {
+      const {width, fontSize} = labelMetrics(label.actor.prepared.entity.label);
+      inside({left: label.x - width / 2, right: label.x + width / 2,
+        top: label.y - fontSize, bottom: label.y + 6}, viewport);
+    }
+    if (frame < 109 || frame >= 291) assert.deepEqual(viewport, wide, 'movement retains the full wide frame');
+  }
+  [410, 102, 0, 230, 150].forEach(camera);
+  assert.deepEqual(camera(200), middle);
+  const short = {...cameraTrace, events: [{kind: 'hold', from: 100, durationInFrames: 60}]};
+  assert.deepEqual(processViewportAtFrame(p, short, wide, 130, 30), wide);
+});
+
+test('station signage uses readable vector text and open/closed states preserve authored entity data', () => {
+  const entity = {...actor, kind: 'counter', color: 'accent'};
+  const palette = {paper: '#fbf8f0', soft: '#e8e3d7', ink: '#293333', accent: '#dc7451',
+    secondary: '#548e85', muted: '#8a9488', line: '#d9d9cc'};
+  const original = JSON.stringify(entity);
+  for (const [open, progress, expected] of [[false, 0, 'CLOSED'], [false, 0.5, 'OPENING'], [true, 1, 'OPEN']]) {
+    const svg = renderToStaticMarkup(React.createElement(Illustration, {entity, state: entity,
+      palette, prefix: 'station', station: {open, openingProgress: progress}}));
+    assert.ok(svg.includes(`>${expected}</text>`));
+    assert.ok(svg.includes(`data-station-state="${open ? 'open' : 'closed'}"`));
+    if (progress === 0.5) assert.ok(svg.includes('stroke-dasharray="0.5 1"'));
+    assert.ok(!/NaN|Infinity/.test(svg));
+  }
+  assert.equal(JSON.stringify(entity), original);
 });
