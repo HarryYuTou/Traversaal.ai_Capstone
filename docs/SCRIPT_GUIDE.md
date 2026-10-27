@@ -232,13 +232,28 @@ purpose while retaining the scene template and exact narration. It preserves
 object identity, with limited restoration of established colors or uniquely
 identified continuing station IDs. Replacements pass full-plan and event
 coverage checks. A separate final audit assesses the resulting plan with
-`edits: []`; remaining sync issues or medium/high accuracy issues fail the
-review rather than publishing a supposedly repaired plan. Relabeling an
-unshown comparison as an accuracy issue does not make it acceptable.
+`edits: []`. Relabeling an unshown comparison as an accuracy issue does not
+make it acceptable.
 An initial medium/high accuracy issue also triggers this immutable audit,
 even when the reviewer reports no sync issue, so factual rewrites are verified.
-`review.json` records repair status, affected scenes,
-issue resolutions and remaining issues, and the original plan is retained.
+
+If that audit still finds sync or medium/high accuracy issues, up to two
+additional scene-revision rounds can correct narration and visuals together.
+This handles a genuinely wrong claim that frozen narration cannot fix, or
+findings that first appear in the final audit. Revisions use the full plan and
+prior findings, preserve scene/line IDs, order, counts, highlights, quotes and
+object identities, and pass the full plan, coverage and word-budget checks.
+Each candidate gets another independent, immutable audit that also checks the
+user's topic and the original explanation's scope. Failure of the initial
+visual-only validation leaves the draft unchanged for audit and possible
+joint revision. API/credential errors are not disguised as editorial problems.
+
+The original plan is promoted only after a clean audit; unresolved blocking
+issues still fail after the two-round limit. `review.json` records repair
+status, affected scenes, revision rounds, issue resolutions and remaining
+issues. `scene-plan.revision-01.json` and `scene-plan.revision-02.json` retain
+validated candidates, including rejected ones; they are not accepted outputs.
+The original draft remains intact on failure.
 `finalIssues` is populated only after an actual final audit; otherwise it is
 null and the initial findings remain in `issues` with their edit resolutions.
 
@@ -271,6 +286,7 @@ minutes.
 | `outline.json` | `plan`, `run` (long videos) | The chapter outline, with the length each chapter was planned for |
 | `review.json` | `review`, `--review` | Scores, issues, each rewritten line before and after, speech hints, word counts, cost |
 | `scene-plan.draft.json` | `review`, `--review` | The plan as the planner wrote it, before review edits |
+| `scene-plan.revision-01.json`, `scene-plan.revision-02.json` | Bounded scene revision | Structurally valid candidates saved before independent audit; presence does not imply acceptance |
 | `scene-plan.json` | all | The validated plan used for narration (after review edits, if any) |
 | `audio/<narrationId>/` | `narrate`, `run` | `capstone_tts` output for one line: WAV, `audio-info.json`, input |
 | `audio-manifest.json` | `narrate`, `run` | Per line: scene, text, audio path, real sample count, duration, synthesis time |

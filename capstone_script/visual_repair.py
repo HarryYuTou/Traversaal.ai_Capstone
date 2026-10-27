@@ -36,34 +36,32 @@ def _identities(scene):
     return {}
 
 
-def check_visual_repair(text, plan, scene_id):
-    data, problems = parse_json(text)
-    if problems:
-        return None, problems
-    data, problems = from_model_output(data)
-    if not isinstance(data, dict) or not isinstance(data.get("scenes"), list) or len(data["scenes"]) != 1:
-        return None, problems + ["Return exactly one repaired scene."]
-    replacement = data["scenes"][0]
-    source = next(scene for scene in plan.scenes if scene.id == scene_id)
-    original = source.model_dump(mode="json", by_alias=True, exclude_none=True)
-    if not isinstance(replacement, dict):
-        return None, ["The repaired scene must be an object."]
-    for field in ("id", "template", "narration"):
-        if replacement.get(field) != original[field]:
-            problems.append(f"Keep the original scene {field} unchanged; repair only its visual and purpose.")
-    if problems:
-        return None, problems
-    full = plan.model_dump(mode="json", by_alias=True, exclude_none=True)
-    full["scenes"] = [replacement if scene["id"] == scene_id else scene for scene in full["scenes"]]
-    try:
-        candidate = validate_plan(full)
-    except PlanValidationError as exc:
-        return None, exc.problems
-    repaired = next(scene for scene in candidate.scenes if scene.id == scene_id)
+def repair_invariant_problems(source, repaired, previous_scene=None, *, allow_narration_edits=False):
+    """Shared scene/identity limits for visual repairs and audited scene revisions."""
+    problems = []
+    for field in ("id", "template"):
+        if getattr(repaired, field) != getattr(source, field):
+            problems.append(f"Keep the original scene {field} unchanged.")
+    if not allow_narration_edits:
+        if repaired.narration != source.narration:
+            problems.append("Keep the original scene narration unchanged; repair only its visual and purpose.")
+    else:
+        original_lines = [line.model_dump(by_alias=True, exclude_none=True) for line in source.narration]
+        revised_lines = [line.model_dump(by_alias=True, exclude_none=True) for line in repaired.narration]
+        if ([{key: value for key, value in line.items() if key != "text"} for line in original_lines]
+                != [{key: value for key, value in line.items() if key != "text"} for line in revised_lines]):
+            problems.append("Keep narration line ids, order, count and highlights unchanged.")
+        revised_texts = {line.id: line.text for line in repaired.narration}
+        for line in original_lines:
+            if line.get("highlightQuote") and revised_texts.get(line["id"]) != line["text"]:
+                problems.append(f"Keep quoted narration words unchanged for {line['id']!r}.")
+        if source.template == "quote" and repaired.template == "quote":
+            if source.visual.quote != repaired.visual.quote or source.visual.author != repaired.visual.author:
+                problems.append("Keep quotation words and attribution unchanged.")
+    if source.template != repaired.template:
+        return problems
     identities = _identities(repaired)
-    index = next(index for index, scene in enumerate(plan.scenes) if scene.id == scene_id)
-    previous = _identities(plan.scenes[index - 1]) if index else {}
-    previous_scene = plan.scenes[index - 1] if index else None
+    previous = _identities(previous_scene) if previous_scene is not None else {}
     station_aliases = {}
     if source.template == "process" and previous_scene is not None and previous_scene.template == "process":
         for station in source.visual.stations:
@@ -81,6 +79,38 @@ def check_visual_repair(text, plan, scene_id):
         restored_alias = alias and entity_id not in identities and identities.get(alias) == previous[alias]
         if identities.get(entity_id) not in allowed and not restored_alias:
             problems.append(f"Preserve object {entity_id!r}, its kind and its identity color.")
+    return problems
+
+
+def check_visual_repair(text, plan, scene_id, *, allow_narration_edits=False):
+    data, problems = parse_json(text)
+    if problems:
+        return None, problems
+    data, problems = from_model_output(data)
+    if not isinstance(data, dict) or not isinstance(data.get("scenes"), list) or len(data["scenes"]) != 1:
+        return None, problems + ["Return exactly one repaired scene."]
+    replacement = data["scenes"][0]
+    source = next(scene for scene in plan.scenes if scene.id == scene_id)
+    original = source.model_dump(mode="json", by_alias=True, exclude_none=True)
+    if not isinstance(replacement, dict):
+        return None, ["The repaired scene must be an object."]
+    protected_fields = ("id", "template") if allow_narration_edits else ("id", "template", "narration")
+    for field in protected_fields:
+        if replacement.get(field) != original[field]:
+            problems.append(f"Keep the original scene {field} unchanged; repair only its visual and purpose.")
+    if problems:
+        return None, problems
+    full = plan.model_dump(mode="json", by_alias=True, exclude_none=True)
+    full["scenes"] = [replacement if scene["id"] == scene_id else scene for scene in full["scenes"]]
+    try:
+        candidate = validate_plan(full)
+    except PlanValidationError as exc:
+        return None, exc.problems
+    repaired = next(scene for scene in candidate.scenes if scene.id == scene_id)
+    index = next(index for index, scene in enumerate(plan.scenes) if scene.id == scene_id)
+    previous_scene = plan.scenes[index - 1] if index else None
+    problems += repair_invariant_problems(source, repaired, previous_scene,
+                                         allow_narration_edits=allow_narration_edits)
     problems += coverage_problems(candidate)
     return (None if problems else candidate), problems
 

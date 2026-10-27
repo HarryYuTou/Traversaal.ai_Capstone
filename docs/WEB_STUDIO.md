@@ -184,8 +184,10 @@ Stopping the server interrupts active generation. On startup, previously
 queued or running jobs are marked failed rather than restarted. Completed
 jobs remain available by ID. **Try again with this brief** creates a new job;
 the server does not automatically resubmit failed or interrupted jobs and
-incur another full generation charge. The existing planner's bounded format
-repair and SDK request behavior still apply within a running job. There is
+incur another full generation charge. The planner's bounded format repair,
+review's at-most-two joint narration/visual revision rounds with independent
+audits, and SDK request behavior still apply within a running job. These
+in-job repair requests can incur additional API usage. There is
 no in-place resume or per-job cancel control in this version.
 
 ## HTTP contract

@@ -31,7 +31,7 @@ from .scene_plan import (
 MODEL = "claude-opus-5-5"
 EFFORT = "high"
 MAX_TOKENS = 16000
-PROMPT_VERSION = "scene-planner-v13"
+PROMPT_VERSION = "scene-planner-v14"
 TEMPLATE_ROUTER_VERSION = "template-router-v3"
 MAX_REQUEST_TEMPLATES = 3
 PROMPTS = Path(__file__).resolve().parents[1] / "prompts"

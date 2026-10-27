@@ -190,3 +190,29 @@ Six sampled frames verified the closed baseline, opening and parallel service.
 The follow-up passed **296 Python tests and 44 renderer tests**, plus the
 renderer TypeScript check. Evidence is recorded in the detailed report above
 and `runs/closed-counter-short-prompt-e2e-20261027/verification.json`.
+
+## Demo follow-up: recovery after final review feedback
+
+A second real web attempt exposed a different failure: narration claimed a
+complete waiting-time comparison while the baseline showed only part of it.
+The first review adjusted wording, but the final audit found the remaining
+visual mismatch and had no path to request a substantive correction.
+
+Added up to two joint narration/visual revision rounds after blocking final
+feedback, each followed by an independent audit. Revisions preserve scene
+structure, quotations and object identity, and validate the complete plan
+before promotion. Failed candidates leave the original plan intact. Planner
+and reviewer guidance now require comparisons supported by the actions shown
+and explicit equal-service assumptions. The quality gate remains enforced.
+
+The complete Python suite passed **317 tests**. The exact original request
+then completed **3/3 real HTTP generation runs**, producing **59.200, 60.309
+and 60.501-second 1080p videos**. One run actually used the new joint revision
+and passed its final audit. Authentication, job completion, video streaming
+and subtitle downloads passed; all videos decoded successfully, and sampled
+frames and narration/subtitle consistency were checked. These checks did not
+include full listening or inspection of every frame.
+
+See the [recovery implementation and verification report](../../docs/reviews/REVIEW_FEEDBACK_RECOVERY.md).
+Detailed results remain in
+`runs/review-feedback-qa-20261027/session-20261027T234644-ecb207/report.json`.

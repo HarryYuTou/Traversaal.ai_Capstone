@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from capstone_script.long_form import visual_continuity
 from capstone_script.planner import PlannerError, make_spec, write_json
@@ -128,7 +129,9 @@ class VisualRepairTests(unittest.TestCase):
     def test_unresolved_visual_issue_stops_without_replacing_original(self):
         first = review_output(edits=[])
         first["issues"] = [self.issue]
-        client = FakeClient(response(first), response(self.replacement()), response(first))
+        client = FakeClient(response(first), response(self.replacement()), response(first),
+                            response(self.replacement()), response(first),
+                            response(self.replacement()), response(first))
         with tempfile.TemporaryDirectory() as temporary:
             run = Path(temporary)
             original = dump_plan(self.plan)
@@ -140,7 +143,9 @@ class VisualRepairTests(unittest.TestCase):
             record = json.loads((run / "review.json").read_text())
             self.assertEqual(record["status"], "failed")
             self.assertEqual(record["visualReview"]["status"], "needs-review")
-            self.assertEqual(len(client.calls), 3)
+            self.assertEqual(len(client.calls), 7)
+            self.assertEqual(len(record["visualReview"]["revisionRounds"]), 2)
+            self.assertFalse((run / "scene-plan.draft.json").exists())
 
     def test_recategorizing_unshown_comparison_as_accuracy_does_not_pass(self):
         first = review_output(edits=[])
@@ -148,7 +153,9 @@ class VisualRepairTests(unittest.TestCase):
         final = review_output(edits=[])
         final["issues"] = [{**self.issue, "category": "accuracy", "severity": "medium",
                             "problem": "The comparison still lacks a visible baseline."}]
-        client = FakeClient(response(first), response(self.replacement()), response(final))
+        client = FakeClient(response(first), response(self.replacement()), response(final),
+                            response(self.replacement()), response(final),
+                            response(self.replacement()), response(final))
         with tempfile.TemporaryDirectory() as temporary:
             run = Path(temporary)
             original = dump_plan(self.plan)
@@ -167,7 +174,9 @@ class VisualRepairTests(unittest.TestCase):
         for resolved in (False, True):
             final = review_output(edits=[])
             final["issues"] = [] if resolved else initial["issues"]
-            client = FakeClient(response(initial), response(final))
+            client = FakeClient(response(initial), response(final),
+                                *([] if resolved else [response(self.replacement()), response(final),
+                                                       response(self.replacement()), response(final)]))
             with self.subTest(resolved=resolved), tempfile.TemporaryDirectory() as temporary:
                 run = Path(temporary)
                 original = dump_plan(self.plan)
@@ -182,7 +191,110 @@ class VisualRepairTests(unittest.TestCase):
                 record = json.loads((run / "review.json").read_text())
                 self.assertEqual(record["visualReview"]["repairedSceneIds"], [])
                 self.assertEqual(record["visualReview"]["status"], "passed" if resolved else "needs-review")
-                self.assertEqual(len(client.calls), 2)
+                self.assertEqual(len(client.calls), 2 if resolved else 6)
+
+    def test_accuracy_review_then_new_sync_finding_is_revised_and_audited(self):
+        initial = review_output(edits=[])
+        initial["issues"] = [{**self.issue, "category": "accuracy", "severity": "medium",
+                              "problem": "The claimed result is not supported by the shown comparison."}]
+        audit = review_output(edits=[])
+        audit["issues"] = [self.issue]
+        replacement = self.replacement()
+        replacement["scenes"][0]["narration"][0]["text"] = "A request travels from your browser toward the website's server."
+        clean = review_output(edits=[])
+        clean["issues"] = []
+        client = FakeClient(response(initial), response(audit), response(replacement), response(clean))
+        with tempfile.TemporaryDirectory() as temporary:
+            run = Path(temporary)
+            (run / "scene-plan.json").write_text(dump_plan(self.plan))
+            write_json(run / "project-spec.json", make_spec("How a web request works", "Students", 75)[0])
+            write_review(run, client)
+            record = json.loads((run / "review.json").read_text())
+            self.assertEqual(record["visualReview"]["status"], "passed")
+            self.assertEqual(record["visualReview"]["repairedSceneIds"], [])
+            self.assertEqual(record["visualReview"]["revisionRounds"][0]["sceneIds"], ["scene-01"])
+            self.assertEqual(record["finalIssues"], [])
+            self.assertEqual(record["changes"][0]["after"], replacement["scenes"][0]["narration"][0]["text"])
+            self.assertEqual(load_plan(run / "scene-plan.draft.json"), self.plan)
+            self.assertEqual(load_plan(run / "scene-plan.revision-01.json"), load_plan(run / "scene-plan.json"))
+            self.assertIn(self.issue["problem"], client.calls[-1]["messages"][0]["content"])
+            self.assertIn("Original draft for scope comparison", client.calls[-1]["messages"][0]["content"])
+            self.assertEqual(len(client.calls), 4)
+
+    def test_invalid_visual_only_repair_can_recover_without_promoting_it(self):
+        first = review_output(edits=[])
+        first["issues"] = [self.issue]
+        clean = review_output(edits=[])
+        clean["issues"] = []
+        client = FakeClient(response(first), response(text="invalid json"), response(text="invalid json"),
+                            response(first), response(self.replacement()), response(clean))
+        with tempfile.TemporaryDirectory() as temporary:
+            run = Path(temporary)
+            (run / "scene-plan.json").write_text(dump_plan(self.plan))
+            write_json(run / "project-spec.json", make_spec("How a web request works", "Students", 75)[0])
+            write_review(run, client)
+            record = json.loads((run / "review.json").read_text())
+            self.assertIn("visualRepairError", record["visualReview"])
+            self.assertEqual(record["visualReview"]["status"], "passed")
+            self.assertEqual(len(record["visualReview"]["revisionRounds"]), 1)
+            self.assertEqual(load_plan(run / "scene-plan.draft.json"), self.plan)
+            self.assertEqual(len(client.calls), 6)
+
+    def test_final_audit_api_failure_never_promotes_a_valid_revision(self):
+        first = review_output(edits=[])
+        first["issues"] = [{**self.issue, "category": "accuracy", "severity": "medium"}]
+        replacement = self.replacement()
+        replacement["scenes"][0]["narration"][0]["text"] = "A request travels from your browser toward the website's server."
+        client = FakeClient()
+        responses = [response(first), response(first), response(replacement),
+                     RuntimeError("simulated audit service failure")]
+        with tempfile.TemporaryDirectory() as temporary:
+            run = Path(temporary)
+            original = dump_plan(self.plan)
+            (run / "scene-plan.json").write_text(original)
+            write_json(run / "project-spec.json", make_spec("How a web request works", "Students", 75)[0])
+            with patch.object(client.beta.messages, "create", side_effect=responses) as request:
+                with self.assertRaisesRegex(RuntimeError, "simulated audit service failure"):
+                    write_review(run, client)
+                self.assertEqual(request.call_count, 4)
+            self.assertEqual((run / "scene-plan.json").read_text(), original)
+            self.assertFalse((run / "scene-plan.draft.json").exists())
+            candidate = load_plan(run / "scene-plan.revision-01.json")
+            self.assertEqual(candidate.scenes[0].narration[0].text,
+                             replacement["scenes"][0]["narration"][0]["text"])
+            record = json.loads((run / "review.json").read_text())
+            self.assertEqual(record["status"], "failed")
+            self.assertEqual(record["visualReview"]["status"], "auditing")
+            self.assertEqual(len(record["visualReview"]["revisionRounds"]), 1)
+            self.assertNotIn("remainingIssues", record["visualReview"]["revisionRounds"][0])
+            self.assertIn("simulated audit service failure", record["error"])
+
+    def test_later_visual_repair_failure_discards_partial_batch_before_audit(self):
+        first = review_output(edits=[])
+        first["issues"] = [self.issue, {**self.issue, "location": "scene-02"}]
+        clean = review_output(edits=[])
+        clean["issues"] = []
+        replacement = self.replacement()
+        client = FakeClient(response(first), response(replacement), response(text="invalid json"),
+                            response(text="invalid json"), response(clean))
+        with tempfile.TemporaryDirectory() as temporary:
+            run = Path(temporary)
+            (run / "scene-plan.json").write_text(dump_plan(self.plan))
+            write_json(run / "project-spec.json", make_spec("How a web request works", "Students", 75)[0])
+            write_review(run, client)
+            # The clean audit must assess the unchanged batch, not a mixture of
+            # the first repaired scene and the later unrepaired scene.
+            audit_request = client.calls[-1]["messages"][0]["content"]
+            self.assertIn(self.plan.scenes[0].visual.statement, audit_request)
+            self.assertNotIn(replacement["scenes"][0]["visual"]["concept"]["statement"], audit_request)
+            self.assertEqual(load_plan(run / "scene-plan.json"), self.plan)
+            self.assertEqual(load_plan(run / "scene-plan.draft.json"), self.plan)
+            record = json.loads((run / "review.json").read_text())
+            self.assertEqual(record["status"], "completed")
+            self.assertEqual(record["visualReview"]["status"], "passed")
+            self.assertEqual(record["visualReview"]["repairedSceneIds"], [])
+            self.assertIn("visualRepairError", record["visualReview"])
+            self.assertEqual(len(client.calls), 5)
 
     def test_chapter_context_records_real_final_process_state(self):
         plan = validate_plan(process_plan())

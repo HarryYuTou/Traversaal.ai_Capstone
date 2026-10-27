@@ -1,9 +1,10 @@
-"""Script review with bounded visual repair and an immutable final audit.
+"""Script review with bounded repair, scene revision and immutable final audits.
 
 The reviewer reads the whole plan the way the audience will hear it and returns
 scores, the issues it found and replacement text for individual lines. Text edits
 keep every id and highlight. Sync findings trigger a separate visual repair and
-an audit before the result replaces the draft. A quick local scan for symbols
+an audit. Remaining blocking findings permit at most two joint narration/visual
+revisions, each independently audited before replacing the draft. A local scan for symbols
 and abbreviations the voice may misread is sent along as hints.
 Reviews run before narration; a narrated run keeps the plan it was voiced from.
 """
@@ -25,7 +26,8 @@ from .scene_plan import (
     validate_plan,
 )
 
-PROMPT_VERSION = "script-reviewer-v10"
+PROMPT_VERSION = "script-reviewer-v11"
+MAX_SCENE_REVISIONS = 2
 Note = Annotated[str, StringConstraints(min_length=1, max_length=300)]
 Location = Annotated[str, StringConstraints(min_length=1, max_length=60)]
 
@@ -171,7 +173,8 @@ def check_review(text: str, plan, spec: dict, audit_only: bool = False):
 
 
 def review_plan_text(plan, spec: dict, client, outline: dict | None = None, reference_text: str | None = None,
-                     progress=lambda message: None, attempts: list | None = None, *, audit_only: bool = False):
+                     progress=lambda message: None, attempts: list | None = None, *, audit_only: bool = False,
+                     feedback_issues=None, original_plan=None):
     """Return (review, reviewed plan, speech notes) from one request plus at most one repair."""
     attempts = [] if attempts is None else attempts
     notes = speech_notes(plan)
@@ -181,14 +184,33 @@ def review_plan_text(plan, spec: dict, client, outline: dict | None = None, refe
                    "Do not rewrite any narration. Return edits: [] and report all remaining issues. "
                    "Only report sync for an actual mismatch; an explicitly announced replay is intentional. "
                    "Changing an issue's category does not resolve it: unshown comparisons and unsupported "
-                   "causal claims still prevent acceptance even when classified as accuracy.")
+                   "causal claims still prevent acceptance even when classified as accuracy. "
+                   "Reassess previous findings against this exact candidate; do not assume an old finding "
+                   "still applies. The candidate must still answer the user's topic and demonstrate its "
+                   "teaching mechanism, not drop the explanation to avoid a mismatch.")
+    request = review_request(plan, spec, notes, outline, reference_text)
+    if feedback_issues:
+        request += ("\n\nPrevious findings to reassess, not conclusions about this candidate:\n"
+                    + json.dumps([issue.model_dump(by_alias=True) for issue in feedback_issues]))
+    if original_plan is not None:
+        request += ("\n\nOriginal draft for scope comparison only (its claims may be wrong; reference material "
+                    "and the user's topic remain authoritative). Check that corrections retain the main "
+                    "explanation and do not replace a narrated causal change with an unexplained static state:\n"
+                    + json.dumps([{"id": scene.id, "purpose": scene.purpose,
+                                    "narration": [line.text for line in scene.narration]}
+                                   for scene in original_plan.scenes]))
     review, reviewed = request_json(
         client, system,
-        review_request(plan, spec, notes, outline, reference_text),
+        request,
         structured_schema(Review.model_json_schema(by_alias=True)),
         lambda text: check_review(text, plan, spec, audit_only), "final visual audit" if audit_only else "script review",
         attempts, "visual-recheck" if audit_only else "review", progress)
     return review, reviewed, notes
+
+
+def blocking_issues(review):
+    return [issue for issue in review.issues if issue.category == "sync" or
+            (issue.category == "accuracy" and issue.severity in {"high", "medium"})]
 
 
 def write_review(run_dir: Path, client, reference_text: str | None = None, progress=lambda message: None):
@@ -205,7 +227,8 @@ def write_review(run_dir: Path, client, reference_text: str | None = None, progr
     record = {"promptVersion": PROMPT_VERSION, "modelRequested": MODEL, "effort": EFFORT,
               "createdAt": datetime.now(timezone.utc).isoformat()}
     attempts = []
-    visual_record = {"status": "not-needed", "repairedSceneIds": [], "remainingIssues": []}
+    visual_record = {"status": "not-needed", "repairedSceneIds": [], "remainingIssues": [],
+                     "revisionRounds": []}
     try:
         review, reviewed, notes = review_plan_text(plan, spec, client, outline, reference_text, progress, attempts)
         final_review = review
@@ -216,19 +239,48 @@ def write_review(run_dir: Path, client, reference_text: str | None = None, progr
             from .visual_repair import repair_visuals
             progress("Repairing scenes whose actions do not match the narration...")
             visual_record["status"] = "repairing"
-            reviewed, repaired_ids = repair_visuals(reviewed, review.issues, spec, client, reference_text,
-                                                    progress, attempts)
-            visual_record["repairedSceneIds"] = repaired_ids
+            try:
+                reviewed, repaired_ids = repair_visuals(reviewed, review.issues, spec, client, reference_text,
+                                                        progress, attempts)
+                visual_record["repairedSceneIds"] = repaired_ids
+            except PlannerError as exc:
+                # A malformed or unrepresentable visual-only candidate is never
+                # promoted. The unchanged draft still needs an audit before any
+                # broader revision is attempted. API/credential errors propagate.
+                visual_record["visualRepairError"] = str(exc)
+                progress("Visual-only repair could not meet the constraints; auditing the draft for revision.")
         if needs_visual_repair or needs_factual_audit:
             # Validate meaning again after a structural repair, not merely JSON or geometry.
             # Factual edits also need verification, even if no issue was labeled sync.
             visual_record["status"] = "auditing"
             final_review, reviewed, notes = review_plan_text(reviewed, spec, client, outline,
-                                                           reference_text, progress, attempts, audit_only=True)
-            remaining = [issue.model_dump(by_alias=True) for issue in final_review.issues
-                         if issue.category == "sync" or
-                         (issue.category == "accuracy" and issue.severity in {"high", "medium"})]
+                                                           reference_text, progress, attempts, audit_only=True,
+                                                           feedback_issues=review.issues)
+            remaining = [issue.model_dump(by_alias=True) for issue in blocking_issues(final_review)]
             visual_record.update(status="needs-review" if remaining else "passed", remainingIssues=remaining)
+            # A final audit can discover a new mismatch or a genuinely wrong claim
+            # that frozen narration cannot repair. Revise both together, then audit
+            # the exact candidate independently; never accept based on the writer's verdict.
+            while remaining and len(visual_record["revisionRounds"]) < MAX_SCENE_REVISIONS:
+                from .scene_revision import revise_scenes
+                round_number = len(visual_record["revisionRounds"]) + 1
+                progress(f"Revising the explanation and matching visuals from review feedback "
+                         f"(round {round_number} of {MAX_SCENE_REVISIONS})...")
+                previous_findings = blocking_issues(final_review)
+                reviewed, revised_ids = revise_scenes(reviewed, previous_findings, spec, client,
+                                                       reference_text, progress, attempts, round_number=round_number)
+                candidate_path = run_dir / f"scene-plan.revision-{round_number:02d}.json"
+                candidate_path.write_text(dump_plan(reviewed), encoding="utf-8", newline="\n")
+                revision = {"round": round_number, "sceneIds": revised_ids,
+                            "candidate": candidate_path.name, "issuesBefore": remaining}
+                visual_record["revisionRounds"].append(revision)
+                visual_record["status"] = "auditing"
+                final_review, reviewed, notes = review_plan_text(
+                    reviewed, spec, client, outline, reference_text, progress, attempts,
+                    audit_only=True, feedback_issues=previous_findings, original_plan=plan)
+                remaining = [issue.model_dump(by_alias=True) for issue in blocking_issues(final_review)]
+                revision["remainingIssues"] = remaining
+                visual_record.update(status="needs-review" if remaining else "passed", remainingIssues=remaining)
             if remaining:
                 raise PlannerError("Visual repair still has narration/action mismatches or unsupported factual claims: "
                                    + "; ".join(issue["problem"] for issue in remaining), attempts)
@@ -243,7 +295,7 @@ def write_review(run_dir: Path, client, reference_text: str | None = None, progr
                for scene in reviewed.scenes for line in scene.narration if before[line.id] != line.text]
     edited_ids = {change["lineId"] for change in changes}
     issue_resolutions = [{**issue.model_dump(by_alias=True),
-                          "resolution": "repaired-and-rechecked" if issue.category == "sync"
+                          "resolution": "repaired-and-rechecked" if issue in blocking_issues(review)
                           and visual_record["status"] == "passed" else "line-edited" if issue.location in edited_ids
                           else "reported"} for issue in review.issues]
     write_json(run_dir / "review.json", {
