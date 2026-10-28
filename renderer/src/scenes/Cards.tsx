@@ -5,8 +5,8 @@ import type {TimelineChapter} from '../types';
 import {RisingWords} from './SceneFrame';
 import {ease} from './timing';
 
-/** The opening card: the video title and its length. */
-export const TitleCard: React.FC<{title: string; subtitle: string}> = ({title, subtitle}) => {
+/** The opening card: the video title and optional chapter count. */
+export const TitleCard: React.FC<{title: string; subtitle?: string}> = ({title, subtitle}) => {
   const theme = useTheme();
   const frame = useCurrentFrame();
   const bar = ease(frame, 12, 22);
@@ -17,11 +17,12 @@ export const TitleCard: React.FC<{title: string; subtitle: string}> = ({title, s
         textWrap: 'balance'}}>
         <RisingWords text={title} start={2} stagger={3} />
       </h1>
-      <div style={{width: 260 * bar, height: 10, borderRadius: 5, background: theme.accent, margin: '46px 0 36px'}} />
-      <div style={{fontSize: 32, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase',
+      <div style={{width: 260 * bar, height: 10, borderRadius: 5, background: theme.accent,
+        margin: subtitle ? '46px 0 36px' : '46px 0 0'}} />
+      {subtitle ? <div style={{fontSize: 32, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase',
         color: theme.muted, opacity: below, transform: `translateY(${(1 - below) * 16}px)`}}>
         {subtitle}
-      </div>
+      </div> : null}
     </AbsoluteFill>
   );
 };

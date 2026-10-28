@@ -13,7 +13,6 @@ import {QuoteScene} from './scenes/QuoteScene';
 import {StatScene} from './scenes/StatScene';
 import {MotionScene} from './motion/MotionScene';
 import {processPresentations, type ProcessPresentation} from './motion/processPresentation';
-import {timelineLengthText} from './duration';
 import {ThemeContext, motion, themes} from './theme';
 import type {Timeline, TimelineScene} from './types';
 
@@ -51,7 +50,8 @@ export const Explainer: React.FC<Timeline> = (timeline) => {
   const presentations = React.useMemo(() => processPresentations(timeline.scenes), [timeline.scenes]);
   const parts: Part[] = [
     {key: 'Title', from: 0, durationInFrames: timeline.titleFrames,
-      content: <TitleCard title={timeline.title} subtitle={timelineLengthText(timeline)} />},
+      content: <TitleCard title={timeline.title}
+        subtitle={timeline.chapters.length ? `${timeline.chapters.length} chapters` : undefined} />},
     ...timeline.chapters.map((chapter) => ({
       key: `Chapter ${chapter.number}`, from: chapter.from, durationInFrames: chapter.cardFrames,
       content: <ChapterCard chapter={chapter} total={timeline.chapters.length} />,
