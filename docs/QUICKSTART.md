@@ -61,7 +61,9 @@ python -m capstone_script run --topic "How does GPS know where you are?" --audie
 `--duration` takes 30 to 600 seconds. New plan/narration runs require a fresh
 output folder, so pick a new `--out` each time. Leave out `--render` to stop
 after narration, add `--draft` for a quicker half-size render, and add
-`--share` for a 720p copy small enough to email or upload.
+`--share` for a 720p copy small enough to email or upload. On a laptop with
+8 GB of memory, add `--concurrency 2` so a seven-minute render does not run
+out of memory.
 
 Earlier slide runs cost about $0.10–0.20 for a video of up to three
 minutes and about $0.60 for seven minutes, including review. These are

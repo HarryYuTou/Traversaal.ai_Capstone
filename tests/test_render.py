@@ -41,6 +41,46 @@ class RenderCommandTests(unittest.TestCase):
         self.assertIn(f"--public-dir={TIMELINE.parent}", command)
         self.assertNotIn("--scale=0.5", command)
         self.assertEqual(draft[-1], "--scale=0.5")
+        self.assertFalse(any(part.startswith("--concurrency") for part in command))
+
+    def test_concurrency_is_passed_to_remotion_only_when_set(self):
+        with patch("capstone_script.render.shutil.which", return_value="node"), \
+                patch("capstone_script.render.REMOTION_CLI", Path(__file__)):
+            limited = render_command(TIMELINE, OUTPUT, concurrency=2)
+            limited_draft = render_command(TIMELINE, OUTPUT, draft=True, concurrency=1)
+        self.assertIn("--concurrency=2", limited)
+        self.assertIn("--concurrency=1", limited_draft)
+        self.assertEqual(limited_draft[-1], "--scale=0.5")
+
+    def test_bad_concurrency_is_refused_before_rendering(self):
+        for value in (0, -1, 1.5, "2", True):
+            with self.subTest(value=value), tempfile.TemporaryDirectory() as temporary, \
+                    patch("capstone_script.render.subprocess.run") as run, \
+                    self.assertRaisesRegex(ValueError, "Concurrency must be"):
+                render_video(Path(temporary), concurrency=value)
+            run.assert_not_called()
+
+    def test_command_line_checks_concurrency_while_parsing(self):
+        from capstone_script.__main__ import main
+        for command in (["render", "--run", "runs/x"], ["ensure-duration", "--run", "runs/x"],
+                        ["run", "--topic", "Queues", "--out", "runs/x", "--render"]):
+            for value in ("0", "two"):
+                with self.subTest(command=command[0], value=value), \
+                        patch("capstone_script.__main__.render_video") as render, \
+                        patch("sys.stderr"), self.assertRaises(SystemExit) as stopped:
+                    main([*command, "--concurrency", value])
+                self.assertEqual(stopped.exception.code, 2)
+                render.assert_not_called()
+
+    def test_render_command_line_passes_concurrency_through(self):
+        from capstone_script.__main__ import main
+        info = {"videoPath": "video.mp4", "width": 1920, "height": 1080, "probedSeconds": 1.0,
+                "bytes": 1, "renderSeconds": 1}
+        with patch("capstone_script.__main__.render_video", return_value=info) as render, patch("builtins.print"):
+            self.assertEqual(main(["render", "--run", "runs/x", "--concurrency", "2"]), 0)
+            self.assertEqual(render.call_args.kwargs["concurrency"], 2)
+            main(["render", "--run", "runs/x"])
+            self.assertIsNone(render.call_args.kwargs["concurrency"])
 
     def test_thumbnail_and_sharing_commands(self):
         with patch("capstone_script.render.shutil.which", return_value="node"),                 patch("capstone_script.render.REMOTION_CLI", Path(__file__)):

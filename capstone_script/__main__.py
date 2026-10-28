@@ -121,7 +121,7 @@ def _narrate(args, plan) -> int:
 
 def _render(run_dir: Path, args) -> None:
     info = render_video(run_dir, args.draft, args.share, progress=_print, theme=args.theme,
-                        music=not args.no_music)
+                        music=not args.no_music, concurrency=args.concurrency)
     print(f"Video: {run_dir.resolve() / info['videoPath']}")
     print(f"{info['width']}x{info['height']} | {info['probedSeconds']:.1f} s | "
           f"{info['bytes'] / 1e6:.1f} MB | rendered in {info['renderSeconds']:.0f} s")
@@ -134,6 +134,23 @@ def _add_look_options(parser):
     parser.add_argument("--theme", choices=THEMES, default="light",
                         help="Look of the video: light slides, or night, a darker documentary style")
     parser.add_argument("--no-music", action="store_true", help="Leave out the synthesized music bed")
+
+
+def _positive_int(text: str) -> int:
+    try:
+        value = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"expected a whole number, not {text!r}") from None
+    if value < 1:
+        raise argparse.ArgumentTypeError(f"must be at least 1, not {value}")
+    return value
+
+
+def _add_render_limits(parser):
+    # Checked while parsing, so `run --render` cannot spend API calls before a bad value is caught.
+    parser.add_argument("--concurrency", type=_positive_int,
+                        help="Frames Remotion draws at once (default: about half the CPU cores); "
+                             "use 1 or 2 on an 8 GB laptop")
 
 
 def _add_plan_options(parser):
@@ -181,6 +198,7 @@ def main(argv=None):
     render.add_argument("--draft", action="store_true", help="Render at half size (960x540), for quick checks")
     render.add_argument("--share", action="store_true", help="Also write video-720p.mp4, a smaller copy for sharing")
     _add_look_options(render)
+    _add_render_limits(render)
     duration = sub.add_parser("ensure-duration", help="Extend an existing narrated run with useful content to meet a minimum.")
     duration.add_argument("--run", type=Path, required=True)
     duration.add_argument("--minimum-duration", type=int, default=420)
@@ -189,6 +207,7 @@ def main(argv=None):
     duration.add_argument("--share", action="store_true")
     _add_voice_options(duration)
     _add_look_options(duration)
+    _add_render_limits(duration)
     evaluation = sub.add_parser("evaluate", help="Plan and review a list of topics and summarize the results.")
     evaluation.add_argument("--topics", type=Path, required=True,
                             help="JSON list of {topic, audience, duration}, such as fixtures/evaluation-topics.json")
@@ -214,6 +233,7 @@ def main(argv=None):
     run.add_argument("--draft", action="store_true", help="With --render: half size (960x540), for quick checks")
     run.add_argument("--share", action="store_true", help="With --render: also write a 720p copy for sharing")
     _add_look_options(run)
+    _add_render_limits(run)
     args = parser.parse_args(argv)
     try:
         if args.command == "validate":
