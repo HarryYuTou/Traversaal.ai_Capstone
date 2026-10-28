@@ -38,9 +38,13 @@ def _node() -> str:
     return node
 
 
-def render_command(timeline_path: Path, output: Path, draft: bool = False) -> list[str]:
+def render_command(timeline_path: Path, output: Path, draft: bool = False,
+                   concurrency: int | None = None) -> list[str]:
+    """`concurrency` caps Remotion's browser tabs; None keeps Remotion's default (about half the CPU cores)."""
     command = [_node(), str(REMOTION_CLI), "render", "src/index.ts", "Explainer", str(output),
                f"--props={timeline_path}", f"--public-dir={timeline_path.parent}", "--codec=h264"]
+    if concurrency is not None:
+        command.append(f"--concurrency={concurrency}")
     return command + (["--scale=0.5"] if draft else [])
 
 
@@ -102,17 +106,21 @@ def inspect_motion(timeline_path: Path, timeline: dict, progress=lambda message:
 
 
 def render_video(run_dir: Path, draft: bool = False, share: bool = False, progress=lambda message: None,
-                 theme: str = "light", music: bool = True) -> dict:
+                 theme: str = "light", music: bool = True, concurrency: int | None = None) -> dict:
     """Render video.mp4 (or video-draft.mp4 at half size) into run_dir and describe it in video-info.json.
 
     A full render also writes thumbnail.png from the title card; `share` adds video-720p.mp4, a smaller
     copy for uploads and email. `theme` picks the look (light or night) and `music` adds the
-    synthesized music bed under the narration.
+    synthesized music bed under the narration. `concurrency` limits how many frames Remotion draws
+    at once; 1 or 2 lets a seven-minute video finish on an 8 GB laptop.
     """
     if draft and share:
         raise ValueError("--share makes a 720p copy of a full render; a draft is already smaller than that.")
     if theme not in THEMES:
         raise ValueError(f"Unknown theme {theme!r}; use one of {', '.join(THEMES)}.")
+    if concurrency is not None and (isinstance(concurrency, bool) or not isinstance(concurrency, int)
+                                    or concurrency < 1):
+        raise ValueError(f"Concurrency must be a whole number of at least 1, not {concurrency!r}.")
     run_dir = Path(run_dir).resolve()
     name = "video-draft" if draft else "video"
     output = run_dir / f"{name}.mp4"
@@ -126,7 +134,7 @@ def render_video(run_dir: Path, draft: bool = False, share: bool = False, progre
     require_duration(run_dir, timeline["durationSeconds"], "narrated-timeline")
     motion_inspection = inspect_motion(timeline_path, timeline, progress)
     props_path = render_props(timeline_path, theme, music, progress)
-    command = render_command(props_path, output, draft)
+    command = render_command(props_path, output, draft, concurrency)
     progress(f"Rendering {timeline['durationInFrames']} frames with Remotion...")
     started = perf_counter()
     result = subprocess.run(command, cwd=RENDERER)
@@ -141,6 +149,7 @@ def render_video(run_dir: Path, draft: bool = False, share: bool = False, progre
             "fps": timeline["fps"], "frames": timeline["durationInFrames"],
             "expectedSeconds": timeline["durationSeconds"], "probedSeconds": duration,
             "bytes": output.stat().st_size, "renderSeconds": round(seconds, 1), "theme": theme, "music": music,
+            "concurrency": concurrency,
             "durationCheck": duration_status,
             "subtitles": [f"{VIDEO_DIR}/subtitles.srt", f"{VIDEO_DIR}/subtitles.vtt"]}
     if motion_inspection:

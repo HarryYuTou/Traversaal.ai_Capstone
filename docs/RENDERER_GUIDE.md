@@ -42,6 +42,7 @@ python -m capstone_script render --run runs/narration-01
 python -m capstone_script render --run runs/narration-01 --draft   # 960x540, quicker
 python -m capstone_script render --run runs/narration-01 --share   # also video-720p.mp4 for sharing
 python -m capstone_script render --run runs/narration-01 --theme night --no-music   # darker look, no music bed
+python -m capstone_script render --run runs/narration-01 --concurrency 2   # fewer browser tabs, for 8 GB laptops
 
 # Check a few frames as PNG files without rendering the whole video
 cd renderer
@@ -57,6 +58,15 @@ adds `video-720p.mp4`, re-encoded with the FFmpeg that ships with Remotion
 (the seven-minute video drops from 34 MB to 8.6 MB). The `render` command
 refuses an existing `video.mp4`; delete it to render again. Deleting
 `video/` rebuilds the timeline on the next render.
+
+`--concurrency N` sets how many frames Remotion draws at once, each in its
+own headless browser tab. Without it Remotion uses about half the CPU cores.
+On a MacBook with 8 GB of memory, the seven-minute queue video crashed at the
+default and finished in 18 minutes with two tabs
+([review](reviews/2026-10-20-queues-7min.md)), so use `--concurrency 2`, or
+`1` if it still crashes. `run --render` and `ensure-duration --render` accept
+the same option, and `video-info.json` records the value used (`null` for the
+default).
 
 For illustrated motion, rendering first writes `motion-inspection.json` in
 the run folder. It checks body bounds on every frame, identifies long static
