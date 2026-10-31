@@ -16,6 +16,9 @@ type Props = {scene: Extract<TimelineScene, {template: 'motion'}>; label: string
 
 // Frames for a changed count to roll from its old value to the new one.
 const ROLL_FRAMES = 9;
+// How strongly, and how far in from each side, a staged room blurs into haze.
+const EDGE_BLUR = 4;
+const EDGE_MASK = 'linear-gradient(to right, black, transparent 13%, transparent 87%, black)';
 const smooth = (value: number) => {
   const t = Math.max(0, Math.min(1, value));
   return t * t * (3 - 2 * t);
@@ -153,6 +156,12 @@ export const MotionScene: React.FC<Props> = ({scene, label, presentation}) => {
         </div>
         <div style={{flex: 1, minHeight: 0}}>{artwork}</div>
       </div> : <>{title}{artwork}</>}
+      {/* The room has no side walls, so its far left and right soften into haze: a glimpse of a larger space.
+          It sits over the room and cast but under the title, counts and kicker. */}
+      {staged ? <AbsoluteFill style={{zIndex: 0, backdropFilter: `blur(${EDGE_BLUR}px)`,
+        WebkitMaskImage: EDGE_MASK, maskImage: EDGE_MASK,
+        background: 'linear-gradient(to right, rgba(239, 232, 220, 0.8), rgba(239, 232, 220, 0) 13%, rgba(239, 232, 220, 0) 87%, rgba(239, 232, 220, 0.8))'}} />
+        : null}
     </AbsoluteFill>
   );
 };
