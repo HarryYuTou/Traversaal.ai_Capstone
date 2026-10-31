@@ -2,7 +2,8 @@ import {easing, entityAtFrame, toStage, type PreparedEntity} from './engine';
 import type {MotionActivity, MotionPoint} from './types';
 
 export type ActivityPose = {kind: MotionActivity['kind']; progress: number; phase: number; opacity: number};
-export type MovementPose = {walking: boolean; phase: number; strength: number};
+/** facing runs -1 (walking left) to 1 (walking right), fading to 0 as the walker stops. */
+export type MovementPose = {walking: boolean; phase: number; strength: number; facing: number};
 /** breath runs -1..1 on a slow cycle; blink is 0 (open) to 1 (closed). */
 export type IdlePose = {breath: number; blink: number};
 /**
@@ -11,7 +12,7 @@ export type IdlePose = {breath: number; blink: number};
  */
 export type IllustrationPose = {movement: MovementPose; activity: ActivityPose | null; carry?: number;
   markIn?: number; idle?: IdlePose};
-const still: MovementPose = {walking: false, phase: 0, strength: 0};
+const still: MovementPose = {walking: false, phase: 0, strength: 0, facing: 0};
 const clamp = (value: number) => Math.max(0, Math.min(1, value));
 const smooth = (value: number) => clamp(value) * clamp(value) * (3 - 2 * clamp(value));
 
@@ -65,7 +66,8 @@ export const movementPoseAtFrame = (prepared: PreparedEntity, frame: number): Mo
   const {action, initial, geometry} = current;
   const before = toStage(entityAtFrame(prepared, Math.max(action.from, frame - 0.5)));
   const after = toStage(entityAtFrame(prepared, Math.min(action.from + action.durationInFrames, frame + 0.5)));
-  if (Math.hypot(after.x - before.x, after.y - before.y) < 1e-5) return still;
+  const step = Math.hypot(after.x - before.x, after.y - before.y);
+  if (step < 1e-5) return still;
   const progress = easing((frame - action.from) / Math.max(1, action.durationInFrames), action.easing);
   const origin = toStage(initial);
   const destination = toStage(action);
@@ -82,7 +84,8 @@ export const movementPoseAtFrame = (prepared: PreparedEntity, frame: number): Mo
   }
   const elapsed = frame - action.from;
   const remaining = action.from + action.durationInFrames - frame;
-  return {walking: true, phase: cycles % 1, strength: Math.min(1, elapsed / 4, remaining / 4)};
+  const strength = Math.min(1, elapsed / 4, remaining / 4);
+  return {walking: true, phase: cycles % 1, strength, facing: (after.x - before.x) / step * strength};
 };
 
 /** A stable number in [0, 1) per actor, so idle cycles never march in lockstep. */

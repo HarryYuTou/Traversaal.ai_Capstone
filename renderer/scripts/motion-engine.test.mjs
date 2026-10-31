@@ -476,3 +476,17 @@ test('station signage uses readable vector text and open/closed states preserve 
   }
   assert.equal(JSON.stringify(entity), original);
 });
+
+test('captions break into balanced rows of known size, so the box can ease between lines', async () => {
+  const {layoutCaption} = await import(await moduleUrl(new URL('../src/captionLayout.ts', import.meta.url)));
+  const measure = (text) => text.length * 20;
+  const short = layoutCaption('Three shoppers are waiting.', measure);
+  assert.deepEqual(short.rows, ['Three shoppers are waiting.']);
+  assert.equal(short.width, 27 * 20 + 72);
+  const text = 'Same shoppers, same service time, but two counters share the work, so waiting shrinks.';
+  const long = layoutCaption(text, measure);
+  assert.equal(long.rows.length, 2);
+  assert.equal(long.rows.join(' '), text);
+  assert.ok(Math.abs(long.rows[0].length - long.rows[1].length) < 12, 'rows are balanced, not greedy');
+  assert.ok(long.width <= 1480 && long.height > short.height);
+});

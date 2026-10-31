@@ -67,8 +67,14 @@ export const StatScene: React.FC<Props> = ({scene, label}) => {
               <div style={{display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: size * 0.06,
                 marginTop: anyIcon ? 18 : 0, color, fontWeight: 800, lineHeight: 1, whiteSpace: 'nowrap'}}>
                 {stat.prefix ? <span style={{fontSize: digits * 0.62}}>{stat.prefix}</span> : null}
-                <span style={{fontSize: digits, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em'}}>
-                  {format(stat.value * count, decimalsOf(stat.value))}
+                {/* The final value, invisible, holds the width; the count is right-aligned inside it, so the
+                    number never shifts sideways as digits and separators appear. */}
+                <span style={{position: 'relative', fontSize: digits, fontVariantNumeric: 'tabular-nums',
+                  letterSpacing: '-0.02em'}}>
+                  <span style={{visibility: 'hidden'}}>{format(stat.value, decimalsOf(stat.value))}</span>
+                  <span style={{position: 'absolute', right: 0, top: 0}}>
+                    {format(stat.value * count, decimalsOf(stat.value))}
+                  </span>
                 </span>
                 {stat.unit ? <span style={{fontSize: Math.max(30, digits * 0.36), fontWeight: 700}}>{stat.unit}</span> : null}
               </div>

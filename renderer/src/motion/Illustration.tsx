@@ -53,6 +53,7 @@ export const Illustration: React.FC<Props> = ({entity, state, palette: p, prefix
   const carry = carryOf(pose);
   const breath = pose?.idle ? pose.idle.breath * (1 - (pose.movement.strength ?? 0)) : 0;
   const blink = pose?.idle?.blink ?? 0;
+  const facing = pose?.movement.facing ?? 0;
   const content = (() => {
     switch (entity.kind) {
       case 'planet': return <>
@@ -125,12 +126,15 @@ export const Illustration: React.FC<Props> = ({entity, state, palette: p, prefix
           <rect x={-16} y={4} width={32} height={25} rx={2} {...filled} strokeWidth={2} />
         </g> : null}
         <path d={`${limbPath(limbs.leftArm)} ${limbPath(limbs.rightArm)}`} fill="none" {...stroke} strokeWidth={6} />
-        <g transform={`translate(0 ${-breath * 1.2})`}>
+        {/* The head leads slightly and the face turns toward where a walker is going. */}
+        <g transform={`translate(${facing * 2} ${-breath * 1.2})`}>
           <circle cy={-31} r={24} {...filled} />
           <path d="M-23-37Q-8-65 17-48L23-37Q2-39-5-49Q-14-36-23-37" fill={p.ink} />
-          <ellipse cx={-8} cy={-30} rx={2.5} ry={2.5 * (1 - 0.85 * blink)} fill={p.ink} />
-          <ellipse cx={8} cy={-30} rx={2.5} ry={2.5 * (1 - 0.85 * blink)} fill={p.ink} />
-          <path d="M-7-20q7 7 14 0" fill="none" {...stroke} strokeWidth={2} />
+          <g transform={`translate(${facing * 4} 0)`}>
+            <ellipse cx={-8} cy={-30} rx={2.5} ry={2.5 * (1 - 0.85 * blink)} fill={p.ink} />
+            <ellipse cx={8} cy={-30} rx={2.5} ry={2.5 * (1 - 0.85 * blink)} fill={p.ink} />
+            <path d="M-7-20q7 7 14 0" fill="none" {...stroke} strokeWidth={2} />
+          </g>
         </g>
       </g>;
       case 'packet': return <>

@@ -245,6 +245,21 @@ class ProcessTimelineTests(unittest.TestCase):
         self.assertEqual(final["a"]["opacity"], 0)
         self.assertEqual(final["b"]["opacity"], 0)
 
+    def test_the_line_moves_up_front_first_and_never_closes_a_gap(self):
+        data = process_plan()
+        visual = data["scenes"][0]["visual"]
+        visual.update(stations=visual["stations"][:1], initialQueue=["a", "b", "c"],
+                      events=[event("start", ("a",), ("one",), 0), event("hold", line=1, end_line=3)])
+        scene = build(data)["scenes"][0]
+        moves = {action["entityId"]: action for action in scene["visual"]["actions"] if action["kind"] == "move"}
+        self.assertLess(moves["b"]["from"], moves["c"]["from"])
+        self.assertEqual(moves["b"]["from"] + moves["b"]["durationInFrames"],
+                         moves["c"]["from"] + moves["c"]["durationInFrames"])
+        for frame in range(moves["b"]["from"], moves["b"]["from"] + moves["b"]["durationInFrames"] + 1):
+            state = states_at(scene["visual"], frame)
+            self.assertGreaterEqual(state["b"]["x"] - state["c"]["x"], 90 - 1e-6)
+        self.assert_geometry(scene)
+
     def test_unfinished_service_remains_working_through_final_hold_without_false_completion(self):
         data = process_plan()
         data["scenes"][0]["visual"]["events"] = [event("start", ("a",), ("one",)), event("hold", line=1, end_line=3)]

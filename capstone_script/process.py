@@ -21,6 +21,8 @@ MIN_ARRIVAL_FRAMES = 18
 MIN_START_TRAVEL_FRAMES = 18
 MIN_WORK_FRAMES = 30
 MIN_COMPACTION_FRAMES = 12
+# When the line moves up, each person starts this many frames after the one in front, as a real queue does.
+QUEUE_STAGGER_FRAMES = 4
 MIN_COMPLETE_FRAMES = 12
 MIN_EXIT_TRAVEL_FRAMES = 24
 MIN_FADE_FRAMES = 8
@@ -219,7 +221,9 @@ def compile_process_visual(visual: ProcessVisual, lines: list[dict], scene_start
             queue = queue[len(event.actor_ids):]
             for position, actor_id in enumerate(queue):
                 target = _queue_point(position)
-                emit(event, actor_id, "move", arrival, end, target=target, easing="walk")
+                # The person behind never starts before the one in front, so gaps only open, never close.
+                delay = min(position * QUEUE_STAGGER_FRAMES, max(0, end - arrival - MIN_COMPACTION_FRAMES))
+                emit(event, actor_id, "move", arrival + delay, end, target=target, easing="walk")
                 positions[actor_id] = target
             phases.append({"kind": "to-service", "actorIds": list(event.actor_ids), "from": start,
                            "durationInFrames": travel_frames})

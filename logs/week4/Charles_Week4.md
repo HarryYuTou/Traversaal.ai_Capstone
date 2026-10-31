@@ -61,6 +61,14 @@ Read frame by frame from the clip:
   new one is fully visible, so two titles never stack.
 - **One look.** Motion scenes draw on the shared backdrop with the theme's
   ink and type; the illustration palette uses cool neutrals to match.
+- **Captions ease between lines.** Each caption is laid out from measured
+  text widths (balanced rows, as before), so on a line change the old words
+  fade, the box eases to the new size and the new words fade in, instead of
+  the box snapping to a new width on one frame.
+- **Small touches.** A walker's face turns toward where they are going and
+  back as they stop; when the line moves up, each shopper starts 4 frames
+  after the one in front; a counting statistic keeps its final width so the
+  number no longer shifts sideways as digits appear.
 - Docs: MOTION_GUIDE.md and RENDERER_GUIDE.md describe the new behaviour.
 
 ## Validation
@@ -75,9 +83,9 @@ Read frame by frame from the clip:
   title card, frames whose picture changes by more than 1.0 (mean grey level,
   320x140) dropped from 95 to 0, and the largest frame-to-frame change from
   2.67 to 0.68.
-- Renderer tests: 46 pass (`npm run test:motion`), including new tests for
-  the walk easing, planned label sides, locked framing, carry/idle poses and
-  colour blending. `npx tsc --noEmit` is clean.
+- Renderer tests: 47 pass (`npm run test:motion`), including new tests for
+  the walk easing, planned label sides, locked framing, carry/idle poses,
+  colour blending and caption layout. `npx tsc --noEmit` is clean.
 - Python tests: 318 of 321 pass; the 3 errors are the same on main (Windows
   `os.killpg`/`SIGKILL` in the web worker tests and one preview test).
 - Motion inspection: 0 collisions before and after.
@@ -87,7 +95,6 @@ Read frame by frame from the clip:
 - Fonts are system fonts, so a Mac and a Windows render wrap captions
   differently. Bundling one font would make renders identical across
   machines (needs a new package).
-- Characters still face the camera while walking sideways.
 - The human scorecard should rate the new clip before we call it better.
 
 ## How to run
