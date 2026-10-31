@@ -10,11 +10,15 @@ import {illustrationPoseAtFrame} from './pose';
 import {processStageLayout, processStateAtFrame, stationStateAtFrame, type ProcessSnapshot} from './processState';
 import type {ProcessPresentation} from './processPresentation';
 import {LookContext, loadSketchFont} from './sketch';
+import {ContactShadow, groundOffset, Prop, StageDefs, StageRoom} from './staging';
 
 type Props = {scene: Extract<TimelineScene, {template: 'motion'}>; label: string; presentation?: ProcessPresentation};
 
 // Frames for a changed count to roll from its old value to the new one.
 const ROLL_FRAMES = 9;
+// How strongly, and how far in from each side, a staged room blurs into haze.
+const EDGE_BLUR = 4;
+const EDGE_MASK = 'linear-gradient(to right, black, transparent 13%, transparent 87%, black)';
 const smooth = (value: number) => {
   const t = Math.max(0, Math.min(1, value));
   return t * t * (3 - 2 * t);
@@ -73,10 +77,13 @@ export const MotionScene: React.FC<Props> = ({scene, label, presentation}) => {
   const palette = paletteFor(theme);
   const prefix = scene.id.replace(/[^a-zA-Z0-9_-]/g, '-');
   const actors = program.entities.map((prepared) => ({prepared, state: entityAtFrame(prepared, frame)}));
+  // The sketch look stages process scenes: floor light, contact shadows, props and depth order.
+  const staged = look === 'sketch' && Boolean(scene.processTrace && presentation);
   const title = <h1 style={{...(processLayout ? {padding: `0 ${processLayout.inset}px`, flexShrink: 0,
     fontSize: processLayout.titleFontSize, overflowWrap: 'anywhere' as const} :
     {position: 'absolute' as const, left: 110, right: 110, top: 99, fontSize: 56}),
-    margin: 0, lineHeight: 1.14, fontWeight: 750, letterSpacing: '-0.025em'}}>{scene.visual.title}</h1>;
+    margin: 0, lineHeight: 1.14, fontWeight: 750, letterSpacing: '-0.025em', position: 'relative', zIndex: 1}}>
+    {scene.visual.title}</h1>;
   const artwork = <svg viewBox={`${viewport.x} ${viewport.y} ${viewport.width} ${viewport.height}`}
         width={processLayout ? '100%' : stage.width} height={processLayout ? '100%' : stage.height}
         // A close-up sketch stage lets departing people walk past its edge before they fade.
@@ -90,17 +97,32 @@ export const MotionScene: React.FC<Props> = ({scene, label, presentation}) => {
               opacity={progress > 0 ? 0.55 : 0} />
           </g>;
         })}
-        {actors.map(({prepared, state}) => {
-          const {entity} = prepared;
-          const point = toStage(state);
-          return <g key={entity.id} opacity={state.opacity} transform={`translate(${point.x} ${point.y})`}>
-            <g transform={`rotate(${state.rotation % 360}) scale(${state.size})`}>
-              <Illustration entity={entity} state={state} palette={palette} prefix={prefix} look={look}
-                pose={illustrationPoseAtFrame(prepared, frame)}
-                station={scene.processTrace ? stationStateAtFrame(scene.processTrace, entity.id, frame) : null} />
-            </g>
-          </g>;
-        })}
+        {staged ? <>
+          <StageDefs ink={palette.ink} prefix={prefix} />
+          {presentation!.room ? <StageRoom viewport={viewport} room={presentation!.room} prefix={prefix} ink={palette.ink} /> : null}
+          {actors.map(({prepared, state}) => {
+            const point = toStage(state);
+            return <ContactShadow key={`${prepared.entity.id}-shadow`} kind={prepared.entity.kind} x={point.x} y={point.y}
+              size={state.size} opacity={state.opacity} prefix={prefix} />;
+          })}
+        </> : null}
+        {/* A staged scene draws back to front by where things touch the floor, so nearer things overlap farther ones. */}
+        {[...actors.map(({prepared, state}) => ({key: prepared.entity.id,
+          depth: staged ? toStage(state).y + groundOffset(prepared.entity.kind, state.size) : 0,
+          node: (() => {
+            const {entity} = prepared;
+            const point = toStage(state);
+            return <g key={entity.id} opacity={state.opacity} transform={`translate(${point.x} ${point.y})`}>
+              <g transform={`rotate(${state.rotation % 360}) scale(${state.size})`}>
+                <Illustration entity={entity} state={state} palette={palette} prefix={prefix} look={look}
+                  pose={illustrationPoseAtFrame(prepared, frame)}
+                  station={scene.processTrace ? stationStateAtFrame(scene.processTrace, entity.id, frame) : null} />
+              </g>
+            </g>;
+          })()})),
+        ...(staged ? presentation!.props : []).map((prop) => ({key: prop.id, depth: prop.y,
+          node: <Prop key={prop.id} prop={prop} ink={palette.ink} paper={palette.paper} soft={palette.soft} prefix={prefix} />}))]
+          .sort((a, b) => a.depth - b.depth).map(({node}) => node)}
         {/* Labels stay upright and keep a consistent reading size as the illustration rotates or scales. */}
         {placeActorLabels(actors, viewport, slots).map(({actor: {prepared, state}, x, y, fontSize}) => {
           return <text key={`${prepared.entity.id}-label`} x={x} y={y}
@@ -118,13 +140,15 @@ export const MotionScene: React.FC<Props> = ({scene, label, presentation}) => {
       <div style={{position: 'absolute', left: processLayout ? processLayout.container.x + processLayout.inset : 110,
         right: processLayout ? processLayout.container.x + processLayout.inset : 110,
         top: processLayout ? height * 65 / 1080 : 65, fontSize: processLayout ? height * 22 / 1080 : 22, fontWeight: 600,
-        letterSpacing: '0.06em', color: theme.muted}}>{label}</div>
+        letterSpacing: '0.06em', color: theme.muted, zIndex: 1}}>{label}</div>
       {scene.processTrace && processLayout ? <div style={{position: 'absolute', left: processLayout.container.x,
         top: processLayout.container.y, width: processLayout.container.width, height: processLayout.container.height,
         display: 'flex', flexDirection: 'column'}}>
         {title}
         {/* The counts stay on screen and roll to each new value, rather than the strip fading out and in. */}
-        <div style={{padding: `0 ${processLayout.inset}px`, height: processLayout.strip.height, flexShrink: 0,
+        {/* Title and counts sit above the stage, whose room extends behind them. */}
+        <div style={{position: 'relative', zIndex: 1, padding: `0 ${processLayout.inset}px`,
+          height: processLayout.strip.height, flexShrink: 0,
           marginTop: processLayout.strip.marginTop, marginBottom: processLayout.strip.marginBottom,
           fontSize: processLayout.strip.fontSize, lineHeight: 1.2, fontVariantNumeric: 'tabular-nums',
           color: theme.muted, whiteSpace: 'nowrap'}}>
@@ -132,6 +156,12 @@ export const MotionScene: React.FC<Props> = ({scene, label, presentation}) => {
         </div>
         <div style={{flex: 1, minHeight: 0}}>{artwork}</div>
       </div> : <>{title}{artwork}</>}
+      {/* The room has no side walls, so its far left and right soften into haze: a glimpse of a larger space.
+          It sits over the room and cast but under the title, counts and kicker. */}
+      {staged ? <AbsoluteFill style={{zIndex: 0, backdropFilter: `blur(${EDGE_BLUR}px)`,
+        WebkitMaskImage: EDGE_MASK, maskImage: EDGE_MASK,
+        background: 'linear-gradient(to right, rgba(239, 232, 220, 0.8), rgba(239, 232, 220, 0) 13%, rgba(239, 232, 220, 0) 87%, rgba(239, 232, 220, 0.8))'}} />
+        : null}
     </AbsoluteFill>
   );
 };
