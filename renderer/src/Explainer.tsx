@@ -12,7 +12,7 @@ import {MapScene} from './scenes/MapScene';
 import {QuoteScene} from './scenes/QuoteScene';
 import {StatScene} from './scenes/StatScene';
 import {MotionScene} from './motion/MotionScene';
-import {LookContext} from './motion/sketch';
+import {LookContext, loadSketchFont} from './motion/sketch';
 import {processPresentations, type ProcessPresentation} from './motion/processPresentation';
 import {ThemeContext, motion, themes} from './theme';
 import type {Timeline, TimelineScene} from './types';
@@ -48,6 +48,8 @@ export const Explainer: React.FC<Timeline> = (timeline) => {
   const theme = themes[timeline.theme ?? 'light'] ?? themes.light;
   const chapters = new Map(timeline.chapters.map((chapter) => [chapter.id, chapter]));
   const lines = timeline.scenes.flatMap((scene) => scene.lines);
+  // Only the sketch look needs its hand-lettered font, so other renders never fetch it.
+  React.useMemo(() => timeline.look === 'sketch' && loadSketchFont(), [timeline.look]);
   // Hand-drawn figures carry fine linework, so the sketch look frames process stages closer.
   const presentations = React.useMemo(() => processPresentations(timeline.scenes, timeline.look === 'sketch'),
     [timeline.scenes, timeline.look]);

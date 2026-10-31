@@ -1,4 +1,5 @@
 import React, {useMemo} from 'react';
+import {loadFont} from '@remotion/google-fonts/PatrickHand';
 import Peep from 'react-peeps';
 import rough from 'roughjs';
 import type {IllustrationPose} from './pose';
@@ -11,6 +12,9 @@ import {walkBob} from './pose';
  */
 export type Look = 'vector' | 'sketch';
 export const LookContext = React.createContext<Look>('vector');
+
+/** Labels in the sketch look are hand-lettered (Patrick Hand, OFL), fetched once at render start. */
+export const loadSketchFont = () => loadFont('normal', {weights: ['400'], subsets: ['latin']}).fontFamily;
 
 /** A stable number in [0, 2^32) per id. */
 const hash = (id: string) => {
@@ -35,26 +39,83 @@ export const sketchCast = (id: string) => {
   return {outfit: OUTFITS[value % OUTFITS.length], hair: HAIRS[(value >>> 8) % HAIRS.length]};
 };
 
+// The drawn figure is kept down to just below the hips; legs below are a rig that can walk.
+const HIP_CUT = 0.56;
+const HIP_Y = -FIGURE_HEIGHT * (1 - HIP_CUT);
+const THIGH = 31;
+const SHIN = 29;
+// Two trouser legs as wide as the drawn hips, so the cut edge of the drawing disappears into them.
+const HIP_SPREAD = 6;
+
+type Leg = {hip: {x: number; y: number}; knee: {x: number; y: number}; ankle: {x: number; y: number}; toe: number};
+
 /**
- * A hand-drawn person. Walking is a bounce and a gentle rock on each step, the classic cut-out walk, so
- * the drawing itself never changes; a blink swaps in the closed-eyes face for a few frames.
+ * Both legs at a point in the stride. phase runs once per two steps (pose.ts); a leg swings forward
+ * with its knee bent and plants straight, and both stand straight when strength falls to 0.
  */
-export const SketchPerson: React.FC<{id: string; fill: string; ink: string; pose?: IllustrationPose}> = (
-  {id, fill, ink, pose}) => {
+export const legsAt = (phase: number, strength: number, direction: number): Leg[] => [0, 0.5].map((offset, index) => {
+  const turn = 2 * Math.PI * (phase + offset);
+  const thigh = Math.sin(turn) * 24 * strength * Math.PI / 180;
+  const knee = Math.max(0, Math.cos(turn)) * 38 * strength * Math.PI / 180;
+  const hip = {x: index ? HIP_SPREAD : -HIP_SPREAD, y: HIP_Y - 5};
+  const kneeAt = {x: hip.x + direction * Math.sin(thigh) * THIGH, y: hip.y + Math.cos(thigh) * THIGH};
+  const shin = thigh - knee;
+  const ankle = {x: kneeAt.x + direction * Math.sin(shin) * SHIN, y: kneeAt.y + Math.cos(shin) * SHIN};
+  return {hip, knee: kneeAt, ankle, toe: shin * 180 / Math.PI};
+});
+
+const LegDrawing: React.FC<{leg: Leg; ink: string; paper: string; direction: number}> = ({leg, ink, paper, direction}) => {
+  const {hip, knee, ankle} = leg;
+  return <g>
+    <path d={`M${hip.x},${hip.y} L${knee.x},${knee.y}`} fill="none" stroke={ink} strokeWidth={12.5}
+      strokeLinecap="round" />
+    <path d={`M${knee.x},${knee.y} L${ankle.x},${ankle.y}`} fill="none" stroke={ink} strokeWidth={10.5}
+      strokeLinecap="round" />
+    {/* A sneaker in the Open Peeps manner: white with an ink outline, tilting with the shin. */}
+    <g transform={`translate(${ankle.x} ${ankle.y + 1}) rotate(${-direction * leg.toe * 0.6}) scale(${direction} 1)`}>
+      <path d="M-5,-4 C-5,-7 1,-6 3,-3 C7,-2 11,-1 11,2.5 L11,4 L-6,4 Z" fill={paper} stroke={ink} strokeWidth={1.6}
+        strokeLinejoin="round" />
+      <path d="M-6,2 L11,2" stroke={ink} strokeWidth={1.2} />
+    </g>
+  </g>;
+};
+
+/**
+ * A hand-drawn person. The upper body is an Open Peeps drawing that never changes; the legs are a rig
+ * that walks with steps tied to the distance covered (pose.ts) and stands straight when still. A blink
+ * swaps in the closed-eyes face for a few frames.
+ */
+export const SketchPerson: React.FC<{id: string; fill: string; ink: string; paper: string; pose?: IllustrationPose}> = (
+  {id, fill, ink, paper, pose}) => {
   const {outfit, hair} = sketchCast(id);
   const movement = pose?.movement;
-  const rock = movement?.walking ? Math.sin(movement.phase * Math.PI * 2) * 3 * movement.strength : 0;
-  const breath = pose?.idle ? pose.idle.breath * (1 - (movement?.strength ?? 0)) : 0;
+  const strength = movement?.walking ? movement.strength : 0;
+  const direction = (movement?.facing ?? 0) < -0.2 ? -1 : 1;
+  const legs = legsAt(movement?.phase ?? 0, strength, direction);
+  const lean = direction * 2.5 * strength;
+  const breath = pose?.idle ? pose.idle.breath * (1 - strength) : 0;
   const blinking = (pose?.idle?.blink ?? 0) > 0.5;
-  return <g transform={`translate(0 ${60 - walkBob(pose) * 1.4}) rotate(${rock}) scale(1 ${1 + breath * 0.008})`}>
-    {/* Peep draws its own <svg> at 100% of the enclosing viewport, so this one sets the figure's size. */}
-    <svg x={-FIGURE_WIDTH / 2} y={-FIGURE_HEIGHT} width={FIGURE_WIDTH} height={FIGURE_HEIGHT} overflow="visible">
-      <Peep style={{overflow: 'visible'}}
-        viewBox={{x: String(PEEP_BOX.x), y: String(PEEP_BOX.y), width: String(PEEP_BOX.width),
-          height: String(PEEP_BOX.height)}}
-        body={outfit as never} hair={hair as never} face={(blinking ? 'EyesClosed' : 'Smile') as never}
-        strokeColor={ink} backgroundColor={fill} />
-    </svg>
+  const clip = `sketch-body-${id.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+  // The body rides up as a leg passes under it; the feet stay where the legs put them.
+  const lift = walkBob(pose) * 1.2;
+  return <g transform="translate(0 60)">
+    <defs><clipPath id={clip}><rect x={-60} y={-FIGURE_HEIGHT - 20} width={120} height={FIGURE_HEIGHT * HIP_CUT + 20} /></clipPath></defs>
+    {/* Back leg first, then the body over both hip joints, then nothing covers the front foot. */}
+    <g transform={`translate(0 ${-lift * 0.3})`}>
+      {legs.map((leg, index) => <LegDrawing key={index} leg={leg} ink={ink} paper={paper} direction={direction} />)}
+    </g>
+    <g transform={`translate(0 ${-lift}) rotate(${lean} 0 ${HIP_Y}) scale(1 ${1 + breath * 0.008})`}>
+      <g clipPath={`url(#${clip})`}>
+        {/* Peep draws its own <svg> at 100% of the enclosing viewport, so this one sets the figure's size. */}
+        <svg x={-FIGURE_WIDTH / 2} y={-FIGURE_HEIGHT} width={FIGURE_WIDTH} height={FIGURE_HEIGHT} overflow="visible">
+          <Peep style={{overflow: 'visible'}}
+            viewBox={{x: String(PEEP_BOX.x), y: String(PEEP_BOX.y), width: String(PEEP_BOX.width),
+              height: String(PEEP_BOX.height)}}
+            body={outfit as never} hair={hair as never} face={(blinking ? 'EyesClosed' : 'Smile') as never}
+            strokeColor={ink} backgroundColor={fill} />
+        </svg>
+      </g>
+    </g>
   </g>;
 };
 

@@ -9,7 +9,7 @@ import {fitMotionViewport, motionStageRect} from './camera';
 import {illustrationPoseAtFrame} from './pose';
 import {processStageLayout, processStateAtFrame, stationStateAtFrame, type ProcessSnapshot} from './processState';
 import type {ProcessPresentation} from './processPresentation';
-import {LookContext} from './sketch';
+import {LookContext, loadSketchFont} from './sketch';
 
 type Props = {scene: Extract<TimelineScene, {template: 'motion'}>; label: string; presentation?: ProcessPresentation};
 
@@ -104,7 +104,9 @@ export const MotionScene: React.FC<Props> = ({scene, label, presentation}) => {
         {/* Labels stay upright and keep a consistent reading size as the illustration rotates or scales. */}
         {placeActorLabels(actors, viewport, slots).map(({actor: {prepared, state}, x, y, fontSize}) => {
           return <text key={`${prepared.entity.id}-label`} x={x} y={y}
-            textAnchor="middle" fill={palette.ink} opacity={state.opacity} fontSize={fontSize} fontWeight={650}
+            textAnchor="middle" fill={palette.ink} opacity={state.opacity}
+            fontSize={look === 'sketch' ? fontSize * 1.25 : fontSize} fontWeight={look === 'sketch' ? 400 : 650}
+            fontFamily={look === 'sketch' ? loadSketchFont() : undefined}
             stroke={palette.paper} strokeWidth={7} strokeLinejoin="round" paintOrder="stroke">
             {prepared.entity.label}
           </text>;

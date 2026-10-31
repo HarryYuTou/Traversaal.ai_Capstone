@@ -59,7 +59,8 @@ export const Illustration: React.FC<Props> = ({entity, state, palette: p, prefix
   const content = (() => {
     // Hand-drawn people and counters; an ink actor wears paper-coloured clothes, others their colour.
     if (look === 'sketch' && entity.kind === 'person') {
-      return <SketchPerson id={entity.id} fill={entity.color === 'ink' ? p.paper : color} ink={p.ink} pose={pose} />;
+      return <SketchPerson id={entity.id} fill={entity.color === 'ink' ? p.paper : color} ink={p.ink} paper={p.paper}
+        pose={pose} />;
     }
     if (look === 'sketch' && entity.kind === 'counter') {
       return <SketchCounter id={entity.id} color={color} paper={p.paper} soft={p.soft} ink={p.ink} />;
