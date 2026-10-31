@@ -11,7 +11,7 @@ from .narrate import narrate_plan
 from .planner import attach_reference_url, load_env_file, make_spec, write_plan_run
 from .reference import fetch_reference
 from .preview import build_preview
-from .render import THEMES, render_video
+from .render import LOOKS, THEMES, render_video
 from .scorecard import MIN_SECONDS, build as build_scorecard, write_report, write_template
 from .review import write_review
 from .timeline import write_timeline
@@ -121,7 +121,7 @@ def _narrate(args, plan) -> int:
 
 def _render(run_dir: Path, args) -> None:
     info = render_video(run_dir, args.draft, args.share, progress=_print, theme=args.theme,
-                        music=not args.no_music, concurrency=args.concurrency)
+                        music=not args.no_music, concurrency=args.concurrency, look=args.look)
     print(f"Video: {run_dir.resolve() / info['videoPath']}")
     print(f"{info['width']}x{info['height']} | {info['probedSeconds']:.1f} s | "
           f"{info['bytes'] / 1e6:.1f} MB | rendered in {info['renderSeconds']:.0f} s")
@@ -134,6 +134,8 @@ def _add_look_options(parser):
     parser.add_argument("--theme", choices=THEMES, default="light",
                         help="Look of the video: light slides, or night, a darker documentary style")
     parser.add_argument("--no-music", action="store_true", help="Leave out the synthesized music bed")
+    parser.add_argument("--look", choices=LOOKS, default="vector",
+                        help="Illustrations in motion scenes: vector shapes, or sketch (hand-drawn people and objects)")
 
 
 def _positive_int(text: str) -> int:

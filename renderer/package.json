@@ -17,7 +17,9 @@
     "lucide-react": "1.47.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "remotion": "4.0.531"
+    "react-peeps": "0.1.10",
+    "remotion": "4.0.531",
+    "roughjs": "4.6.6"
   },
   "devDependencies": {
     "@types/react": "19.2.2",

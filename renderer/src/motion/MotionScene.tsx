@@ -9,6 +9,7 @@ import {fitMotionViewport, motionStageRect} from './camera';
 import {illustrationPoseAtFrame} from './pose';
 import {processStageLayout, processStateAtFrame, stationStateAtFrame, type ProcessSnapshot} from './processState';
 import type {ProcessPresentation} from './processPresentation';
+import {LookContext} from './sketch';
 
 type Props = {scene: Extract<TimelineScene, {template: 'motion'}>; label: string; presentation?: ProcessPresentation};
 
@@ -56,6 +57,7 @@ const ProcessCounts: React.FC<{trace: ProcessTrace; frame: number; ink: string; 
 /** A shared illustrated stage: actors perform the explanation, with only a title and small labels. */
 export const MotionScene: React.FC<Props> = ({scene, label, presentation}) => {
   const theme = useTheme();
+  const look = React.useContext(LookContext);
   const frame = scene.from + useCurrentFrame();
   const program = useMemo(() => compileMotion(scene.visual), [scene.visual]);
   // One camera for the whole scene (and for every related process shot): nothing re-frames mid-scene.
@@ -77,7 +79,8 @@ export const MotionScene: React.FC<Props> = ({scene, label, presentation}) => {
     margin: 0, lineHeight: 1.14, fontWeight: 750, letterSpacing: '-0.025em'}}>{scene.visual.title}</h1>;
   const artwork = <svg viewBox={`${viewport.x} ${viewport.y} ${viewport.width} ${viewport.height}`}
         width={processLayout ? '100%' : stage.width} height={processLayout ? '100%' : stage.height}
-        style={processLayout ? {display: 'block', overflow: 'hidden'} :
+        // A close-up sketch stage lets departing people walk past its edge before they fade.
+        style={processLayout ? {display: 'block', overflow: look === 'sketch' ? 'visible' : 'hidden'} :
           {position: 'absolute', top: stage.y, left: stage.x, overflow: 'hidden'}}>
         {(!scene.processTrace ? displayedPaths(program, frame) : []).map(({key, path, geometry, from, progress}) => {
           const shown = Math.max(0, Math.min(1, (frame - from) / 10));
@@ -92,7 +95,7 @@ export const MotionScene: React.FC<Props> = ({scene, label, presentation}) => {
           const point = toStage(state);
           return <g key={entity.id} opacity={state.opacity} transform={`translate(${point.x} ${point.y})`}>
             <g transform={`rotate(${state.rotation % 360}) scale(${state.size})`}>
-              <Illustration entity={entity} state={state} palette={palette} prefix={prefix}
+              <Illustration entity={entity} state={state} palette={palette} prefix={prefix} look={look}
                 pose={illustrationPoseAtFrame(prepared, frame)}
                 station={scene.processTrace ? stationStateAtFrame(scene.processTrace, entity.id, frame) : null} />
             </g>

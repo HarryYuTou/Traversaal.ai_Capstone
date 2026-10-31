@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {existsSync} from 'node:fs';
 import {readFile} from 'node:fs/promises';
 import {test} from 'node:test';
 import ts from 'typescript';
@@ -14,8 +15,9 @@ const moduleUrl = async (file) => {
     module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React,
   }});
   for (const match of [...outputText.matchAll(/from (['"])([^'"]+)\1/g)]) {
+    const local = (extension) => new URL(`${match[2]}${extension}`, file);
     const dependency = match[2].startsWith('./')
-      ? await moduleUrl(new URL(`${match[2]}.ts`, file)) : import.meta.resolve(match[2]);
+      ? await moduleUrl(existsSync(local('.ts')) ? local('.ts') : local('.tsx')) : import.meta.resolve(match[2]);
     outputText = outputText.replace(match[0], `from '${dependency}'`);
   }
   const url = `data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`;

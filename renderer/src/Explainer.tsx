@@ -12,6 +12,7 @@ import {MapScene} from './scenes/MapScene';
 import {QuoteScene} from './scenes/QuoteScene';
 import {StatScene} from './scenes/StatScene';
 import {MotionScene} from './motion/MotionScene';
+import {LookContext} from './motion/sketch';
 import {processPresentations, type ProcessPresentation} from './motion/processPresentation';
 import {ThemeContext, motion, themes} from './theme';
 import type {Timeline, TimelineScene} from './types';
@@ -47,7 +48,9 @@ export const Explainer: React.FC<Timeline> = (timeline) => {
   const theme = themes[timeline.theme ?? 'light'] ?? themes.light;
   const chapters = new Map(timeline.chapters.map((chapter) => [chapter.id, chapter]));
   const lines = timeline.scenes.flatMap((scene) => scene.lines);
-  const presentations = React.useMemo(() => processPresentations(timeline.scenes), [timeline.scenes]);
+  // Hand-drawn figures carry fine linework, so the sketch look frames process stages closer.
+  const presentations = React.useMemo(() => processPresentations(timeline.scenes, timeline.look === 'sketch'),
+    [timeline.scenes, timeline.look]);
   const parts: Part[] = [
     {key: 'Title', from: 0, durationInFrames: timeline.titleFrames,
       content: <TitleCard title={timeline.title}
@@ -68,29 +71,31 @@ export const Explainer: React.FC<Timeline> = (timeline) => {
   const sameStage = (a?: Part, b?: Part) => a?.stage !== undefined && a.stage === b?.stage;
   return (
     <ThemeContext.Provider value={theme}>
-      <AbsoluteFill style={{background: theme.bg, color: theme.ink, fontFamily: theme.font}}>
-        <Backdrop />
-        {timeline.audio.path ? <Html5Audio src={staticFile(timeline.audio.path)} /> : null}
-        {timeline.music?.path ? <Html5Audio src={staticFile(timeline.music.path)} /> : null}
-        {/* Cards and scenes blend among themselves before landing on the backdrop (see Shell's dissolve). */}
-        <AbsoluteFill style={{isolation: 'isolate'}}>
-          {parts.map((part, index) => {
-            const last = index === parts.length - 1;
-            const enter: Transition = sameStage(parts[index - 1], part) ? 'dissolve' : 'slide';
-            const exit: Transition = sameStage(part, parts[index + 1]) ? 'dissolve' : 'slide';
-            return (
-              <Sequence key={part.key} name={part.key} from={part.from}
-                durationInFrames={part.durationInFrames + (last ? 0 : motion.overlap)}>
-                <Shell durationInFrames={part.durationInFrames} last={last} enter={enter} exit={exit}>
-                  {part.content}
-                </Shell>
-              </Sequence>
-            );
-          })}
+      <LookContext.Provider value={timeline.look ?? 'vector'}>
+        <AbsoluteFill style={{background: theme.bg, color: theme.ink, fontFamily: theme.font}}>
+          <Backdrop />
+          {timeline.audio.path ? <Html5Audio src={staticFile(timeline.audio.path)} /> : null}
+          {timeline.music?.path ? <Html5Audio src={staticFile(timeline.music.path)} /> : null}
+          {/* Cards and scenes blend among themselves before landing on the backdrop (see Shell's dissolve). */}
+          <AbsoluteFill style={{isolation: 'isolate'}}>
+            {parts.map((part, index) => {
+              const last = index === parts.length - 1;
+              const enter: Transition = sameStage(parts[index - 1], part) ? 'dissolve' : 'slide';
+              const exit: Transition = sameStage(part, parts[index + 1]) ? 'dissolve' : 'slide';
+              return (
+                <Sequence key={part.key} name={part.key} from={part.from}
+                  durationInFrames={part.durationInFrames + (last ? 0 : motion.overlap)}>
+                  <Shell durationInFrames={part.durationInFrames} last={last} enter={enter} exit={exit}>
+                    {part.content}
+                  </Shell>
+                </Sequence>
+              );
+            })}
+          </AbsoluteFill>
+          <Captions lines={lines} />
+          <ProgressBar chapters={timeline.chapters} />
         </AbsoluteFill>
-        <Captions lines={lines} />
-        <ProgressBar chapters={timeline.chapters} />
-      </AbsoluteFill>
+      </LookContext.Provider>
     </ThemeContext.Provider>
   );
 };

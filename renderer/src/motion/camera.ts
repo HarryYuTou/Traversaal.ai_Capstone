@@ -17,6 +17,8 @@ export const motionStageRect = (width: number, height: number) => ({
  */
 export const fitMotionViewport = (program: MotionProgram, options: {
   fitContent?: boolean; minimumWidth?: number; minimumHeight?: number; labelsBeside?: boolean;
+  /** Frame only where things stand (and the walks between those places): departures may leave the shot. */
+  settledOnly?: boolean;
 } = {}): StageViewport => {
   let left = options.fitContent ? Infinity : 0;
   let top = options.fitContent ? Infinity : 0;
@@ -26,7 +28,16 @@ export const fitMotionViewport = (program: MotionProgram, options: {
     left = Math.min(left, x - rx); right = Math.max(right, x + rx);
     top = Math.min(top, y - ry); bottom = Math.max(bottom, y + ry);
   };
+  // A departure is a walk that ends exactly as the walker finishes fading out.
+  const departures = new Set(program.entities.flatMap(({actions}) => actions
+    .filter(({action}) => ['move', 'follow-path'].includes(action.kind) && actions.some(({action: fade}) =>
+      fade.kind === 'opacity' && fade.value <= 0.05
+      && fade.from + fade.durationInFrames === action.from + action.durationInFrames))
+    .map(({action}) => action)));
+  const settled = (action: (typeof program.entities)[number]['actions'][number]['action']) =>
+    !options.settledOnly || !departures.has(action);
   for (const path of program.paths) {
+    if (options.settledOnly) continue;
     for (const point of pathGeometry(path).points) include(point.x, point.y, 4, 4);
   }
   for (const prepared of program.entities) {
@@ -45,14 +56,19 @@ export const fitMotionViewport = (program: MotionProgram, options: {
     const rx = Math.max(extent.x, label ? label.width / 2 : 0) + 12;
     const ry = extent.y + (label ? label.height + 27 : 0) + 12;
     const initial = toStage(entity);
-    include(initial.x, initial.y, rx, ry);
+    // An arrival's off-stage spawn point is not a place anyone stands.
+    if (!options.settledOnly || entity.opacity > 0.05) include(initial.x, initial.y, rx, ry);
     // Room for a label beside a fixed station, the side process scenes prefer (labels.ts).
     if (options.labelsBeside && label && !actions.some(({action}) => ['move', 'follow-path', 'orbit'].includes(action.kind))) {
       include(initial.x + extent.x + 16 + label.width / 2, initial.y, label.width / 2 + 12, label.height / 2 + 12);
     }
     for (const {action, initial: start, geometry} of actions) {
+      if (!settled(action)) continue;
       const at = toStage(start);
-      include(at.x, at.y, rx, ry);
+      // Settled framing takes positions only from movement: a fade-out starts mid-departure, and an
+      // arrival starts at its invisible spawn point.
+      const positional = ['move', 'follow-path', 'orbit'].includes(action.kind);
+      if (!options.settledOnly || (positional && start.opacity > 0.05)) include(at.x, at.y, rx, ry);
       if (action.kind === 'move') {
         const end = toStage(action);
         include(end.x, end.y, rx, ry);
@@ -80,7 +96,7 @@ export const fitMotionViewport = (program: MotionProgram, options: {
 
 /** Process scenes are compiler-positioned. Remove unused authored margins, but share a single
  * envelope across related shots so a counter does not jump merely because the queue got shorter. */
-export const fitProcessViewport = (programs: MotionProgram[]): StageViewport => fitMotionViewport({
+export const fitProcessViewport = (programs: MotionProgram[], settledOnly = false): StageViewport => fitMotionViewport({
   entities: programs.flatMap((program) => program.entities),
   paths: programs.flatMap((program) => program.paths),
-}, {fitContent: true, labelsBeside: true});
+}, {fitContent: true, labelsBeside: true, settledOnly});

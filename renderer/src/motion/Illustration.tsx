@@ -3,9 +3,11 @@ import type {EntityState} from './engine';
 import type {StationState} from './processState';
 import type {MotionColor, MotionEntity} from './types';
 import {carryOf, limbPath, personLimbs, walkBob, workbenchPress, type ActivityPose, type IllustrationPose} from './pose';
+import {SketchCounter, SketchPerson, type Look} from './sketch';
 
 export type Palette = Record<MotionColor, string> & {paper: string; soft: string; line: string};
-type Props = {entity: MotionEntity; state: EntityState; palette: Palette; prefix: string; pose?: IllustrationPose; station?: StationState | null};
+type Props = {entity: MotionEntity; state: EntityState; palette: Palette; prefix: string; pose?: IllustrationPose;
+  station?: StationState | null; look?: Look};
 
 const clamp = (value: number) => Math.max(0, Math.min(1, value));
 const smooth = (value: number) => clamp(value) * clamp(value) * (3 - 2 * clamp(value));
@@ -41,7 +43,7 @@ const ActivityMark: React.FC<{activity: ActivityPose; palette: Palette; color: s
 );
 
 /** Original small vector illustrations. All actors share the same ink, stroke weight and materials. */
-export const Illustration: React.FC<Props> = ({entity, state, palette: p, prefix, pose, station}) => {
+export const Illustration: React.FC<Props> = ({entity, state, palette: p, prefix, pose, station, look = 'vector'}) => {
   // How open a station looks: it brightens over its opening instead of switching on its last frame.
   const opened = !station ? 1 : station.open ? 1 : smooth(station.openingProgress);
   const color = station ? mixColor(p.muted, p[entity.color], opened) : p[entity.color];
@@ -55,6 +57,13 @@ export const Illustration: React.FC<Props> = ({entity, state, palette: p, prefix
   const blink = pose?.idle?.blink ?? 0;
   const facing = pose?.movement.facing ?? 0;
   const content = (() => {
+    // Hand-drawn people and counters; an ink actor wears paper-coloured clothes, others their colour.
+    if (look === 'sketch' && entity.kind === 'person') {
+      return <SketchPerson id={entity.id} fill={entity.color === 'ink' ? p.paper : color} ink={p.ink} pose={pose} />;
+    }
+    if (look === 'sketch' && entity.kind === 'counter') {
+      return <SketchCounter id={entity.id} color={color} paper={p.paper} soft={p.soft} ink={p.ink} />;
+    }
     switch (entity.kind) {
       case 'planet': return <>
         <defs><clipPath id={clip}><circle r={68} /></clipPath></defs>
@@ -233,7 +242,8 @@ export const Illustration: React.FC<Props> = ({entity, state, palette: p, prefix
       <path d="M-39 34H39" pathLength={1} stroke={p.secondary} strokeWidth={3}
         opacity={clamp((1 - station.openingProgress) / 0.15)}
         strokeDasharray={`${station.openingProgress} 1`} /> : null}
-  </g> : null}{activity ? <g transform={`translate(${mark.x} ${mark.y})`}>
+  </g> : null}{/* A sketched person shows service through the counter's screen, not a mark on their body. */}
+  {activity && !(look === 'sketch' && entity.kind === 'person') ? <g transform={`translate(${mark.x} ${mark.y})`}>
     <ActivityMark activity={activity} palette={p} color={color} grow={pose?.markIn ?? 1} />
   </g> : null}</g>;
 };

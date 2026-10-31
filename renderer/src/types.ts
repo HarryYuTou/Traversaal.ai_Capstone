@@ -113,7 +113,8 @@ export type Timeline = {
   audio: {path: string; sampleRate: number; channels: number};
   chapters: TimelineChapter[];
   scenes: TimelineScene[];
-  // Render options; a bare timeline.json has neither and renders in the light theme without music.
+  // Render options; a bare timeline.json has none and renders light, vector and without music.
   theme?: ThemeName;
+  look?: 'vector' | 'sketch';
   music?: {path: string} | null;
 };
