@@ -10,7 +10,7 @@ import {illustrationPoseAtFrame} from './pose';
 import {processStageLayout, processStateAtFrame, stationStateAtFrame, type ProcessSnapshot} from './processState';
 import type {ProcessPresentation} from './processPresentation';
 import {LookContext, loadSketchFont} from './sketch';
-import {ContactShadow, groundOffset, Prop, StageDefs, StageFloor} from './staging';
+import {ContactShadow, groundOffset, Prop, StageDefs, StageRoom} from './staging';
 
 type Props = {scene: Extract<TimelineScene, {template: 'motion'}>; label: string; presentation?: ProcessPresentation};
 
@@ -79,7 +79,8 @@ export const MotionScene: React.FC<Props> = ({scene, label, presentation}) => {
   const title = <h1 style={{...(processLayout ? {padding: `0 ${processLayout.inset}px`, flexShrink: 0,
     fontSize: processLayout.titleFontSize, overflowWrap: 'anywhere' as const} :
     {position: 'absolute' as const, left: 110, right: 110, top: 99, fontSize: 56}),
-    margin: 0, lineHeight: 1.14, fontWeight: 750, letterSpacing: '-0.025em'}}>{scene.visual.title}</h1>;
+    margin: 0, lineHeight: 1.14, fontWeight: 750, letterSpacing: '-0.025em', position: 'relative', zIndex: 1}}>
+    {scene.visual.title}</h1>;
   const artwork = <svg viewBox={`${viewport.x} ${viewport.y} ${viewport.width} ${viewport.height}`}
         width={processLayout ? '100%' : stage.width} height={processLayout ? '100%' : stage.height}
         // A close-up sketch stage lets departing people walk past its edge before they fade.
@@ -95,7 +96,7 @@ export const MotionScene: React.FC<Props> = ({scene, label, presentation}) => {
         })}
         {staged ? <>
           <StageDefs ink={palette.ink} prefix={prefix} />
-          <StageFloor viewport={viewport} prefix={prefix} ink={palette.ink} />
+          {presentation!.room ? <StageRoom viewport={viewport} room={presentation!.room} prefix={prefix} ink={palette.ink} /> : null}
           {actors.map(({prepared, state}) => {
             const point = toStage(state);
             return <ContactShadow key={`${prepared.entity.id}-shadow`} kind={prepared.entity.kind} x={point.x} y={point.y}
@@ -136,13 +137,15 @@ export const MotionScene: React.FC<Props> = ({scene, label, presentation}) => {
       <div style={{position: 'absolute', left: processLayout ? processLayout.container.x + processLayout.inset : 110,
         right: processLayout ? processLayout.container.x + processLayout.inset : 110,
         top: processLayout ? height * 65 / 1080 : 65, fontSize: processLayout ? height * 22 / 1080 : 22, fontWeight: 600,
-        letterSpacing: '0.06em', color: theme.muted}}>{label}</div>
+        letterSpacing: '0.06em', color: theme.muted, zIndex: 1}}>{label}</div>
       {scene.processTrace && processLayout ? <div style={{position: 'absolute', left: processLayout.container.x,
         top: processLayout.container.y, width: processLayout.container.width, height: processLayout.container.height,
         display: 'flex', flexDirection: 'column'}}>
         {title}
         {/* The counts stay on screen and roll to each new value, rather than the strip fading out and in. */}
-        <div style={{padding: `0 ${processLayout.inset}px`, height: processLayout.strip.height, flexShrink: 0,
+        {/* Title and counts sit above the stage, whose room extends behind them. */}
+        <div style={{position: 'relative', zIndex: 1, padding: `0 ${processLayout.inset}px`,
+          height: processLayout.strip.height, flexShrink: 0,
           marginTop: processLayout.strip.marginTop, marginBottom: processLayout.strip.marginBottom,
           fontSize: processLayout.strip.fontSize, lineHeight: 1.2, fontVariantNumeric: 'tabular-nums',
           color: theme.muted, whiteSpace: 'nowrap'}}>

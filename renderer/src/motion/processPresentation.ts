@@ -2,7 +2,7 @@ import type {TimelineScene} from '../types';
 import {compileMotion} from './engine';
 import {fitProcessViewport, type StageViewport} from './camera';
 import {planLabelSlots, PROCESS_LABEL_ORDER, sceneFrames, type LabelSlots} from './labels';
-import {planProps, type PropPlacement} from './staging';
+import {planProps, planRoom, type PropPlacement, type Room} from './staging';
 
 type ProcessScene = Extract<TimelineScene, {template: 'motion'}>;
 /**
@@ -10,8 +10,8 @@ type ProcessScene = Extract<TimelineScene, {template: 'motion'}>;
  * the same side in every shot, and dissolve into each other.
  */
 export type ProcessPresentation = {viewport: StageViewport; group: number; labelSlots: LabelSlots;
-  /** Background props, only for a close-up (sketch) stage. */
-  props: PropPlacement[]};
+  /** The room and its background props, only for a close-up (sketch) stage. */
+  props: PropPlacement[]; room: Room | null};
 const sharedIds = (a: string[], b: string[]) => a.some((id) => b.includes(id));
 
 /**
@@ -31,8 +31,9 @@ export const processPresentations = (scenes: TimelineScene[], closeUp = false): 
     const shots = group.map((scene, index) => ({program: programs[index],
       frames: sceneFrames(scene.from, scene.durationInFrames)}));
     const labelSlots = planLabelSlots(shots, PROCESS_LABEL_ORDER);
-    const props = closeUp ? planProps(shots, viewport, labelSlots) : [];
-    for (const scene of group) result.set(scene.id, {viewport, group: groups, labelSlots, props});
+    const room = closeUp ? planRoom(shots, viewport) : null;
+    const props = room ? planProps(shots, viewport, labelSlots, room.horizon) : [];
+    for (const scene of group) result.set(scene.id, {viewport, group: groups, labelSlots, props, room});
     groups += 1;
     group = [];
   };
