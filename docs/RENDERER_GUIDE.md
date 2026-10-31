@@ -146,11 +146,13 @@ half empty. Titles rise in word by word. Captions show the spoken line and stay
 up through the short gaps inside a scene, except while a quotation is read
 aloud, since the quote is already on screen. Each card and scene slides in from
 the right while the previous one slides out to the left, overlapping by 14
-frames, over a backdrop of slowly drifting light. Fonts are system fonts, so
+frames, over a backdrop of slowly drifting light; the outgoing one is gone
+before the incoming one is fully visible, so their text never stacks. Related
+process scenes dissolve in place instead (see MOTION_GUIDE.md). Fonts are system fonts, so
 rendering works offline.
 
-Motion scenes use original SVG illustrations on a paper background instead
-of slide cards. Their object state persists between actions, and any frame can
+Motion scenes use original SVG illustrations drawn straight on the shared
+backdrop, with the theme's ink and type, instead of slide cards. Their object state persists between actions, and any frame can
 be rendered directly without replaying earlier frames. Actions use absolute
 frames compiled from the real narration. See [MOTION_GUIDE.md](MOTION_GUIDE.md)
 for the reusable contract, local samples, verification and remaining limits.

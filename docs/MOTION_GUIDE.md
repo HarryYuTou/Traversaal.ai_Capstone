@@ -126,17 +126,32 @@ The renderer gives people distance-based walking poses and visible work
 gestures. Process route lines are hidden to avoid accumulating travel trails;
 the same routes still determine movement. A small state strip reads the
 compiled trace and shows waiting, in-service and total unfinished counts.
-Future arrivals are excluded. Counts are hidden while actors move between
-states and shown again once the transition settles; an actor leaves the total
-only after reaching the exit. These are counts of the illustrated example,
-not measured performance statistics.
+Future arrivals are excluded. The strip stays on screen; a count that changes
+rolls to its new value over 9 frames. A person moves from waiting to in
+service on reaching the counter, and leaves the total only after reaching the
+exit. These are counts of the illustrated example, not measured performance
+statistics.
+
+Movement is tuned for frame-to-frame continuity. Process travel uses the
+`walk` easing (compiler-only): a smooth start and stop over a quarter of the
+move each and one steady pace in between, so a stride never lurches mid-route.
+Routes turn on a short curve (radius up to 60 px) through the inside of each
+corner. A departing person keeps walking while fading out, at most 60 px past
+the exit point, rather than stopping and vanishing. Items rise into a
+person's hands over 7 frames as service starts and sink away after it ends;
+service and completion marks grow in over 8 frames; a station that opens
+brightens from grey over its opening interval. Idle people breathe and blink
+on slow, per-actor cycles that depend only on the frame, so any frame still
+renders alone.
 
 Process framing fits the visible cast and its complete routes instead of
 reserving empty stage margins. Consecutive process scenes in the same chapter
-that share actor and station IDs use a shared wide view. Long authored holds
-can ease into a closer view of the stationary cast and return before movement;
-the camera keeps the wide view during actions. This does not repair incorrect
-source identity or state: those remain planner and reviewer responsibilities.
+that share actor and station IDs form one stage: they share one locked wide
+view (the camera never zooms or re-frames), every label keeps one side for
+all of them (station labels sit beside their station, clear of the routes),
+and the cut between them is an in-place dissolve instead of a slide, so the
+shared counters never move. This does not repair incorrect source identity or
+state: those remain planner and reviewer responsibilities.
 
 The resulting `video/timeline.json` scene uses `template: "motion"` for the
 existing renderer. Its `processTrace` records source events, measured frame
@@ -215,8 +230,9 @@ guides, such as an orbit. A scene permits up to 12 entities, 12 paths and 48
 actions.
 
 For authored `motion` scenes, the renderer computes one fixed camera for the entire scene, including curve
-overshoot, orbit radii, the largest object scale and room for labels. A scene
-that already fits keeps the authored framing. Larger trajectories are fitted
+overshoot, orbit radii, the largest object scale and room for labels. Each
+label's side is also chosen once for the whole scene, so it does not jump as
+other objects pass. A scene that already fits keeps the authored framing. Larger trajectories are fitted
 uniformly into the stage, which is clipped away from the title and subtitles.
 This is a safety fit, not an automatic cinematic camera or a layout-quality
 score; crowded staging can still need revision.

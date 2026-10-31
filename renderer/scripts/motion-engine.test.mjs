@@ -27,10 +27,12 @@ const {compileMotion, displayedPaths, entityAtFrame, pathGeometry, pointOnPath, 
   await load('engine');
 const {BASE_VIEWPORT, fitMotionViewport, fitProcessViewport, motionStageRect} = await load('camera');
 const {entityHalfExtents, labelMetrics} = await load('metrics');
-const {processPresentations, processViewportAtFrame} = await load('processPresentation');
-const {placeActorLabels} = await load('labels');
-const {activityAtFrame, movementPoseAtFrame, illustrationPoseAtFrame, personLimbs, workbenchPress} = await load('pose');
-const {Illustration} = await import(await moduleUrl(new URL('../src/motion/Illustration.tsx', import.meta.url)));
+const {processPresentations} = await load('processPresentation');
+const {placeActorLabels, planLabelSlots, PROCESS_LABEL_ORDER} = await load('labels');
+const {activityAtFrame, carryAtFrame, idlePoseAtFrame, movementPoseAtFrame, illustrationPoseAtFrame, personLimbs,
+  walkBob, workbenchPress, CARRY_FRAMES} = await load('pose');
+const {easing} = await load('engine');
+const {Illustration, mixColor} = await import(await moduleUrl(new URL('../src/motion/Illustration.tsx', import.meta.url)));
 
 const actor = {id: 'ship', kind: 'spacecraft', x: 10, y: 40, size: 1, rotation: 0, opacity: 1,
   value: 1, color: 'accent', label: ''};
@@ -369,31 +371,94 @@ test('related process scenes share the same wide frame without mutating colors o
   assert.notDeepEqual(split.get('a').viewport, split.get('unrelated').viewport);
 });
 
-test('detail framing is deterministic, bounded, and contains all visible bodies and labels throughout holds', () => {
+test('related process shots keep one locked frame with every body and planned label inside it', () => {
+  const a = processScene('a', cameraVisual, cameraTrace);
+  const b = processScene('b', cameraVisual, cameraTrace);
+  const presentations = processPresentations([a, b]);
+  assert.equal(presentations.get('a').group, presentations.get('b').group, 'related shots share a stage');
+  assert.equal(presentations.get('a').labelSlots, presentations.get('b').labelSlots, 'one label plan per stage');
   const p = compileMotion(cameraVisual);
-  const wide = fitProcessViewport([p]);
-  const camera = (frame) => processViewportAtFrame(p, cameraTrace, wide, frame, 30);
-  const middle = camera(200);
-  assert.ok(middle.width < wide.width || middle.height < wide.height, 'long hold creates a useful detail shot');
-  assert.ok(wide.width / middle.width <= 1.45 + 1e-8);
-  assert.ok(wide.height / middle.height <= 1.45 + 1e-8);
+  const viewport = presentations.get('a').viewport;
+  const slots = presentations.get('a').labelSlots;
+  assert.equal(slots.get('desk'), PROCESS_LABEL_ORDER[0], 'a counter label sits beside it, clear of walkers');
+  const offsets = new Set();
   for (let frame = 90; frame <= 410; frame++) {
-    const viewport = camera(frame);
     const actors = p.entities.map((prepared) => ({prepared, state: entityAtFrame(prepared, frame)}));
     for (const {prepared, state: current} of actors) {
       if (current.opacity > 0.05) inside(actorBox(prepared.entity, current), viewport);
     }
-    for (const label of placeActorLabels(actors, viewport)) {
+    for (const label of placeActorLabels(actors, viewport, slots)) {
       const {width, fontSize} = labelMetrics(label.actor.prepared.entity.label);
       inside({left: label.x - width / 2, right: label.x + width / 2,
         top: label.y - fontSize, bottom: label.y + 6}, viewport);
+      const body = toStage(label.actor.state);
+      if (label.actor.prepared.entity.id === 'desk') offsets.add(`${label.x - body.x},${label.y - body.y}`);
     }
-    if (frame < 109 || frame >= 291) assert.deepEqual(viewport, wide, 'movement retains the full wide frame');
   }
-  [410, 102, 0, 230, 150].forEach(camera);
-  assert.deepEqual(camera(200), middle);
-  const short = {...cameraTrace, events: [{kind: 'hold', from: 100, durationInFrames: 60}]};
-  assert.deepEqual(processViewportAtFrame(p, short, wide, 130, 30), wide);
+  assert.equal(offsets.size, 1, 'the counter label never moves relative to the counter');
+  const split = processPresentations([a, {...b, id: 'other', processTrace: {...cameraTrace, actorIds: ['someone']}}]);
+  assert.notEqual(split.get('a').group, split.get('other').group);
+});
+
+test('a station label keeps its side for the whole scene while someone walks past it', () => {
+  const desk = {...actor, id: 'desk', kind: 'counter', x: 50, y: 50, label: 'Counter 1', color: 'secondary'};
+  const walker = {...actor, id: 'walker', kind: 'person', x: 5, y: 78, label: ''};
+  const visual = {title: 'Pass', paths: [], entities: [desk, walker], actions: [action('move', 0, 120, {x: 95, y: 78, entityId: 'walker'})]};
+  const p = compileMotion(visual);
+  const frames = Array.from({length: 121}, (_, index) => index);
+  const sideAt = (frame, slots) => {
+    const actors = p.entities.map((prepared) => ({prepared, state: entityAtFrame(prepared, frame)}));
+    const [label] = placeActorLabels(actors, BASE_VIEWPORT, slots);
+    return label.y > toStage(label.actor.state).y ? 'below' : 'above';
+  };
+  assert.ok(new Set(frames.map((frame) => sideAt(frame))).size > 1, 'per-frame placement jumps as the walker passes');
+  const slots = planLabelSlots([{program: p, frames}]);
+  assert.equal(new Set(frames.map((frame) => sideAt(frame, slots))).size, 1, 'planned placement never jumps');
+  assert.equal(sideAt(60, slots), 'above', 'the planned side is the one the walker never crosses');
+});
+
+test('walk easing starts and stops smoothly and keeps a steady pace in between', () => {
+  assert.equal(easing(0, 'walk'), 0);
+  assert.equal(easing(1, 'walk'), 1);
+  let previous = 0;
+  let fastest = 0;
+  for (let step = 1; step <= 1000; step++) {
+    const value = easing(step / 1000, 'walk');
+    assert.ok(value >= previous, 'a walk never steps backwards');
+    fastest = Math.max(fastest, (value - previous) * 1000);
+    previous = value;
+  }
+  assert.ok(fastest < 1.34, `top speed ${fastest} must stay near the average pace`);
+  near(easing(0.4, 'walk') - easing(0.3, 'walk'), easing(0.7, 'walk') - easing(0.6, 'walk'));
+  assert.ok(easing(0.01, 'walk') < 0.001, 'a walk starts from rest');
+});
+
+test('items are raised and lowered over several frames, and idle life is subtle and repeatable', () => {
+  const work = [{entityId: 'a', kind: 'work', from: 100, durationInFrames: 60}];
+  assert.equal(carryAtFrame(work, 99), 0);
+  assert.equal(carryAtFrame(work, 100), 0);
+  assert.ok(carryAtFrame(work, 103) > 0 && carryAtFrame(work, 103) < 1);
+  assert.equal(carryAtFrame(work, 100 + CARRY_FRAMES), 1);
+  assert.ok(carryAtFrame(work, 163) > 0 && carryAtFrame(work, 163) < 1, 'items go down after service, not at once');
+  assert.equal(carryAtFrame(work, 160 + CARRY_FRAMES), 0);
+  const bounds = entityHalfExtents('person', 1, 0);
+  for (const carry of [0, 0.25, 0.5, 0.75, 1]) {
+    for (const points of Object.values(personLimbs({movement: {walking: false, phase: 0, strength: 0},
+      activity: {kind: 'work', progress: 0.5, phase: 0.3, opacity: 1}, carry}))) {
+      for (const point of points) assert.ok(Math.abs(point.x) + 3 <= bounds.x && Math.abs(point.y) + 3 <= bounds.y);
+    }
+  }
+  for (let frame = 0; frame < 400; frame++) {
+    const idle = idlePoseAtFrame('shopper-a', frame);
+    assert.ok(Math.abs(idle.breath) <= 1 && idle.blink >= 0 && idle.blink <= 1);
+    assert.deepEqual(idlePoseAtFrame('shopper-a', frame), idle);
+  }
+  assert.notDeepEqual([0, 1, 2, 3].map((frame) => idlePoseAtFrame('shopper-a', frame)),
+    [0, 1, 2, 3].map((frame) => idlePoseAtFrame('shopper-b', frame)), 'actors do not breathe in lockstep');
+  const bob = walkBob({movement: {walking: true, phase: 0.25, strength: 1}, activity: null});
+  assert.ok(bob > 0 && bob <= 3);
+  assert.equal(mixColor('#000000', '#ffffff', 0.5), '#808080');
+  assert.equal(mixColor('#8d95a3', '#548e85', 1), '#548e85');
 });
 
 test('station signage uses readable vector text and open/closed states preserve authored entity data', () => {

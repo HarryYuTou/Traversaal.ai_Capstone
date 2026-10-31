@@ -16,7 +16,7 @@ export const motionStageRect = (width: number, height: number) => ({
  * even when property tracks run concurrently. Label margins are independent of actor scale.
  */
 export const fitMotionViewport = (program: MotionProgram, options: {
-  fitContent?: boolean; minimumWidth?: number; minimumHeight?: number;
+  fitContent?: boolean; minimumWidth?: number; minimumHeight?: number; labelsBeside?: boolean;
 } = {}): StageViewport => {
   let left = options.fitContent ? Infinity : 0;
   let top = options.fitContent ? Infinity : 0;
@@ -46,6 +46,10 @@ export const fitMotionViewport = (program: MotionProgram, options: {
     const ry = extent.y + (label ? label.height + 27 : 0) + 12;
     const initial = toStage(entity);
     include(initial.x, initial.y, rx, ry);
+    // Room for a label beside a fixed station, the side process scenes prefer (labels.ts).
+    if (options.labelsBeside && label && !actions.some(({action}) => ['move', 'follow-path', 'orbit'].includes(action.kind))) {
+      include(initial.x + extent.x + 16 + label.width / 2, initial.y, label.width / 2 + 12, label.height / 2 + 12);
+    }
     for (const {action, initial: start, geometry} of actions) {
       const at = toStage(start);
       include(at.x, at.y, rx, ry);
@@ -79,4 +83,4 @@ export const fitMotionViewport = (program: MotionProgram, options: {
 export const fitProcessViewport = (programs: MotionProgram[]): StageViewport => fitMotionViewport({
   entities: programs.flatMap((program) => program.entities),
   paths: programs.flatMap((program) => program.paths),
-}, {fitContent: true});
+}, {fitContent: true, labelsBeside: true});
