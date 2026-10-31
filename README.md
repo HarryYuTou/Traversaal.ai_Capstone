@@ -1,5 +1,11 @@
 # Traversaal.ai_Capstone
 
+[![A 10-second preview of "Why a Second Checkout Counter Cuts Waiting" in the hand-drawn look](docs/media/checkout-counter-sketch.gif)](docs/media/checkout-counter-sketch.mp4)
+
+**Example video:** "Why a Second Checkout Counter Cuts Waiting" (61 seconds, rendered with
+`--look sketch`). The preview above loops a 10-second excerpt;
+[watch the full video with narration](docs/media/checkout-counter-sketch.mp4).
+
 AI explainer video generation — Capstone project.
 
 Project language: English. Write project documentation, code comments, command-line
