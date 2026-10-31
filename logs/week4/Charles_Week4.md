@@ -106,8 +106,9 @@ and when, and the renderer decides how it is drawn.
 Charles's next ask was a fuller, better-lit frame for the same clip (long videos
 come last, once one clip is right). On `feat/sketch-staging`:
 
-- A warm pool of light on the floor with faint perspective floor tiles, so the
-  stage reads as a store floor rather than a blank page.
+- A room instead of a blank page: a back wall with a baseboard, windows onto
+  the sky and an exit door that departing shoppers walk to, and a floor with
+  faint perspective tiles and sunlight from the windows.
 - A soft contact shadow under every person, counter and prop, all from one
   light above and to the left; a walker's shadow stays on the ground.
 - Store props for counter scenes (shelves with goods, a basket stack, a plant),

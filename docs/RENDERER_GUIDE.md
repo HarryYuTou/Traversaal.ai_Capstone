@@ -176,9 +176,12 @@ hand-lettered Patrick Hand font from `@remotion/google-fonts`, which is fetched
 from Google Fonts when the render starts, so a sketch render needs a network
 connection. The code is in `src/motion/sketch.tsx`.
 
-Sketch process stages are also staged (`src/motion/staging.tsx`): a warm pool of
-light on the floor with faint perspective floor tiles, a soft contact shadow under
-every person, station and prop from one light above and to the left, and a few
+Sketch process stages are also staged (`src/motion/staging.tsx`) as a room seen
+from slightly above: a back wall with a baseboard, two windows onto the sky and an
+exit door, standing just behind the farthest point anyone's feet reach (the door
+is where people leaving along the wall fade out); a floor with faint perspective
+tiles and sunlight from the windows; a soft contact shadow under every person,
+station and prop from one light above and to the left; and a few
 background props chosen by the kind of station (a store's shelves, baskets and a
 plant for counters; plants elsewhere). Props are placed once per stage, at the free
 spot nearest their preferred place that no body, label or walk ever touches in any
