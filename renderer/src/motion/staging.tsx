@@ -45,8 +45,9 @@ export const StageDefs: React.FC<{ink: string; prefix: string}> = ({ink, prefix}
  * Both fade to nothing well inside the stage, so neither has an edge.
  */
 export const StageFloor: React.FC<{viewport: StageViewport; prefix: string; ink: string}> = ({viewport: v, prefix, ink}) => {
-  const center = {x: v.x + v.width * 0.45, y: v.y + v.height * 0.55};
-  const radius = {x: v.width * 0.62, y: v.height * 0.72};
+  // The pool fades out at the stage's top edge, so it never washes over the title and counts above it.
+  const center = {x: v.x + v.width * 0.45, y: v.y + v.height * 0.6};
+  const radius = {x: v.width * 0.66, y: v.height * 0.6};
   // Rows get closer toward the back and columns lean toward a point above the stage: a gentle perspective.
   const tiles = useRough(`${prefix}-floor`, (g, seed) => {
     const line = {seed, roughness: 0.8, bowing: 0.6, stroke: ink, strokeWidth: 1.4};
