@@ -3,7 +3,7 @@ import type {EntityState} from './engine';
 import type {StationState} from './processState';
 import type {MotionColor, MotionEntity} from './types';
 import {carryOf, limbPath, personLimbs, walkBob, workbenchPress, type ActivityPose, type IllustrationPose} from './pose';
-import {SketchCounter, SketchPerson, type Look} from './sketch';
+import {SketchCounter, SketchObject, SketchPerson, SKETCHED_KINDS, type Look} from './sketch';
 
 export type Palette = Record<MotionColor, string> & {paper: string; soft: string; line: string};
 type Props = {entity: MotionEntity; state: EntityState; palette: Palette; prefix: string; pose?: IllustrationPose;
@@ -64,6 +64,10 @@ export const Illustration: React.FC<Props> = ({entity, state, palette: p, prefix
     }
     if (look === 'sketch' && entity.kind === 'counter') {
       return <SketchCounter id={entity.id} color={color} paper={p.paper} soft={p.soft} ink={p.ink} />;
+    }
+    if (look === 'sketch' && SKETCHED_KINDS.has(entity.kind)) {
+      return <SketchObject id={entity.id} kind={entity.kind} color={color} paper={p.paper} soft={p.soft} ink={p.ink}
+        muted={p.muted} press={workbenchPress(activity)} />;
     }
     switch (entity.kind) {
       case 'planet': return <>

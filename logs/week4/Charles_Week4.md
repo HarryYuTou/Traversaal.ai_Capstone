@@ -2,8 +2,8 @@
 
 **Project:** Traversaal.ai Capstone, Project A - AI Explainer Video Generation  
 **Date:** October 30, 2026  
-**Branch:** `feat/smooth-consistent-motion`  
-**Focus:** Frame-to-frame consistency and motion smoothness in illustrated (process) scenes, after Hamza's review of the checkout-counter clip
+**Branch:** `feat/sketch-style` (contains `feat/smooth-consistent-motion`)  
+**Focus:** Frame-to-frame consistency, motion smoothness and a hand-drawn look for illustrated (process) scenes, after Hamza's review of the checkout-counter clip
 
 ## Contribution to the capstone
 
@@ -12,8 +12,9 @@ Cuts Waiting" (web studio job `ec1ba896`) on October 30 and asked us to close
 the gap to his hand-drawn reference reels by working on frame-to-frame
 consistency and motion smoothness. This week's work changes the renderer and
 the process compiler so the same script renders with a steady stage and
-continuous movement. Visuals are still code-rendered only (Level 1); no API
-calls were made.
+continuous movement, and adds an optional hand-drawn look (`--look sketch`)
+with line-art people who walk on rigged legs. Visuals are still code-rendered
+only (Level 1); no API calls were made.
 
 ```text
 Topic -> Script and scene plan -> TTS narration -> Timeline and visuals -> Final video
@@ -71,6 +72,35 @@ Read frame by frame from the clip:
   number no longer shifts sideways as digits appear.
 - Docs: MOTION_GUIDE.md and RENDERER_GUIDE.md describe the new behaviour.
 
+### Hand-drawn look (`--look sketch`)
+
+Smoother motion alone could not close the gap: the vector people and counters
+are still visibly built from circles and rectangles. The sketch look replaces
+the drawings, not the pipeline: the scene plan still says only who goes where
+and when, and the renderer decides how it is drawn.
+
+- **People:** Open Peeps line art (Pablo Stanley, CC0, via `react-peeps`, MIT).
+  Each actor's outfit and hair come from its id, so the same shopper looks the
+  same in every frame and every shot; the highlighted shopper's clothes take
+  the accent colour.
+- **Walking legs:** an Open Peeps figure is one drawing, so dragging it looks
+  like sliding a cut-out. The drawing is kept down to the hips and the legs are
+  a rig (hip, knee, ankle, sneaker) whose steps follow the distance walked; a
+  forward-swinging leg bends at the knee and both stand straight at a stop.
+  The body rides up over each step and leans into the walk; a blink swaps in
+  the closed-eyes face.
+- **Objects:** counters, workbenches, servers, boxes, packets and coins are
+  drawn with rough.js (MIT), seeded by the entity id so the wobbly lines never
+  change between frames.
+- **Framing and type:** process stages in this look frame only where people
+  stand, so the cast is larger and departures walk out of the shot; labels use
+  the hand-lettered Patrick Hand font from the official `@remotion/google-fonts`
+  package (fetched when a sketch render starts).
+- Lottie walk cycles were considered and not used: LottieFiles' free licence
+  allows commercial use but not redistributing the files on their own (so they
+  could not live in the repo), and no consistent, recolourable set of several
+  characters was found.
+
 ## Validation
 
 - Rebuilt the clip's scene plan from the video itself (captions give the 14
@@ -83,18 +113,23 @@ Read frame by frame from the clip:
   title card, frames whose picture changes by more than 1.0 (mean grey level,
   320x140) dropped from 95 to 0, and the largest frame-to-frame change from
   2.67 to 0.68.
-- Renderer tests: 47 pass (`npm run test:motion`), including new tests for
+- Full 61-second sketch render of the same clip: `runs/ec1ba896-sketch`.
+- Renderer tests: 48 pass (`npm run test:motion`), including new tests for
   the walk easing, planned label sides, locked framing, carry/idle poses,
-  colour blending and caption layout. `npx tsc --noEmit` is clean.
-- Python tests: 318 of 321 pass; the 3 errors are the same on main (Windows
+  colour blending, caption layout and the sketch legs' stride. `npx tsc --noEmit` is clean.
+- Python tests: 320 of 323 pass (new tests: the line moves up front first; the
+  look option); the 3 errors are the same on main (Windows
   `os.killpg`/`SIGKILL` in the web worker tests and one preview test).
 - Motion inspection: 0 collisions before and after.
 
 ## Remaining work
 
-- Fonts are system fonts, so a Mac and a Windows render wrap captions
-  differently. Bundling one font would make renders identical across
-  machines (needs a new package).
+- Fonts outside the sketch labels are system fonts, so a Mac and a Windows
+  render wrap captions differently; the same `@remotion/google-fonts` package
+  could load one font for everything.
+- The sketch look has no metaphor characters yet (for example ducklings for a
+  queue), and the planner prompt does not choose a look.
+- The web studio does not offer the look option yet.
 - The human scorecard should rate the new clip before we call it better.
 
 ## How to run
@@ -102,6 +137,9 @@ Read frame by frame from the clip:
 ```bash
 python -m capstone_script narrate --plan fixtures/scene-plan.checkout-counters.json --out runs/checkout
 python -m capstone_script render --run runs/checkout --share
+python -m capstone_script render --run runs/checkout-sketch --share --look sketch
 ```
+
+(Narrate into a second folder for the sketch render, or delete `video.mp4` first.)
 
 Renderer tests: `cd renderer && npm run test:motion`.

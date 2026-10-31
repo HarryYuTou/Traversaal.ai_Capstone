@@ -492,3 +492,19 @@ test('captions break into balanced rows of known size, so the box can ease betwe
   assert.ok(Math.abs(long.rows[0].length - long.rows[1].length) < 12, 'rows are balanced, not greedy');
   assert.ok(long.width <= 1480 && long.height > short.height);
 });
+
+test('sketch legs stand straight at rest and keep every stride inside the person footprint', async () => {
+  const {legsAt, sketchCast} = await import(await moduleUrl(new URL('../src/motion/sketch.tsx', import.meta.url)));
+  for (const leg of legsAt(0.3, 0, 1)) {
+    near(leg.knee.x, leg.hip.x); near(leg.ankle.x, leg.hip.x);
+  }
+  const extent = entityHalfExtents('person', 1, 0);
+  for (let step = 0; step <= 100; step++) {
+    for (const direction of [1, -1]) {
+      const legs = legsAt(step / 100, 1, direction);
+      // Feet are drawn 60 units below these coordinates' origin (SketchPerson translates by 60).
+      for (const {ankle} of legs) assert.ok(Math.abs(ankle.x) + 12 <= extent.x && ankle.y + 60 <= extent.y);
+    }
+  }
+  assert.deepEqual(sketchCast('shopper-a'), sketchCast('shopper-a'), 'an actor always wears the same outfit');
+});

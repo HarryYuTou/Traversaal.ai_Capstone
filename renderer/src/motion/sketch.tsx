@@ -55,8 +55,8 @@ type Leg = {hip: {x: number; y: number}; knee: {x: number; y: number}; ankle: {x
  */
 export const legsAt = (phase: number, strength: number, direction: number): Leg[] => [0, 0.5].map((offset, index) => {
   const turn = 2 * Math.PI * (phase + offset);
-  const thigh = Math.sin(turn) * 24 * strength * Math.PI / 180;
-  const knee = Math.max(0, Math.cos(turn)) * 38 * strength * Math.PI / 180;
+  const thigh = Math.sin(turn) * 20 * strength * Math.PI / 180;
+  const knee = Math.max(0, Math.cos(turn)) * 34 * strength * Math.PI / 180;
   const hip = {x: index ? HIP_SPREAD : -HIP_SPREAD, y: HIP_Y - 5};
   const kneeAt = {x: hip.x + direction * Math.sin(thigh) * THIGH, y: hip.y + Math.cos(thigh) * THIGH};
   const shin = thigh - knee;
@@ -151,4 +151,63 @@ export const SketchCounter: React.FC<{id: string; color: string; paper: string; 
     ];
   }, [color, paper, soft, ink]);
   return <Shapes shapes={shapes} />;
+};
+
+/** Other process stations and moving items, hand-drawn on the vector drawings' footprints. */
+export const SKETCHED_KINDS = new Set(['server', 'workbench', 'packet', 'box', 'coin']);
+
+export const SketchObject: React.FC<{id: string; kind: string; color: string; paper: string; soft: string;
+  ink: string; muted: string; press?: number}> = ({id, kind, color, paper, soft, ink, muted, press = 0}) => {
+  const shapes = useRough(id, (g, seed) => {
+    const line = {seed, roughness: 1.3, bowing: 1.1, stroke: ink, strokeWidth: 2.4};
+    const solid = (fill: string) => ({...line, fill, fillStyle: 'solid'});
+    const hatched = {...line, fill: color, fillStyle: 'hachure', hachureGap: 6, fillWeight: 1.4, hachureAngle: -41};
+    switch (kind) {
+      case 'server': return [
+        g.path('M-36-57 35-57 44-45V55H-36Z', solid(soft)),
+        g.line(35, -57, 35, 55, {...line, stroke: muted, strokeWidth: 1.6}),
+        ...[-39, -11, 17].flatMap((y) => [
+          g.rectangle(-28, y, 54, 21, {...solid(paper), strokeWidth: 1.8}),
+          g.circle(-18, y + 10.5, 7, {...line, strokeWidth: 1, fill: color, fillStyle: 'solid'}),
+          g.line(-7, y + 8, 16, y + 8, {...line, stroke: muted, strokeWidth: 1.6}),
+          g.line(-7, y + 13, 10, y + 13, {...line, stroke: muted, strokeWidth: 1.6}),
+        ]),
+        g.line(-26, 56, -26, 63, {...line, strokeWidth: 4}), g.line(27, 56, 27, 63, {...line, strokeWidth: 4}),
+      ];
+      case 'workbench': return [
+        g.line(-46, 4, -46, 52, {...line, strokeWidth: 4}), g.line(46, 4, 46, 52, {...line, strokeWidth: 4}),
+        g.line(-46, 29, 46, 29, {...line, strokeWidth: 3.5}),
+        g.rectangle(-58, -6, 116, 12, solid(soft)),
+        g.line(40, -7, 40, -45, {...line, strokeWidth: 3.5}), g.line(29, -45, 46, -45, {...line, strokeWidth: 3.5}),
+      ];
+      case 'packet': return [
+        g.rectangle(-31, -21, 62, 42, solid(paper)),
+        g.linearPath([[-31, -21], [0, 3], [31, -21]], line),
+        g.line(-31, 21, -9, 0, line), g.line(31, 21, 9, 0, line),
+        g.circle(24, -18, 18, {...line, stroke: paper, strokeWidth: 2.5, fill: color, fillStyle: 'solid'}),
+      ];
+      case 'box': return [
+        g.polygon([[-43, -23], [0, -44], [43, -23], [43, 27], [0, 49], [-43, 27]], solid(soft)),
+        g.linearPath([[-43, -23], [0, -1], [43, -23]], line), g.line(0, -1, 0, 49, line),
+        g.polygon([[-12, -38], [29, -17], [29, -2], [17, 4], [17, -11], [-25, -32]],
+          {...line, strokeWidth: 0.8, stroke: color, fill: color, fillStyle: 'hachure', hachureGap: 4}),
+        g.line(-28, 10, -13, 18, {...line, stroke: muted, strokeWidth: 2}),
+        g.line(-28, 18, -17, 24, {...line, stroke: muted, strokeWidth: 2}),
+      ];
+      case 'coin': return [
+        g.ellipse(5, 3, 72, 86, solid(soft)),
+        g.ellipse(0, 0, 68, 86, hatched),
+        g.ellipse(0, 0, 50, 66, {...line, stroke: paper, strokeWidth: 1.6}),
+        g.path('M11-17C-10-28-22-9-3-1C20 7 13 26-12 17M0-28V28', {...line, stroke: paper, strokeWidth: 4}),
+      ];
+      default: return [];
+    }
+  }, [kind, color, paper, soft, ink, muted]);
+  // The press head is the only moving part of a bench; it is drawn on its own so the frame never shifts.
+  const head = useRough(`${id}-press`, (g, seed) => kind !== 'workbench' ? [] : [
+    g.line(28, -39, 28, -24, {seed, roughness: 1.2, stroke: ink, strokeWidth: 3.5}),
+    g.line(20, -24, 36, -24, {seed, roughness: 1.2, stroke: ink, strokeWidth: 3.5}),
+    g.rectangle(20, -43, 16, 6, {seed, roughness: 1, stroke: ink, strokeWidth: 1.8, fill: color, fillStyle: 'solid'}),
+  ], [kind, color, ink]);
+  return <><Shapes shapes={shapes} /><g transform={`translate(0 ${press})`}><Shapes shapes={head} /></g></>;
 };
