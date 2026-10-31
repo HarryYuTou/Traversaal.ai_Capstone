@@ -10,6 +10,7 @@ import {illustrationPoseAtFrame} from './pose';
 import {processStageLayout, processStateAtFrame, stationStateAtFrame, type ProcessSnapshot} from './processState';
 import type {ProcessPresentation} from './processPresentation';
 import {LookContext, loadSketchFont} from './sketch';
+import {ContactShadow, groundOffset, Prop, StageDefs, StageFloor} from './staging';
 
 type Props = {scene: Extract<TimelineScene, {template: 'motion'}>; label: string; presentation?: ProcessPresentation};
 
@@ -73,6 +74,8 @@ export const MotionScene: React.FC<Props> = ({scene, label, presentation}) => {
   const palette = paletteFor(theme);
   const prefix = scene.id.replace(/[^a-zA-Z0-9_-]/g, '-');
   const actors = program.entities.map((prepared) => ({prepared, state: entityAtFrame(prepared, frame)}));
+  // The sketch look stages process scenes: floor light, contact shadows, props and depth order.
+  const staged = look === 'sketch' && Boolean(scene.processTrace && presentation);
   const title = <h1 style={{...(processLayout ? {padding: `0 ${processLayout.inset}px`, flexShrink: 0,
     fontSize: processLayout.titleFontSize, overflowWrap: 'anywhere' as const} :
     {position: 'absolute' as const, left: 110, right: 110, top: 99, fontSize: 56}),
@@ -90,17 +93,32 @@ export const MotionScene: React.FC<Props> = ({scene, label, presentation}) => {
               opacity={progress > 0 ? 0.55 : 0} />
           </g>;
         })}
-        {actors.map(({prepared, state}) => {
-          const {entity} = prepared;
-          const point = toStage(state);
-          return <g key={entity.id} opacity={state.opacity} transform={`translate(${point.x} ${point.y})`}>
-            <g transform={`rotate(${state.rotation % 360}) scale(${state.size})`}>
-              <Illustration entity={entity} state={state} palette={palette} prefix={prefix} look={look}
-                pose={illustrationPoseAtFrame(prepared, frame)}
-                station={scene.processTrace ? stationStateAtFrame(scene.processTrace, entity.id, frame) : null} />
-            </g>
-          </g>;
-        })}
+        {staged ? <>
+          <StageDefs ink={palette.ink} prefix={prefix} />
+          <StageFloor viewport={viewport} prefix={prefix} ink={palette.ink} />
+          {actors.map(({prepared, state}) => {
+            const point = toStage(state);
+            return <ContactShadow key={`${prepared.entity.id}-shadow`} kind={prepared.entity.kind} x={point.x} y={point.y}
+              size={state.size} opacity={state.opacity} prefix={prefix} />;
+          })}
+        </> : null}
+        {/* A staged scene draws back to front by where things touch the floor, so nearer things overlap farther ones. */}
+        {[...actors.map(({prepared, state}) => ({key: prepared.entity.id,
+          depth: staged ? toStage(state).y + groundOffset(prepared.entity.kind, state.size) : 0,
+          node: (() => {
+            const {entity} = prepared;
+            const point = toStage(state);
+            return <g key={entity.id} opacity={state.opacity} transform={`translate(${point.x} ${point.y})`}>
+              <g transform={`rotate(${state.rotation % 360}) scale(${state.size})`}>
+                <Illustration entity={entity} state={state} palette={palette} prefix={prefix} look={look}
+                  pose={illustrationPoseAtFrame(prepared, frame)}
+                  station={scene.processTrace ? stationStateAtFrame(scene.processTrace, entity.id, frame) : null} />
+              </g>
+            </g>;
+          })()})),
+        ...(staged ? presentation!.props : []).map((prop) => ({key: prop.id, depth: prop.y,
+          node: <Prop key={prop.id} prop={prop} ink={palette.ink} paper={palette.paper} soft={palette.soft} prefix={prefix} />}))]
+          .sort((a, b) => a.depth - b.depth).map(({node}) => node)}
         {/* Labels stay upright and keep a consistent reading size as the illustration rotates or scales. */}
         {placeActorLabels(actors, viewport, slots).map(({actor: {prepared, state}, x, y, fontSize}) => {
           return <text key={`${prepared.entity.id}-label`} x={x} y={y}

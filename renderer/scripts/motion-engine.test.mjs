@@ -508,3 +508,28 @@ test('sketch legs stand straight at rest and keep every stride inside the person
   }
   assert.deepEqual(sketchCast('shopper-a'), sketchCast('shopper-a'), 'an actor always wears the same outfit');
 });
+
+test('stage props stand clear of every body in every frame and land in the same place every time', async () => {
+  const {planProps, groundOffset} = await import(await moduleUrl(new URL('../src/motion/staging.tsx', import.meta.url)));
+  const p = compileMotion(cameraVisual);
+  const frames = Array.from({length: 321}, (_, index) => 90 + index);
+  const viewport = fitProcessViewport([p], true);
+  const props = planProps([{program: p, frames}], viewport, new Map());
+  assert.ok(props.length > 0, 'a counter stage gets dressed');
+  assert.deepEqual(planProps([{program: p, frames}], viewport, new Map()), props);
+  const sizes = {shelf: [132, 122], plant: [54, 86], baskets: [64, 46]};
+  for (const prop of props) {
+    const [width, height] = sizes[prop.kind];
+    const box = {left: prop.x - width / 2, right: prop.x + width / 2, top: prop.y - height, bottom: prop.y};
+    for (const frame of frames) {
+      for (const prepared of p.entities) {
+        const current = entityAtFrame(prepared, frame);
+        if (current.opacity <= 0.05) continue;
+        const body = actorBox(prepared.entity, current);
+        assert.ok(!(box.left < body.right && box.right > body.left && box.top < body.bottom && box.bottom > body.top),
+          `${prop.kind} overlaps ${prepared.entity.id} at frame ${frame}`);
+      }
+    }
+  }
+  near(groundOffset('person', 1), 60);
+});

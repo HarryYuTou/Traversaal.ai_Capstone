@@ -101,6 +101,20 @@ and when, and the renderer decides how it is drawn.
   could not live in the repo), and no consistent, recolourable set of several
   characters was found.
 
+### Staging the sketch stage (October 31)
+
+Charles's next ask was a fuller, better-lit frame for the same clip (long videos
+come last, once one clip is right). On `feat/sketch-staging`:
+
+- A warm pool of light on the floor with faint perspective floor tiles, so the
+  stage reads as a store floor rather than a blank page.
+- A soft contact shadow under every person, counter and prop, all from one
+  light above and to the left; a walker's shadow stays on the ground.
+- Store props for counter scenes (shelves with goods, a basket stack, a plant),
+  placed once per stage where no body, label or walk ever goes.
+- Everything drawn back to front by where it meets the floor, so nearer things
+  overlap farther ones.
+
 ## Validation
 
 - Rebuilt the clip's scene plan from the video itself (captions give the 14

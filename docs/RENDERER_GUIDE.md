@@ -176,6 +176,15 @@ hand-lettered Patrick Hand font from `@remotion/google-fonts`, which is fetched
 from Google Fonts when the render starts, so a sketch render needs a network
 connection. The code is in `src/motion/sketch.tsx`.
 
+Sketch process stages are also staged (`src/motion/staging.tsx`): a warm pool of
+light on the floor with faint perspective floor tiles, a soft contact shadow under
+every person, station and prop from one light above and to the left, and a few
+background props chosen by the kind of station (a store's shelves, baskets and a
+plant for counters; plants elsewhere). Props are placed once per stage, at the free
+spot nearest their preferred place that no body, label or walk ever touches in any
+related shot, so they never move. Everything is drawn back to front by where it
+touches the floor, so a person walking behind a counter is hidden by it.
+
 Unless `--no-music` is given, `render` also writes `video/music.wav`, a quiet
 music bed synthesized by `capstone_script/music.py`: slow pad chords over a
 soft bass, a few bell notes and a synthetic reverb, generated with numpy from a

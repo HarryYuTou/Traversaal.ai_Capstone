@@ -17,7 +17,7 @@ export const LookContext = React.createContext<Look>('vector');
 export const loadSketchFont = () => loadFont('normal', {weights: ['400'], subsets: ['latin']}).fontFamily;
 
 /** A stable number in [0, 2^32) per id. */
-const hash = (id: string) => {
+export const hash = (id: string) => {
   let value = 2166136261;
   for (let index = 0; index < id.length; index++) value = Math.imul(value ^ id.charCodeAt(index), 16777619);
   return value >>> 0;
@@ -121,16 +121,16 @@ export const SketchPerson: React.FC<{id: string; fill: string; ink: string; pape
 
 type Shape = {d: string; stroke: string; strokeWidth: number; fill?: string};
 
-/** rough.js outlines for one entity, regenerated only when its colours change; geometry follows the seed. */
-const useRough = (id: string, draw: (generator: ReturnType<typeof rough.generator>, seed: number) => unknown[],
-  colors: string[]): Shape[] => useMemo(() => {
+/** rough.js outlines for one entity, regenerated only when its inputs change; geometry follows the seed. */
+export const useRough = (id: string, draw: (generator: ReturnType<typeof rough.generator>, seed: number) => unknown[],
+  deps: (string | number)[]): Shape[] => useMemo(() => {
   const generator = rough.generator();
   return draw(generator, hash(id) % 2147483646 + 1)
     .flatMap((drawable) => generator.toPaths(drawable as never)) as Shape[];
   // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [id, ...colors]);
+}, [id, ...deps]);
 
-const Shapes: React.FC<{shapes: Shape[]}> = ({shapes}) => <>{shapes.map((shape, index) =>
+export const Shapes: React.FC<{shapes: Shape[]}> = ({shapes}) => <>{shapes.map((shape, index) =>
   <path key={index} d={shape.d} stroke={shape.stroke} strokeWidth={shape.strokeWidth} fill={shape.fill ?? 'none'}
     strokeLinecap="round" strokeLinejoin="round" />)}</>;
 
