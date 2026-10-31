@@ -37,22 +37,41 @@ export const Backdrop: React.FC = () => {
   );
 };
 
+export type Transition = 'slide' | 'dissolve';
+
+/** 0 to 1 across the overlap between two shots of the same stage. */
+const dissolve = (frame: number) =>
+  interpolate(frame, [0, motion.overlap], [0, 1], {...clamp, easing: Easing.inOut(Easing.sin)});
+
+// In a slide, the old card is gone by this many frames into the overlap and the new one only starts to
+// show after the first SLIDE_HANDOFF - 3 frames, so two cards' text is never stacked at full strength.
+const SLIDE_HANDOFF = 8;
+
 /**
- * One card or scene on its way in and out. It slides in from the right while fading in; unless it is the
- * last, it keeps playing for motion.overlap frames past its own length while sliding out to the left, so
- * the next one arrives over it. The last one fades out over its final frames instead.
+ * One card or scene on its way in and out. By default it slides in from the right while fading in; unless
+ * it is the last, it keeps playing for motion.overlap frames past its own length while sliding out to the
+ * left, so the next one arrives over it. The last one fades out over its final frames instead.
+ * Two shots of one stage `dissolve` instead: neither moves, and the new shot fades in exactly as the old
+ * one fades out. Explainer isolates the shots from the backdrop, so the additive blend keeps everything the
+ * two shots share (counters, labels, title row) at full strength for the whole dissolve.
  */
-export const Shell: React.FC<{durationInFrames: number; last: boolean; children: React.ReactNode}> = (
-  {durationInFrames, last, children}) => {
+export const Shell: React.FC<{durationInFrames: number; last: boolean; enter?: Transition; exit?: Transition;
+  children: React.ReactNode}> = ({durationInFrames, last, enter: entering = 'slide', exit: leaving = 'slide', children}) => {
   const frame = useCurrentFrame();
-  const enter = interpolate(frame, [0, motion.enter], [0, 1], {...clamp, easing: Easing.out(Easing.cubic)});
-  const exit = last
-    ? interpolate(frame, [durationInFrames - 20, durationInFrames], [0, 1], clamp)
-    : interpolate(frame, [durationInFrames, durationInFrames + motion.overlap], [0, 1],
-      {...clamp, easing: Easing.in(Easing.quad)});
-  const shift = last ? (1 - enter) * 110 : (1 - enter) * 110 - exit * 110;
+  const sliding = interpolate(frame, [SLIDE_HANDOFF - 3, SLIDE_HANDOFF - 3 + motion.enter], [0, 1],
+    {...clamp, easing: Easing.out(Easing.cubic)});
+  const shown = entering === 'dissolve' ? dissolve(frame) : sliding;
+  const leavingFrame = frame - durationInFrames;
+  const slideOut = !last && leaving === 'slide'
+    ? interpolate(leavingFrame, [0, motion.overlap], [0, 1], {...clamp, easing: Easing.in(Easing.quad)}) : 0;
+  const gone = last ? interpolate(frame, [durationInFrames - 20, durationInFrames], [0, 1], clamp)
+    : leaving === 'dissolve' ? dissolve(leavingFrame)
+      : interpolate(leavingFrame, [0, SLIDE_HANDOFF], [0, 1], {...clamp, easing: Easing.in(Easing.quad)});
+  const slideIn = entering === 'slide' ? (1 - sliding) * 110 : 0;
   return (
-    <AbsoluteFill style={{opacity: enter * (1 - exit), transform: `translateX(${shift}px) scale(${1 - exit * 0.015})`}}>
+    <AbsoluteFill style={{opacity: shown * (1 - gone),
+      transform: `translateX(${slideIn - slideOut * 110}px) scale(${1 - slideOut * 0.015})`,
+      mixBlendMode: entering === 'dissolve' && shown < 1 ? 'plus-lighter' : undefined}}>
       {children}
     </AbsoluteFill>
   );

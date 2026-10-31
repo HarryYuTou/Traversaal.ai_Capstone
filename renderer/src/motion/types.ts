@@ -9,7 +9,8 @@ export type MotionEntity = {
 export type MotionPoint = {x: number; y: number};
 export type MotionPath = {id: string; points: MotionPoint[]; curved: boolean; closed: boolean; color: MotionColor};
 export type ActionKind = 'move' | 'follow-path' | 'orbit' | 'opacity' | 'scale' | 'rotate' | 'value';
-export type MotionEasing = 'linear' | 'ease-in-out' | 'ease-out';
+/** `walk` is compiler-only: a steady pace with gentle starts and stops, used for process travel. */
+export type MotionEasing = 'linear' | 'ease-in-out' | 'ease-out' | 'walk';
 
 /** from is an absolute video frame, compiled from the line anchors by Python. */
 export type MotionAction = {

@@ -6,6 +6,8 @@ an explicit visual transition. Generated actions retain their event's anchors fo
 provenance, while their absolute frame intervals are authoritative for playback.
 """
 
+import math
+
 from .scene_plan import ProcessVisual, initial_open_station_ids, motion_channel, process_problems
 
 STAGE_WIDTH, STAGE_HEIGHT = 1200, 500
@@ -19,10 +21,19 @@ MIN_ARRIVAL_FRAMES = 18
 MIN_START_TRAVEL_FRAMES = 18
 MIN_WORK_FRAMES = 30
 MIN_COMPACTION_FRAMES = 12
+# When the line moves up, each person starts this many frames after the one in front, as a real queue does.
+QUEUE_STAGGER_FRAMES = 4
 MIN_COMPLETE_FRAMES = 12
 MIN_EXIT_TRAVEL_FRAMES = 24
 MIN_FADE_FRAMES = 8
 MIN_OPEN_FRAMES = 18
+# Walking routes turn on a short curve instead of a sharp corner, cutting only the inside of the
+# corner (at most CORNER_RADIUS / 4 from it), so they never leave their corridors.
+CORNER_RADIUS, CORNER_STEPS = 60, 8
+# A departing actor keeps walking while it fades, at most this far past the exit point.
+EXIT_OVERRUN = 60
+# Mirrors the renderer's `walk` easing (renderer/src/motion/engine.ts).
+WALK_RAMP = 0.25
 
 
 class ProcessCompileError(ValueError):
@@ -31,6 +42,40 @@ class ProcessCompileError(ValueError):
 
 def _point(x: float, y: float) -> dict:
     return {"x": x * 100 / STAGE_WIDTH, "y": y * 100 / STAGE_HEIGHT}
+
+
+def _walk(t: float) -> float:
+    """Share of a walk's distance covered after share t of its time: smooth start and stop, steady middle."""
+    t = min(1.0, max(0.0, t))
+    top = 1 / (1 - WALK_RAMP)
+
+    def ramp(x):
+        return x ** 3 - x ** 4 / 2
+    if t < WALK_RAMP:
+        return top * WALK_RAMP * ramp(t / WALK_RAMP)
+    if t > 1 - WALK_RAMP:
+        return 1 - top * WALK_RAMP * ramp((1 - t) / WALK_RAMP)
+    return top * (t - WALK_RAMP / 2)
+
+
+def _rounded(points: list[tuple[float, float]]) -> list[tuple[float, float]]:
+    """Replace each interior corner with a short quadratic curve through the inside of the corner."""
+    result = [points[0]]
+    for before, corner, after in zip(points, points[1:], points[2:]):
+        into, out = math.dist(before, corner), math.dist(corner, after)
+        radius = min(CORNER_RADIUS, into / 2, out / 2)
+        cross = (corner[0] - before[0]) * (after[1] - corner[1]) - (corner[1] - before[1]) * (after[0] - corner[0])
+        if radius < 1 or abs(cross) < 1e-9:
+            result.append(corner)
+            continue
+        start = tuple(c - (c - b) * radius / into for b, c in zip(before, corner))
+        end = tuple(c + (a - c) * radius / out for a, c in zip(after, corner))
+        for step in range(CORNER_STEPS + 1):
+            t = step / CORNER_STEPS
+            result.append(tuple((1 - t) ** 2 * s + 2 * (1 - t) * t * c + t ** 2 * e
+                                for s, c, e in zip(start, corner, end)))
+    result.append(points[-1])
+    return result
 
 
 def _queue_point(index: int) -> tuple[int, int]:
@@ -86,13 +131,13 @@ def compile_process_visual(visual: ProcessVisual, lines: list[dict], scene_start
     actor_colors = {actor.id: actor.color for actor in visual.actors}
     previous_end = scene_start
 
-    def emit(event, actor_id, kind, start, end, *, path_id="", target=(0, 0), value=0.0):
+    def emit(event, actor_id, kind, start, end, *, path_id="", target=(0, 0), value=0.0, easing="ease-in-out"):
         if not scene_start <= start < end <= scene_end:
             raise ProcessCompileError(f"A compiled {kind} for {actor_id!r} has invalid frame bounds {start}–{end}.")
         actions.append({"entityId": actor_id, "kind": kind,
                         "startLine": event.start_line, "endLine": event.end_line,
                         "startOffset": event.start_offset, "endOffset": event.end_offset,
-                        "pathId": path_id, **_point(*target), "value": value, "easing": "ease-in-out",
+                        "pathId": path_id, **_point(*target), "value": value, "easing": easing,
                         "from": start, "durationInFrames": end - start})
 
     def travel(event, event_index, actor_id, start, end, points):
@@ -101,9 +146,9 @@ def compile_process_visual(visual: ProcessVisual, lines: list[dict], scene_start
         cleaned = [point for index, point in enumerate(points) if index == 0 or point != points[index - 1]]
         if len(cleaned) < 2:
             raise ProcessCompileError(f"Process event {event_index} gives {actor_id!r} no travel distance.")
-        paths.append({"id": path_id, "points": [_point(*point) for point in cleaned],
+        paths.append({"id": path_id, "points": [_point(*point) for point in _rounded(cleaned)],
                       "curved": False, "closed": False, "color": actor_colors[actor_id]})
-        emit(event, actor_id, "follow-path", start, end, path_id=path_id)
+        emit(event, actor_id, "follow-path", start, end, path_id=path_id, easing="walk")
         positions[actor_id] = cleaned[-1]
 
     def work_until(actor_id, end, event_index):
@@ -153,7 +198,7 @@ def compile_process_visual(visual: ProcessVisual, lines: list[dict], scene_start
                 actor_start = start + duration * offset // len(event.actor_ids)
                 actor_end = start + duration * (offset + 1) // len(event.actor_ids)
                 target = _queue_point(len(queue))
-                emit(event, actor_id, "move", actor_start, actor_end, target=target)
+                emit(event, actor_id, "move", actor_start, actor_end, target=target, easing="walk")
                 emit(event, actor_id, "opacity", actor_start, actor_start + min(8, actor_end - actor_start), value=1)
                 positions[actor_id] = target
                 queue.append(actor_id)
@@ -176,7 +221,9 @@ def compile_process_visual(visual: ProcessVisual, lines: list[dict], scene_start
             queue = queue[len(event.actor_ids):]
             for position, actor_id in enumerate(queue):
                 target = _queue_point(position)
-                emit(event, actor_id, "move", arrival, end, target=target)
+                # The person behind never starts before the one in front, so gaps only open, never close.
+                delay = min(position * QUEUE_STAGGER_FRAMES, max(0, end - arrival - MIN_COMPACTION_FRAMES))
+                emit(event, actor_id, "move", arrival + delay, end, target=target, easing="walk")
                 positions[actor_id] = target
             phases.append({"kind": "to-service", "actorIds": list(event.actor_ids), "from": start,
                            "durationInFrames": travel_frames})
@@ -200,8 +247,13 @@ def compile_process_visual(visual: ProcessVisual, lines: list[dict], scene_start
                 # necessary: first take the corridor at x=820, then pass above/below its entire body.
                 clearance = station_clearance[station_id]
                 exit_y = y - clearance if y <= QUEUE_Y else y + clearance
-                travel(event, index, actor_id, travel_start, travel_end,
-                       [(x, y), (x, exit_y), (EXIT_X, exit_y)])
+                # One unbroken walk: reach the exit as the fade begins and keep going while fading,
+                # rather than stopping at the exit and vanishing on the spot.
+                reached = _walk((travel_end - travel_start) / (end - travel_start))
+                distance = abs(exit_y - y) + EXIT_X - x
+                overrun = min(EXIT_OVERRUN, distance * (1 / reached - 1))
+                travel(event, index, actor_id, travel_start, end,
+                       [(x, y), (x, exit_y), (EXIT_X + overrun, exit_y)])
                 emit(event, actor_id, "opacity", travel_end, end, value=0)
                 del service[station_id]
                 completed.append(actor_id)

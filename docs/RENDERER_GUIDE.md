@@ -42,6 +42,7 @@ python -m capstone_script render --run runs/narration-01
 python -m capstone_script render --run runs/narration-01 --draft   # 960x540, quicker
 python -m capstone_script render --run runs/narration-01 --share   # also video-720p.mp4 for sharing
 python -m capstone_script render --run runs/narration-01 --theme night --no-music   # darker look, no music bed
+python -m capstone_script render --run runs/narration-01 --look sketch   # hand-drawn people and objects in motion scenes
 python -m capstone_script render --run runs/narration-01 --concurrency 2   # fewer browser tabs, for 8 GB laptops
 
 # Check a few frames as PNG files without rendering the whole video
@@ -146,11 +147,13 @@ half empty. Titles rise in word by word. Captions show the spoken line and stay
 up through the short gaps inside a scene, except while a quotation is read
 aloud, since the quote is already on screen. Each card and scene slides in from
 the right while the previous one slides out to the left, overlapping by 14
-frames, over a backdrop of slowly drifting light. Fonts are system fonts, so
+frames, over a backdrop of slowly drifting light; the outgoing one is gone
+before the incoming one is fully visible, so their text never stacks. Related
+process scenes dissolve in place instead (see MOTION_GUIDE.md). Fonts are system fonts, so
 rendering works offline.
 
-Motion scenes use original SVG illustrations on a paper background instead
-of slide cards. Their object state persists between actions, and any frame can
+Motion scenes use original SVG illustrations drawn straight on the shared
+backdrop, with the theme's ink and type, instead of slide cards. Their object state persists between actions, and any frame can
 be rendered directly without replaying earlier frames. Actions use absolute
 frames compiled from the real narration. See [MOTION_GUIDE.md](MOTION_GUIDE.md)
 for the reusable contract, local samples, verification and remaining limits.
@@ -160,6 +163,18 @@ for the reusable contract, local samples, verification and remaining limits.
 `--theme light` (the default) keeps the look of the browser preview;
 `--theme night` is a darker, documentary style with a gold accent. Both are in
 `src/theme.ts`, and every component reads the current one with `useTheme()`.
+
+`--look vector` (the default) draws motion scenes with the code-drawn shapes.
+`--look sketch` draws people as Open Peeps line art (Pablo Stanley, CC0, through
+`react-peeps`, MIT) with rigged legs that step with the distance walked, and
+counters, workbenches, servers, boxes, packets and coins with rough.js (MIT).
+Outfits and hair come from each actor's id and every rough.js shape is seeded by
+its entity id, so a drawing is identical on every frame and in every related
+shot; the highlighted actor's clothes take its colour. Process stages in this look
+are framed closer (departures walk out of the shot), and labels use the
+hand-lettered Patrick Hand font from `@remotion/google-fonts`, which is fetched
+from Google Fonts when the render starts, so a sketch render needs a network
+connection. The code is in `src/motion/sketch.tsx`.
 
 Unless `--no-music` is given, `render` also writes `video/music.wav`, a quiet
 music bed synthesized by `capstone_script/music.py`: slow pad chords over a

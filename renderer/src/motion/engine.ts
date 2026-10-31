@@ -10,11 +10,24 @@ const mix = (a: number, b: number, t: number) => (1 - t) * a + t * b;
 const distance = (a: MotionPoint, b: MotionPoint) => Math.hypot(a.x - b.x, a.y - b.y);
 const clamp = (n: number) => Math.max(0, Math.min(1, n));
 
-/** Matches the existing renderer's cubic ease-out; constant travel uses linear. */
+// Share of a walk spent speeding up, and again slowing down, at its ends.
+export const WALK_RAMP = 0.25;
+// Distance covered while speed rises smoothly from 0 to 1 over a unit ramp (integral of smoothstep).
+const rampDistance = (x: number) => x ** 3 - x ** 4 / 2;
+
+/** Matches the existing renderer's cubic ease-out; constant travel uses linear. A walk eases in and
+ * out over WALK_RAMP of its time and keeps one steady pace in between (top speed 1.33x the average,
+ * where the cubic ease-in-out peaks at 3x), so feet and distance stay in step without a mid-route lurch. */
 export const easing = (t: number, curve: MotionEasing) => {
   const p = clamp(t);
   if (curve === 'linear') return p;
   if (curve === 'ease-out') return 1 - (1 - p) ** 3;
+  if (curve === 'walk') {
+    const top = 1 / (1 - WALK_RAMP);
+    if (p < WALK_RAMP) return top * WALK_RAMP * rampDistance(p / WALK_RAMP);
+    if (p > 1 - WALK_RAMP) return 1 - top * WALK_RAMP * rampDistance((1 - p) / WALK_RAMP);
+    return top * (p - WALK_RAMP / 2);
+  }
   return p < 0.5 ? 4 * p ** 3 : 1 - (-2 * p + 2) ** 3 / 2;
 };
 

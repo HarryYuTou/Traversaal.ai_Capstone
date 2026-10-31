@@ -1,0 +1,337 @@
+{
+  "schemaVersion": "1",
+  "projectId": "checkout-counters",
+  "title": "Why a Second Checkout Counter Cuts Waiting",
+  "scenes": [
+    {
+      "id": "scene-01",
+      "purpose": "Show the checkout line with one counter open.",
+      "template": "process",
+      "visual": {
+        "title": "One Counter Open",
+        "actorKind": "person",
+        "actors": [
+          {
+            "id": "shopper-a",
+            "color": "ink",
+            "label": ""
+          },
+          {
+            "id": "shopper-b",
+            "color": "ink",
+            "label": ""
+          },
+          {
+            "id": "shopper-c",
+            "color": "accent",
+            "label": ""
+          }
+        ],
+        "stations": [
+          {
+            "id": "counter-1",
+            "label": "Counter 1",
+            "kind": "counter",
+            "color": "secondary"
+          },
+          {
+            "id": "counter-2",
+            "label": "Counter 2",
+            "kind": "counter",
+            "color": "secondary",
+            "initialState": "closed"
+          }
+        ],
+        "initialQueue": [
+          "shopper-a",
+          "shopper-b",
+          "shopper-c"
+        ],
+        "initialService": [],
+        "events": [
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 0,
+            "endLine": 1,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "start",
+            "actorIds": [
+              "shopper-a"
+            ],
+            "stationIds": [
+              "counter-1"
+            ],
+            "startLine": 2,
+            "endLine": 2,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 3,
+            "endLine": 3,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "finish",
+            "actorIds": [
+              "shopper-a"
+            ],
+            "stationIds": [
+              "counter-1"
+            ],
+            "startLine": 4,
+            "endLine": 4,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "start",
+            "actorIds": [
+              "shopper-b"
+            ],
+            "stationIds": [
+              "counter-1"
+            ],
+            "startLine": 5,
+            "endLine": 5,
+            "startOffset": 0.0,
+            "endOffset": 0.6
+          },
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 5,
+            "endLine": 5,
+            "startOffset": 0.6,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "finish",
+            "actorIds": [
+              "shopper-b"
+            ],
+            "stationIds": [
+              "counter-1"
+            ],
+            "startLine": 6,
+            "endLine": 6,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "start",
+            "actorIds": [
+              "shopper-c"
+            ],
+            "stationIds": [
+              "counter-1"
+            ],
+            "startLine": 7,
+            "endLine": 7,
+            "startOffset": 0.0,
+            "endOffset": 0.6
+          },
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 7,
+            "endLine": 7,
+            "startOffset": 0.6,
+            "endOffset": 1.0
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-01-line-01",
+          "text": "Why does opening a second checkout counter cut waiting time? Let's watch."
+        },
+        {
+          "id": "scene-01-line-02",
+          "text": "Three shoppers are waiting, and only one counter is open."
+        },
+        {
+          "id": "scene-01-line-03",
+          "text": "The first shopper steps up and starts being served."
+        },
+        {
+          "id": "scene-01-line-04",
+          "text": "Let's assume every shopper takes the same amount of time."
+        },
+        {
+          "id": "scene-01-line-05",
+          "text": "When she is done, she leaves, and the line can move."
+        },
+        {
+          "id": "scene-01-line-06",
+          "text": "Now the second shopper starts, while the highlighted shopper keeps waiting."
+        },
+        {
+          "id": "scene-01-line-07",
+          "text": "The second shopper finishes and leaves after another full service."
+        },
+        {
+          "id": "scene-01-line-08",
+          "text": "With one counter, the highlighted shopper waits two whole rounds before her turn."
+        }
+      ]
+    },
+    {
+      "id": "scene-02",
+      "purpose": "Show the checkout line with two counters open.",
+      "template": "process",
+      "visual": {
+        "title": "Two Counters Open",
+        "actorKind": "person",
+        "actors": [
+          {
+            "id": "shopper-a",
+            "color": "ink",
+            "label": ""
+          },
+          {
+            "id": "shopper-b",
+            "color": "ink",
+            "label": ""
+          },
+          {
+            "id": "shopper-c",
+            "color": "accent",
+            "label": ""
+          }
+        ],
+        "stations": [
+          {
+            "id": "counter-1",
+            "label": "Counter 1",
+            "kind": "counter",
+            "color": "secondary"
+          },
+          {
+            "id": "counter-2",
+            "label": "Counter 2",
+            "kind": "counter",
+            "color": "secondary"
+          }
+        ],
+        "initialQueue": [
+          "shopper-a",
+          "shopper-b",
+          "shopper-c"
+        ],
+        "initialService": [],
+        "events": [
+          {
+            "kind": "open",
+            "actorIds": [],
+            "stationIds": [
+              "counter-2"
+            ],
+            "startLine": 0,
+            "endLine": 0,
+            "startOffset": 0.0,
+            "endOffset": 0.8
+          },
+          {
+            "kind": "start",
+            "actorIds": [
+              "shopper-a",
+              "shopper-b"
+            ],
+            "stationIds": [
+              "counter-1",
+              "counter-2"
+            ],
+            "startLine": 1,
+            "endLine": 1,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 2,
+            "endLine": 2,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "finish",
+            "actorIds": [
+              "shopper-a",
+              "shopper-b"
+            ],
+            "stationIds": [
+              "counter-1",
+              "counter-2"
+            ],
+            "startLine": 3,
+            "endLine": 3,
+            "startOffset": 0.0,
+            "endOffset": 1.0
+          },
+          {
+            "kind": "start",
+            "actorIds": [
+              "shopper-c"
+            ],
+            "stationIds": [
+              "counter-1"
+            ],
+            "startLine": 4,
+            "endLine": 4,
+            "startOffset": 0.0,
+            "endOffset": 0.6
+          },
+          {
+            "kind": "hold",
+            "actorIds": [],
+            "stationIds": [],
+            "startLine": 4,
+            "endLine": 5,
+            "startOffset": 0.6,
+            "endOffset": 1.0
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-02-line-01",
+          "text": "Now replay the same line, but open a second counter."
+        },
+        {
+          "id": "scene-02-line-02",
+          "text": "The first two shoppers start being served at the same time."
+        },
+        {
+          "id": "scene-02-line-03",
+          "text": "Both take the same time as before, side by side."
+        },
+        {
+          "id": "scene-02-line-04",
+          "text": "They finish together, and both leave."
+        },
+        {
+          "id": "scene-02-line-05",
+          "text": "The highlighted shopper starts after just one round instead of two."
+        },
+        {
+          "id": "scene-02-line-06",
+          "text": "Same shoppers, same service time, but two counters share the work, so waiting shrinks."
+        }
+      ]
+    }
+  ]
+}

@@ -82,6 +82,27 @@ class RenderCommandTests(unittest.TestCase):
             main(["render", "--run", "runs/x"])
             self.assertIsNone(render.call_args.kwargs["concurrency"])
 
+    def test_look_reaches_the_renderer_props_and_unknown_looks_are_refused(self):
+        from capstone_script.__main__ import main
+        from capstone_script.render import render_props
+        info = {"videoPath": "video.mp4", "width": 1920, "height": 1080, "probedSeconds": 1.0,
+                "bytes": 1, "renderSeconds": 1}
+        with patch("capstone_script.__main__.render_video", return_value=info) as render, patch("builtins.print"):
+            main(["render", "--run", "runs/x", "--look", "sketch"])
+            self.assertEqual(render.call_args.kwargs["look"], "sketch")
+            main(["render", "--run", "runs/x"])
+            self.assertEqual(render.call_args.kwargs["look"], "vector")
+        with tempfile.TemporaryDirectory() as temporary:
+            timeline = Path(temporary) / "timeline.json"
+            timeline.write_text(json.dumps({"scenes": []}), encoding="utf-8")
+            props = json.loads(render_props(timeline, music=False, look="sketch").read_text(encoding="utf-8"))
+            self.assertEqual(props["look"], "sketch")
+            with self.assertRaisesRegex(ValueError, "Unknown look"):
+                render_props(timeline, music=False, look="watercolour")
+        with tempfile.TemporaryDirectory() as temporary, patch("capstone_script.render.subprocess.run") as run,                 self.assertRaisesRegex(ValueError, "Unknown look"):
+            render_video(Path(temporary), look="watercolour")
+        run.assert_not_called()
+
     def test_thumbnail_and_sharing_commands(self):
         with patch("capstone_script.render.shutil.which", return_value="node"),                 patch("capstone_script.render.REMOTION_CLI", Path(__file__)):
             still = still_command(TIMELINE, Path("thumbnail.png"))

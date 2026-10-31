@@ -23,6 +23,8 @@ from .timeline import VIDEO_DIR, write_timeline
 RENDERER = Path(__file__).resolve().parents[1] / "renderer"
 REMOTION_CLI = RENDERER / "node_modules" / "@remotion" / "cli" / "remotion-cli.js"
 THEMES = ("light", "night")
+# Motion-scene illustrations: code-drawn vector shapes, or hand-drawn people (Open Peeps) and rough.js objects.
+LOOKS = ("vector", "sketch")
 
 
 class RenderError(RuntimeError):
@@ -73,16 +75,19 @@ def probe_seconds(video: Path) -> float:
 
 
 def render_props(timeline_path: Path, theme: str = "light", music: bool = True,
-                 progress=lambda message: None) -> Path:
-    """Write video/props.json: the timeline plus the theme and, unless turned off, the music bed."""
+                 progress=lambda message: None, look: str = "vector") -> Path:
+    """Write video/props.json: the timeline plus the theme, the illustration look and, unless turned off,
+    the music bed."""
     if theme not in THEMES:
         raise ValueError(f"Unknown theme {theme!r}; use one of {', '.join(THEMES)}.")
+    if look not in LOOKS:
+        raise ValueError(f"Unknown look {look!r}; use one of {', '.join(LOOKS)}.")
     video_dir = timeline_path.parent
     timeline = json.loads(timeline_path.read_text(encoding="utf-8"))
     if music and not (video_dir / "music.wav").exists():
         progress("Composing the music bed...")
         write_music(video_dir, timeline)
-    props = {**timeline, "theme": theme, "music": {"path": "music.wav"} if music else None}
+    props = {**timeline, "theme": theme, "look": look, "music": {"path": "music.wav"} if music else None}
     path = video_dir / "props.json"
     write_json(path, props)
     return path
@@ -106,18 +111,22 @@ def inspect_motion(timeline_path: Path, timeline: dict, progress=lambda message:
 
 
 def render_video(run_dir: Path, draft: bool = False, share: bool = False, progress=lambda message: None,
-                 theme: str = "light", music: bool = True, concurrency: int | None = None) -> dict:
+                 theme: str = "light", music: bool = True, concurrency: int | None = None,
+                 look: str = "vector") -> dict:
     """Render video.mp4 (or video-draft.mp4 at half size) into run_dir and describe it in video-info.json.
 
     A full render also writes thumbnail.png from the title card; `share` adds video-720p.mp4, a smaller
     copy for uploads and email. `theme` picks the look (light or night) and `music` adds the
-    synthesized music bed under the narration. `concurrency` limits how many frames Remotion draws
+    synthesized music bed under the narration; `look` draws motion scenes as vector shapes or hand-drawn
+    sketches. `concurrency` limits how many frames Remotion draws
     at once; 1 or 2 lets a seven-minute video finish on an 8 GB laptop.
     """
     if draft and share:
         raise ValueError("--share makes a 720p copy of a full render; a draft is already smaller than that.")
     if theme not in THEMES:
         raise ValueError(f"Unknown theme {theme!r}; use one of {', '.join(THEMES)}.")
+    if look not in LOOKS:
+        raise ValueError(f"Unknown look {look!r}; use one of {', '.join(LOOKS)}.")
     if concurrency is not None and (isinstance(concurrency, bool) or not isinstance(concurrency, int)
                                     or concurrency < 1):
         raise ValueError(f"Concurrency must be a whole number of at least 1, not {concurrency!r}.")
@@ -133,7 +142,7 @@ def render_video(run_dir: Path, draft: bool = False, share: bool = False, progre
     timeline = json.loads(timeline_path.read_text(encoding="utf-8"))
     require_duration(run_dir, timeline["durationSeconds"], "narrated-timeline")
     motion_inspection = inspect_motion(timeline_path, timeline, progress)
-    props_path = render_props(timeline_path, theme, music, progress)
+    props_path = render_props(timeline_path, theme, music, progress, look)
     command = render_command(props_path, output, draft, concurrency)
     progress(f"Rendering {timeline['durationInFrames']} frames with Remotion...")
     started = perf_counter()
@@ -148,7 +157,8 @@ def render_video(run_dir: Path, draft: bool = False, share: bool = False, progre
             "width": round(timeline["width"] * scale), "height": round(timeline["height"] * scale),
             "fps": timeline["fps"], "frames": timeline["durationInFrames"],
             "expectedSeconds": timeline["durationSeconds"], "probedSeconds": duration,
-            "bytes": output.stat().st_size, "renderSeconds": round(seconds, 1), "theme": theme, "music": music,
+            "bytes": output.stat().st_size, "renderSeconds": round(seconds, 1), "theme": theme, "look": look,
+            "music": music,
             "concurrency": concurrency,
             "durationCheck": duration_status,
             "subtitles": [f"{VIDEO_DIR}/subtitles.srt", f"{VIDEO_DIR}/subtitles.vtt"]}

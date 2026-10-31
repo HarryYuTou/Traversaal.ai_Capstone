@@ -32,6 +32,17 @@ def build(data=None, frames=120):
     return build_timeline(plan, narrated(plan, frames))
 
 
+def walk(fraction, ramp=0.25):
+    """Steady pace between smooth starts and stops: speed follows smoothstep over each ramp."""
+    top = 1 / (1 - ramp)
+    if fraction > 1 - ramp:
+        return 1 - walk(1 - fraction, ramp)
+    if fraction < ramp:
+        x = fraction / ramp
+        return top * ramp * (x ** 3 - x ** 4 / 2)
+    return top * (fraction - ramp / 2)
+
+
 def states_at(visual, frame):
     """Independent playback oracle for the compiler's straight paths and eased scalar movements.
 
@@ -46,7 +57,10 @@ def states_at(visual, frame):
             if frame < action["from"]:
                 continue
             fraction = min(1, (frame - action["from"]) / action["durationInFrames"])
-            eased = 4 * fraction ** 3 if fraction < 0.5 else 1 - (-2 * fraction + 2) ** 3 / 2
+            if action["easing"] == "walk":
+                eased = walk(fraction)
+            else:
+                eased = 4 * fraction ** 3 if fraction < 0.5 else 1 - (-2 * fraction + 2) ** 3 / 2
             if action["kind"] == "opacity":
                 state["opacity"] += (action["value"] - state["opacity"]) * eased
             elif action["kind"] == "move":
@@ -224,10 +238,27 @@ class ProcessTimelineTests(unittest.TestCase):
         self.assertEqual(complete_entities, {"one", "two"})
         state = states_at(scene["visual"], fade["from"])
         self.assertEqual(state["a"]["opacity"], 1)
-        self.assertAlmostEqual(state["a"]["x"], 1130)
+        self.assertAlmostEqual(state["a"]["x"], 1130, delta=1)
         final = states_at(scene["visual"], finish["from"] + finish["durationInFrames"])
+        # The departure is one walk: the actor keeps moving away while it fades, never stops to vanish.
+        self.assertGreater(final["a"]["x"], state["a"]["x"] + 5)
         self.assertEqual(final["a"]["opacity"], 0)
         self.assertEqual(final["b"]["opacity"], 0)
+
+    def test_the_line_moves_up_front_first_and_never_closes_a_gap(self):
+        data = process_plan()
+        visual = data["scenes"][0]["visual"]
+        visual.update(stations=visual["stations"][:1], initialQueue=["a", "b", "c"],
+                      events=[event("start", ("a",), ("one",), 0), event("hold", line=1, end_line=3)])
+        scene = build(data)["scenes"][0]
+        moves = {action["entityId"]: action for action in scene["visual"]["actions"] if action["kind"] == "move"}
+        self.assertLess(moves["b"]["from"], moves["c"]["from"])
+        self.assertEqual(moves["b"]["from"] + moves["b"]["durationInFrames"],
+                         moves["c"]["from"] + moves["c"]["durationInFrames"])
+        for frame in range(moves["b"]["from"], moves["b"]["from"] + moves["b"]["durationInFrames"] + 1):
+            state = states_at(scene["visual"], frame)
+            self.assertGreaterEqual(state["b"]["x"] - state["c"]["x"], 90 - 1e-6)
+        self.assert_geometry(scene)
 
     def test_unfinished_service_remains_working_through_final_hold_without_false_completion(self):
         data = process_plan()
