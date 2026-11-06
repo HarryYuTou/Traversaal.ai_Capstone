@@ -22,7 +22,7 @@ from typing import Literal
 from pydantic import ValidationError
 
 from .scene_plan import (
-    ICONS, MAP_REGIONS, TEMPLATES, WORDS_PER_SECOND, MotionAction, MotionEntity, MotionPath,
+    ICONS, MAP_REGIONS, TEMPLATES, WORDS_PER_SECOND, MotionAction, MotionCue, MotionEntity, MotionPath,
     ProcessActor, ProcessStation, ProcessOccupancy, ProcessEvent,
     PlanValidationError, _Model, dump_plan, error_problems, summarize,
     validate_plan,
@@ -31,7 +31,7 @@ from .scene_plan import (
 MODEL = "claude-opus-5-5"
 EFFORT = "high"
 MAX_TOKENS = 16000
-PROMPT_VERSION = "scene-planner-v14"
+PROMPT_VERSION = "scene-planner-v15"
 TEMPLATE_ROUTER_VERSION = "template-router-v3"
 MAX_REQUEST_TEMPLATES = 3
 PROMPTS = Path(__file__).resolve().parents[1] / "prompts"
@@ -250,6 +250,7 @@ class _OutputMotion(_Model):
     entities: list[MotionEntity]
     paths: list[MotionPath]
     actions: list[MotionAction]
+    cues: list[MotionCue] = None
 
 
 class _OutputProcess(_Model):
@@ -537,6 +538,10 @@ def normalize_ids(data, project_id: str):
                         for key in ("entityId", "pathId"):
                             if isinstance(action.get(key), str) and action[key]:
                                 action[key] = slug(action[key])
+                cues = visual.get("cues")
+                for cue in cues if isinstance(cues, list) else []:
+                    if isinstance(cue, dict) and isinstance(cue.get("entityId"), str):
+                        cue["entityId"] = slug(cue["entityId"])
             if scene.get("template") == "process":
                 queue = visual.get("initialQueue")
                 if isinstance(queue, list):

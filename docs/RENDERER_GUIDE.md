@@ -145,12 +145,12 @@ their item and sketch themselves in stroke by stroke, and a concept slide
 without points shows its statement and icon larger so the slide does not look
 half empty. Titles rise in word by word. Captions show the spoken line and stay
 up through the short gaps inside a scene, except while a quotation is read
-aloud, since the quote is already on screen. Each card and scene slides in from
-the right while the previous one slides out to the left, overlapping by 14
-frames, over a backdrop of slowly drifting light; the outgoing one is gone
-before the incoming one is fully visible, so their text never stacks. Related
-process scenes dissolve in place instead (see MOTION_GUIDE.md). Fonts are system fonts, so
-rendering works offline.
+aloud, since the quote is already on screen. Cards and unrelated scenes fade
+in place through the backdrop of slowly drifting light. Each shot stays within
+its own interval, so titles and casts never overlap. Related motion and process
+shots share a camera; a boundary cuts directly only when its visible state is
+continuous. A replay or repositioning fades instead (see MOTION_GUIDE.md).
+The vector look uses system fonts; the sketch look loads Patrick Hand once.
 
 Motion scenes use original SVG illustrations drawn straight on the shared
 backdrop, with the theme's ink and type, instead of slide cards. Their object state persists between actions, and any frame can

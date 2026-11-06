@@ -3,32 +3,67 @@ import {BASE_VIEWPORT, type StageViewport} from './camera';
 import {entityHalfExtents, labelMetrics} from './metrics';
 
 export type Actor = {prepared: PreparedEntity; state: EntityState};
-/** The side each labelled entity keeps for a whole scene: 0 below, 1 above, 2 right, 3 left. */
-export type LabelSlots = Map<string, number>;
+type Box = {left: number; top: number; right: number; bottom: number};
+type LabelLayout = {fontSize: number; width: number; height: number; halfWidth: number; halfHeight: number};
+/** Side and reserved geometry stay fixed throughout every related shot: 0 below, 1 above, 2 right, 3 left. */
+export type LabelSlots = Map<string, number> & {layouts?: Map<string, LabelLayout>; look?: 'vector' | 'sketch'};
 /** Process stations read best labelled beside them: walkers pass above and below, the queue is on the left. */
 export const PROCESS_LABEL_ORDER = [2, 0, 1, 3];
 export type Shot = {program: MotionProgram; frames: number[]};
+export type LabelPlanOptions = {viewport?: StageViewport; fontScale?: number; look?: 'vector' | 'sketch'};
 
-/** Every `step`-th frame of a scene, including its last. */
-export const sceneFrames = (from: number, durationInFrames: number, step = 2) => Array.from(
-  {length: Math.ceil(durationInFrames / step) + 1}, (_, index) => from + Math.min(durationInFrames, index * step));
-type Box = {left: number; top: number; right: number; bottom: number};
+/** Every `step`-th frame of a scene, including its final visible frame, never the next scene's frame. */
+export const sceneFrames = (from: number, durationInFrames: number, step = 2) => {
+  const duration = Math.max(0, Math.floor(durationInFrames));
+  if (!duration) return [];
+  const stride = Math.max(1, Math.floor(step));
+  const frames = Array.from({length: Math.ceil(duration / stride)}, (_, index) => from + index * stride);
+  const last = from + duration - 1;
+  if (frames.at(-1) !== last) frames.push(last);
+  return frames;
+};
 type Body = {point: {x: number; y: number}; radius: number | null; box: Box};
 const intersects = (a: Box, b: Box) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
 const SLOTS = [0, 1, 2, 3];
+const EDGE = 12;
 
-const bodiesOf = (actors: Actor[]): Body[] => actors.map(({prepared, state}) => {
+const bodiesOf = (actors: Actor[], look: 'vector' | 'sketch' = 'vector'): Body[] => actors.map(({prepared, state}) => {
   const point = toStage(state);
-  const {x: rx, y: ry} = entityHalfExtents(prepared.entity.kind, state.size, state.rotation);
-  return {point, radius: ['moon', 'planet'].includes(prepared.entity.kind) ? 68 * state.size : null,
+  const {x: rx, y: ry} = entityHalfExtents(prepared.entity.kind, state.size, state.rotation, look);
+  return {point, radius: ['moon', 'planet'].includes(prepared.entity.kind) ? Math.max(rx, ry) : null,
     box: {left: point.x - rx, right: point.x + rx, top: point.y - ry, bottom: point.y + ry}};
 });
 
-const slotPosition = ({point, box: body}: Body, fontSize: number, width: number, slot: number) => [
-  {x: point.x, y: body.bottom + 27}, {x: point.x, y: body.top - 17},
-  {x: body.right + width / 2 + 16, y: point.y + fontSize / 3},
-  {x: body.left - width / 2 - 16, y: point.y + fontSize / 3},
-][slot];
+const fittedMetrics = (label: string, viewport: StageViewport, fontScale = 1) => {
+  const metrics = labelMetrics(label, fontScale);
+  // A narrow export or long label cannot produce an inverted clamping interval. This reduction is
+  // planned once, so text never changes size as its actor moves toward an edge.
+  const available = Math.max(1, viewport.width - EDGE * 2);
+  if (metrics.width <= available) return metrics;
+  const ratio = Math.max(0.001, (available - 14) / (metrics.width - 14));
+  const fontSize = metrics.fontSize * ratio;
+  return {fontSize, width: available, height: fontSize + 10};
+};
+
+const candidateFor = (body: Body, metrics: Pick<LabelLayout, 'fontSize' | 'width' | 'height'>,
+  slot: number, viewport: StageViewport, layout?: LabelLayout) => {
+  const {point} = body;
+  const {fontSize, width} = metrics;
+  const halfWidth = layout?.halfWidth ?? (body.box.right - body.box.left) / 2;
+  const halfHeight = layout?.halfHeight ?? (body.box.bottom - body.box.top) / 2;
+  const position = [
+    {x: point.x, y: point.y + halfHeight + fontSize + 12},
+    {x: point.x, y: point.y - halfHeight - 16},
+    {x: point.x + halfWidth + width / 2 + 16, y: point.y + fontSize / 3},
+    {x: point.x - halfWidth - width / 2 - 16, y: point.y + fontSize / 3},
+  ][slot];
+  const clamp = (value: number, min: number, max: number) => max < min ? (min + max) / 2 : Math.max(min, Math.min(max, value));
+  const x = clamp(position.x, viewport.x + width / 2 + EDGE, viewport.x + viewport.width - width / 2 - EDGE);
+  // Include the text outline and descenders in both the planner and the renderer's bounds.
+  const y = clamp(position.y, viewport.y + fontSize + 4 + EDGE, viewport.y + viewport.height - 10 - EDGE);
+  return {x, y, bounds: {left: x - width / 2, right: x + width / 2, top: y - fontSize - 4, bottom: y + 10},
+    displacement: Math.hypot(x - position.x, y - position.y)};
+};
 
 const bodyHits = (box: Box, bodies: Body[]) => bodies.filter((other) => {
   if (other.radius === null) return intersects(box, other.box);
@@ -37,73 +72,90 @@ const bodyHits = (box: Box, bodies: Body[]) => bodies.filter((other) => {
   return Math.hypot(other.point.x - nearestX, other.point.y - nearestY) < other.radius + 6;
 }).length;
 
-/**
- * Keep labels outside illustrated bodies, particularly a lander approaching the Moon's surface.
- * With `slots` (from planLabelSlots) each label stays on its planned side; without, the clearest
- * side is chosen for this frame alone.
- */
+/** Labels follow translation, but a planned anchor never bobs with the body's rotation or scale.
+ * Layout is stateless: rendering out of order produces exactly the same label positions. */
 export const placeActorLabels = (actors: Actor[], viewport: StageViewport = BASE_VIEWPORT, slots?: LabelSlots) => {
   const visible = actors.filter(({state}) => state.opacity > 0.05);
-  const bodies = bodiesOf(visible);
+  const bodies = bodiesOf(visible, slots?.look);
   const placed: Box[] = [];
   return visible.flatMap((actor, index) => {
     const {entity} = actor.prepared;
     if (!entity.label) return [];
-    const {fontSize, width, height} = labelMetrics(entity.label);
+    const layout = slots?.layouts?.get(entity.id);
+    const metrics = layout ?? fittedMetrics(entity.label, viewport);
     const planned = slots?.get(entity.id);
-    // A planned side sits as close to its entity as the rendered text allows; the conservative width
-    // still keeps it inside the frame. A per-frame choice keeps the original margins.
-    const offsetWidth = planned === undefined ? width : textWidth(entity.label, fontSize);
-    const others = planned === undefined ? bodies : bodies.filter((_, other) => other !== index);
     const candidates = SLOTS.filter((slot) => planned === undefined || slot === planned).map((preference) => {
-      const position = slotPosition(bodies[index], fontSize, offsetWidth, preference);
-      const x = Math.max(viewport.x + width / 2 + 12, Math.min(viewport.x + viewport.width - width / 2 - 12, position.x));
-      const y = Math.max(viewport.y + height + 8, Math.min(viewport.y + viewport.height - 10, position.y));
-      const box = {left: x - width / 2, right: x + width / 2, top: y - fontSize, bottom: y + 6};
-      return {x, y, box, score: bodyHits(box, others) * 1000
-        + placed.filter((other) => intersects(box, other)).length * 1500 + preference};
+      const candidate = candidateFor(bodies[index], metrics, preference, viewport, layout);
+      return {...candidate, score: bodyHits(candidate.bounds, bodies) * 1000
+        + placed.filter((other) => intersects(candidate.bounds, other)).length * 1500 + preference};
     });
     const best = candidates.sort((a, b) => a.score - b.score)[0];
-    placed.push(best.box);
-    return [{actor, x: best.x, y: best.y, fontSize}];
+    placed.push(best.bounds);
+    return [{actor, x: best.x, y: best.y, fontSize: metrics.fontSize, bounds: best.bounds}];
   });
 };
 
-// Rendered label text averages about 0.6 em per character. Fitting keeps labelMetrics' conservative
-// width; the side choice uses this closer one so a near miss is not counted as a collision.
-const textWidth = (label: string, fontSize: number) => label.length * fontSize * 0.6 + 14;
-
 /**
- * Choose each label's side once for the whole scene, or for every related shot of one stage: the side
- * that touches the fewest bodies and earlier labels over all the sampled frames, ties going to the
- * earlier side in `order`. Labels then never jump sides when someone walks past or a shot changes.
+ * Choose a single side and geometry envelope for each identity across all related shots. Planning
+ * uses the same viewport-clamped boxes as rendering, so an apparently free side beyond the frame
+ * cannot win and then be clamped back over the actor. Text and body envelopes include every shot,
+ * including a changed label or a larger/rotated version of the same entity.
  */
-export const planLabelSlots = (shots: Shot[], order: number[] = SLOTS): LabelSlots => {
+export const planLabelSlots = (shots: Shot[], order: number[] = SLOTS, options: LabelPlanOptions = {}): LabelSlots => {
+  const viewport = options.viewport ?? BASE_VIEWPORT;
+  const look = options.look ?? 'vector';
   const slots: LabelSlots = new Map();
+  slots.look = look;
+  slots.layouts = new Map();
   const samples = shots.flatMap(({program, frames}) => frames.map((frame) => {
     const actors = program.entities.map((prepared) => ({prepared, state: entityAtFrame(prepared, frame)}))
       .filter(({state}) => state.opacity > 0.05);
-    return {actors, bodies: bodiesOf(actors), placed: [] as Box[]};
+    return {actors, bodies: bodiesOf(actors, look), placed: [] as Box[]};
   }));
-  const labelled = new Map(shots.flatMap(({program}) => program.entities)
-    .filter(({entity}) => entity.label).map(({entity}) => [entity.id, entity.label]));
-  for (const [id, label] of labelled) {
-    const {fontSize} = labelMetrics(label);
-    const width = textWidth(label, fontSize);
-    const boxesFor = (slot: number) => samples.map(({actors, bodies}): Box | null => {
-      const index = actors.findIndex((actor) => actor.prepared.entity.id === id);
-      if (index < 0) return null;
-      const {x, y} = slotPosition(bodies[index], fontSize, width, slot);
-      return {left: x - width / 2, right: x + width / 2, top: y - fontSize, bottom: y + 6};
-    });
-    const scored = order.map((slot, preference) => {
-      const boxes = boxesFor(slot);
-      const score = boxes.reduce((sum, box, sample) => box ? sum + bodyHits(box, samples[sample].bodies) * 1000
-        + samples[sample].placed.filter((other) => intersects(box, other)).length * 1500 : sum, 0) + preference;
-      return {slot, boxes, score};
+  const identities = new Map<string, PreparedEntity[]>();
+  for (const {program} of shots) for (const prepared of program.entities) {
+    if (prepared.entity.label) identities.set(prepared.entity.id, [...(identities.get(prepared.entity.id) ?? []), prepared]);
+  }
+  // Serialized entity order is not a layout instruction. Consistent identity order keeps equivalent
+  // scenes stable when a generator changes the order of their entity arrays.
+  for (const [id, instances] of [...identities].sort(([a], [b]) => a.localeCompare(b))) {
+    const metrics = instances.map(({entity}) => fittedMetrics(entity.label, viewport, options.fontScale));
+    const fontSize = Math.min(...metrics.map((metric) => metric.fontSize));
+    const width = Math.min(Math.max(1, viewport.width - EDGE * 2),
+      Math.max(...instances.map(({entity}) => entity.label.length * fontSize + 14)));
+    const height = fontSize + 10;
+    let halfWidth = 0;
+    let halfHeight = 0;
+    for (const {entity, actions} of instances) {
+      const size = Math.max(entity.size, ...actions.filter(({action}) => action.kind === 'scale').map(({action}) => action.value));
+      let extents = entityHalfExtents(entity.kind, size, entity.rotation, look);
+      if (actions.some(({action}) => action.kind === 'rotate') && !['moon', 'planet'].includes(entity.kind)) {
+        const unrotated = entityHalfExtents(entity.kind, size, 0, look);
+        const radius = Math.hypot(unrotated.x, unrotated.y);
+        extents = {x: radius, y: radius};
+      }
+      halfWidth = Math.max(halfWidth, extents.x);
+      halfHeight = Math.max(halfHeight, extents.y);
+    }
+    const layout = {fontSize, width, height, halfWidth, halfHeight};
+    slots.layouts.set(id, layout);
+    const validOrder = [...new Set(order.filter((slot) => SLOTS.includes(slot)))];
+    if (!validOrder.length) validOrder.push(...SLOTS);
+    const scored = validOrder.map((slot, preference) => {
+      const candidates = samples.map(({actors, bodies}) => {
+        const index = actors.findIndex((actor) => actor.prepared.entity.id === id);
+        return index < 0 ? null : candidateFor(bodies[index], layout, slot, viewport, layout);
+      });
+      const score = candidates.reduce((sum, candidate, sample) => candidate ? sum
+        + bodyHits(candidate.bounds, samples[sample].bodies) * 1000
+        + samples[sample].placed.filter((other) => intersects(candidate.bounds, other)).length * 1500
+        // Prefer an unclamped anchor when collision counts tie, without outweighing one collision.
+        + Math.min(1, candidate.displacement / Math.max(1, viewport.width, viewport.height)) / Math.max(1, samples.length)
+        : sum, 0) + preference / 100;
+      return {slot, candidates, score};
     }).sort((a, b) => a.score - b.score)[0];
     slots.set(id, scored.slot);
-    scored.boxes.forEach((box, sample) => {if (box) samples[sample].placed.push(box);});
+    scored.candidates.forEach((candidate, sample) => {if (candidate) samples[sample].placed.push(candidate.bounds);});
   }
   return slots;
 };

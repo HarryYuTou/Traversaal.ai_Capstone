@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "1",
+  "projectId": "parcel-packing-demo",
+  "title": "Two Parcels at One Packing Bench",
+  "scenes": [
+    {
+      "id": "scene-01",
+      "purpose": "Distinguish waiting, packing, sealing and departure without changing parcel identity.",
+      "template": "process",
+      "visual": {
+        "title": "Packing takes visible work",
+        "actorKind": "box",
+        "actors": [
+          {"id": "parcel-a", "color": "accent", "label": "A"},
+          {"id": "parcel-b", "color": "secondary", "label": "B"}
+        ],
+        "stations": [
+          {"id": "packing-bench", "label": "Packing", "kind": "workbench", "color": "ink",
+           "initialState": "open", "operation": "pack"}
+        ],
+        "initialQueue": ["parcel-a", "parcel-b"],
+        "initialService": [],
+        "events": [
+          {"kind": "start", "actorIds": ["parcel-a"], "stationIds": ["packing-bench"],
+           "startLine": 0, "endLine": 0, "startOffset": 0, "endOffset": 1},
+          {"kind": "hold", "actorIds": [], "stationIds": [],
+           "startLine": 1, "endLine": 1, "startOffset": 0, "endOffset": 1},
+          {"kind": "finish", "actorIds": ["parcel-a"], "stationIds": ["packing-bench"],
+           "startLine": 2, "endLine": 2, "startOffset": 0, "endOffset": 1},
+          {"kind": "start", "actorIds": ["parcel-b"], "stationIds": ["packing-bench"],
+           "startLine": 3, "endLine": 3, "startOffset": 0, "endOffset": 1},
+          {"kind": "hold", "actorIds": [], "stationIds": [],
+           "startLine": 4, "endLine": 4, "startOffset": 0, "endOffset": 1},
+          {"kind": "finish", "actorIds": ["parcel-b"], "stationIds": ["packing-bench"],
+           "startLine": 5, "endLine": 5, "startOffset": 0, "endOffset": 1},
+          {"kind": "hold", "actorIds": [], "stationIds": [],
+           "startLine": 6, "endLine": 6, "startOffset": 0, "endOffset": 1}
+        ]
+      },
+      "narration": [
+        {"id": "scene-01-line-01", "text": "Two parcels are waiting. The first moves to the open packing bench."},
+        {"id": "scene-01-line-02", "text": "Its flaps close during packing, while the second parcel waits nearby."},
+        {"id": "scene-01-line-03", "text": "The first parcel is sealed, then leaves the packing area."},
+        {"id": "scene-01-line-04", "text": "Now the second parcel moves forward to the same bench."},
+        {"id": "scene-01-line-05", "text": "Its flaps close in the same way, keeping its original color."},
+        {"id": "scene-01-line-06", "text": "Once sealed, the second parcel leaves and the bench becomes free."},
+        {"id": "scene-01-line-07", "text": "Both parcels have finished: waiting, packing, sealing, and departure were separate steps."}
+      ]
+    }
+  ]
+}

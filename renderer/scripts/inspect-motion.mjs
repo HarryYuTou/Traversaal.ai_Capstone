@@ -24,6 +24,7 @@ const load = async (name) => import(await moduleUrl(new URL(`../src/motion/${nam
 const {compileMotion, displayedPaths, entityAtFrame, toStage} = await load('engine');
 const {entityHalfExtents} = await load('metrics');
 const {activityAtFrame} = await load('pose');
+const {objectPerformanceAtFrame, OBJECT_CUE_KINDS} = await load('objectPerformance');
 
 const overlapping = (item, start, end) => item.from < end && item.from + item.durationInFrames > start;
 const clippedRange = (item, start, end) => [Math.max(start, item.from), Math.min(end, item.from + item.durationInFrames)];
@@ -41,12 +42,55 @@ const mergedRanges = (ranges) => {
 // a picture busy. Visible activity progress and revealed routes do count as purposeful motion.
 // Discard interpolation round-off; a no-op such as 30*(1-p)+30*p must stay visually unchanged.
 const visualNumber = (value) => Number(value.toFixed(6));
-const pictureSignature = (program, actors, frame, showRoutes) => JSON.stringify({
-  actors: actors.filter(({state}) => state.opacity > 0.01).map(({prepared, state}) => {
-    const activity = activityAtFrame(prepared.activities, frame);
+const visible = (opacity) => opacity > 1e-6;
+const pulse = (phase, row) => visualNumber(0.25 + 0.75 * (0.5 + 0.5 * Math.sin(phase * Math.PI * 4 - row * 1.7)));
+const processingRows = {server: 6, laptop: 5, cloud: 3, packet: 4, box: 3, satellite: 1};
+// Only record fields used by the drawing. A cue's clock/progress is not itself a visible change:
+// compute uses LED pulses, pack keeps its sealed state, and clipped-out scans show no pixels.
+const cuePicture = (pose, kind, entityKind) => {
+  if (kind === 'pack') return pose.pack ? Object.values(pose.pack).map(visualNumber) : null;
+  if (kind === 'scan' && pose.scan && visible(pose.scan.opacity)) {
+    const y = -44 + pose.scan.progress * 92;
+    const [top, bottom] = entityKind === 'box' ? [-28, 47] : [-20, 20];
+    return y + 7 > top && y - 7 < bottom ? [visualNumber(pose.scan.opacity), visualNumber(y)] : null;
+  }
+  if (['send', 'receive'].includes(kind) && pose.signal?.kind === kind && visible(pose.signal.opacity)) {
+    return [kind, visualNumber(pose.signal.opacity), visualNumber(pose.signal.progress)];
+  }
+  if (kind === 'compute' && pose.compute && visible(pose.compute.opacity)) {
+    return [visualNumber(pose.compute.opacity),
+      ...Array.from({length: processingRows[entityKind] ?? 0}, (_, row) => pulse(pose.compute.phase, row))];
+  }
+  if (kind === 'thrust' && visible(pose.thrust)) {
+    return [visualNumber(pose.thrust), visualNumber(0.8 + Math.sin(pose.thrustPhase * Math.PI * 12) * 0.12)];
+  }
+  return null;
+};
+const objectPicture = (pose, kind) => {
+  if (['person', 'planet', 'moon'].includes(kind)) return null;
+  const cues = ['pack', 'scan', 'send', 'receive', 'thrust']
+    .filter((cue) => OBJECT_CUE_KINDS[cue].includes(kind)).map((cue) => cuePicture(pose, cue, kind));
+  // Generic service uses local details too. Box processing disappears once packing owns its surface.
+  const opacity = Math.max(pose.processing, pose.compute?.opacity ?? 0);
+  const processing = visible(opacity) && processingRows[kind] && !(kind === 'box' && pose.pack)
+    ? [visualNumber(opacity), ...Array.from({length: processingRows[kind]},
+      (_, row) => pulse(pose.compute?.phase ?? pose.phase, row))] : null;
+  const complete = ['server', 'laptop', 'cloud', 'packet', 'box'].includes(kind) ? visualNumber(pose.complete) : null;
+  const detail = kind === 'coin' ? [visualNumber(Math.max(pose.change, pose.processing)), visualNumber(pose.change)]
+    : kind === 'marker' ? visualNumber(pose.arrival) : kind === 'gauge' ? visualNumber(pose.change) : null;
+  return [cues, processing, complete, detail];
+};
+const pictureSignature = (program, actors, frame, showRoutes, fps, look) => JSON.stringify({
+  actors: actors.filter(({state}) => state.opacity > 0.01).map(({prepared, state, objectPose}) => {
+    const activity = activityAtFrame(prepared.activities, frame, fps);
+    const mark = activity && (prepared.entity.kind === 'counter' || prepared.entity.kind === 'workbench' ||
+      prepared.entity.kind === 'person' && look !== 'sketch' ||
+      activity.kind === 'complete' && prepared.entity.kind !== 'person' &&
+        !['server', 'laptop', 'cloud', 'packet', 'box'].includes(prepared.entity.kind));
     return [prepared.entity.id, ...[state.x, state.y, state.size, state.rotation % 360, state.opacity].map(visualNumber),
       prepared.entity.kind === 'gauge' ? visualNumber(state.value) : null,
-      activity ? [activity.kind, visualNumber(activity.opacity), activity.kind === 'work' ? visualNumber(activity.progress) : null] : null];
+      mark ? [activity.kind, visualNumber(activity.opacity), activity.kind === 'work' ? visualNumber(activity.progress) : null] : null,
+      objectPicture(objectPose, prepared.entity.kind)];
   }),
   routes: (showRoutes ? displayedPaths(program, frame) : []).filter(({geometry, from}) => geometry.length > 1e-5 && frame > from)
     .map(({key, from, progress}) => [key,
@@ -83,10 +127,22 @@ export const inspectTimeline = (timeline) => {
     };
     let stillSince = scene.from;
     let previousPicture;
+    const visibleCues = new Map();
     // Every frame, including the last, rather than only storyboard endpoints.
     for (let frame = scene.from; frame < end; frame++) {
-      const actors = program.entities.map((prepared) => ({prepared, state: entityAtFrame(prepared, frame)}));
-      const picture = pictureSignature(program, actors, frame, !scene.processTrace);
+      const actors = program.entities.map((prepared) => ({prepared, state: entityAtFrame(prepared, frame),
+        objectPose: objectPerformanceAtFrame(prepared, frame, timeline.fps)}));
+      const picture = pictureSignature(program, actors, frame, !scene.processTrace, timeline.fps, timeline.look ?? 'vector');
+      for (const {prepared, state, objectPose} of actors) {
+        if (state.opacity <= 0.01) continue;
+        for (const cue of prepared.cues ?? []) {
+          if (frame < cue.from || frame >= cue.from + cue.durationInFrames ||
+            !OBJECT_CUE_KINDS[cue.kind]?.includes(prepared.entity.kind) ||
+            cuePicture(objectPose, cue.kind, prepared.entity.kind) === null) continue;
+          if (!visibleCues.has(cue)) visibleCues.set(cue, []);
+          visibleCues.get(cue).push(frame);
+        }
+      }
       if (previousPicture !== undefined && picture !== previousPicture) {
         recordHold(stillSince, frame);
         stillSince = frame;
@@ -94,7 +150,7 @@ export const inspectTimeline = (timeline) => {
       previousPicture = picture;
       const boxes = actors.map(({prepared, state}) => {
         const at = toStage(state);
-        const half = entityHalfExtents(prepared.entity.kind, state.size, state.rotation);
+        const half = entityHalfExtents(prepared.entity.kind, state.size, state.rotation, timeline.look ?? 'vector');
         return {id: prepared.entity.id, kind: prepared.entity.kind, state,
           left: at.x - half.x, right: at.x + half.x, top: at.y - half.y, bottom: at.y + half.y};
       }).filter(({state}) => state.opacity > 0.5);
@@ -114,11 +170,13 @@ export const inspectTimeline = (timeline) => {
       }
     }
     recordHold(stillSince, end);
-    const eventCoverage = scene.processTrace ? (scene.lines ?? []).map((line) => ({
+    const eventCoverage = scene.processTrace || visibleCues.size ? (scene.lines ?? []).map((line) => ({
       narrationId: line.id, text: line.text,
       events: events.filter((event) => overlapping(event, line.from, line.from + line.durationInFrames)).map((event) => event.kind),
       activities: (scene.visual.activities ?? []).filter((activity) => overlapping(activity, line.from, line.from + line.durationInFrames))
         .map(({entityId, kind}) => ({entityId, kind})),
+      cues: [...visibleCues].filter(([, frames]) => frames.some((frame) => frame >= line.from && frame < line.from + line.durationInFrames))
+        .map(([{entityId, kind}]) => ({entityId, kind})),
     })) : [];
     const finalEvent = events.filter((event) => event.from < end).at(-1);
     const trace = scene.processTrace;
@@ -131,6 +189,7 @@ export const inspectTimeline = (timeline) => {
         .map((event) => event.movementEndFrame ?? event.from + event.durationInFrames - 1),
       ...(scene.visual.activities ?? []).filter((activity) => overlapping(activity, scene.from, end))
         .map((activity) => { const [start, finish] = clippedRange(activity, scene.from, end); return Math.floor((start + finish - 1) / 2); }),
+      ...[...visibleCues.values()].flatMap((frames) => [frames[Math.floor((frames.length - 1) / 2)], frames.at(-1)]),
       end - 1];
     scenes.push({id: scene.id, title: scene.visual.title, source: scene.processTrace ? 'process' : 'motion',
       from: scene.from, durationInFrames: scene.durationInFrames,

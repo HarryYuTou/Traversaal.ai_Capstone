@@ -35,6 +35,10 @@ python -m capstone_script render --run runs/apollo-motion-demo --share
 python -m capstone_script narrate --plan fixtures/scene-plan.motion-network.json \
   --out runs/network-motion-demo --offline
 python -m capstone_script render --run runs/network-motion-demo --share
+
+python -m capstone_script narrate --plan fixtures/scene-plan.process-packing.json \
+  --out runs/parcel-packing-demo --offline
+python -m capstone_script render --run runs/parcel-packing-demo --share
 ```
 
 The Studio's **Generate sample** action now uses the network storyboard with
@@ -61,7 +65,7 @@ these required fields:
 | `title` | At most 60 characters |
 | `actorKind` | One of `person`, `packet`, `box`, `coin`, shared by the scene's actors |
 | `actors` | 1–8 `{id, color, label}` records; label is at most 24 characters or `""` |
-| `stations` | 1–2 `{id, label, kind, color}` records with optional `initialState: "open" \| "closed"`; kind is `counter`, `server` or `workbench`, and label is 1–24 characters |
+| `stations` | 1–2 `{id, label, kind, color}` records with optional `initialState: "open" \| "closed"` and `operation: "generic" \| "pack" \| "scan" \| "compute"`; kind is `counter`, `server` or `workbench`, and label is 1–24 characters |
 | `initialQueue` | Actor IDs in waiting order, front first |
 | `initialService` | `{actorId, stationId}` pairs already receiving service |
 | `events` | Up to 48 records describing the changes or deliberate holds |
@@ -78,6 +82,16 @@ other stations start open, preserving existing plans. Declare a future station
 from the start so its opening changes availability without moving the other counters.
 Continuing actors must be initialized consistently; keep their IDs, colors and
 labels, and keep station IDs and ordering stable across related scenes.
+
+An explicit station `operation` selects the mechanism shown during service.
+`pack` requires box actors at a workbench; `scan` requires boxes or packets at
+a workbench or server; `compute` requires packets at a server. The compiler
+rejects unsupported combinations. `generic`, an omitted operation or null
+preserves the original work feedback. Labels do not select an operation: a
+legacy bench labeled "Packing" does not silently acquire new story actions.
+New planner requests choose the operation from the narrated task. Packaging
+closes flaps and adds a seal, scanning uses a scan line, and computing activates
+packet/device details. These do not create workers, hands, contents or tools.
 
 Every event has `kind`, `actorIds`, `stationIds`, `startLine`, `endLine`,
 `startOffset` and `endOffset`, all required. The line anchors have the same
@@ -149,9 +163,137 @@ reserving empty stage margins. Consecutive process scenes in the same chapter
 that share actor and station IDs form one stage: they share one locked wide
 view (the camera never zooms or re-frames), every label keeps one side for
 all of them (station labels sit beside their station, clear of the routes),
-and the cut between them is an in-place dissolve instead of a slide, so the
-shared counters never move. This does not repair incorrect source identity or
+and continuous boundaries cut without overlaying two casts. A replay or reset
+fades through the backdrop in place, so the shared counters never slide or
+change size. This does not repair incorrect source identity or
 state: those remain planner and reviewer responsibilities.
+
+### Reusable stability and character performance
+
+Authored motion scenes also share one camera and label plan when consecutive
+shots in the same chapter share an entity ID and kind. Labels reserve the
+largest actor envelope and text size across those shots, including rotation,
+scaling and the taller sketch people. They keep their side and anchor instead
+of switching sides in the middle of movement. Layout uses the actual sketch
+font size and viewport bounds. Object-array order does not change the plan.
+
+Sharing a camera is separate from continuity at a cut. The renderer checks
+visible actors, their appearance, position and pose at the boundary. A reset
+of the cast fades in place, with each shot confined to its authored interval;
+there is no overlapping copy of the outgoing character or title. Background
+room and prop strokes use the shared stage seed and stay identical across
+related shots.
+
+People derive their performance from existing movement and activity tracks:
+attention leads departure, the torso follows the movement, feet alternate
+between support and swing, and the body settles after stopping. Attention
+persists after a move. Work and completion drive reach and acknowledgement
+rather than changing the underlying event schedule. Direction evaluation
+ignores numerical noise. Vertical travel retains the
+last meaningful horizontal direction from the authored route, so tiny rounding
+errors cannot repeatedly mirror a character at departure. All poses are computed
+from absolute frames, entity identity and the composition FPS, so random
+seeking and parallel rendering reproduce the same result. Breathing and
+blinking have per-actor offsets. Both vector and sketch figures use this pose
+layer; the sketch drawing keeps its existing hair and garment selection.
+Vector hands articulate during work. Sketch heads and torsos articulate
+independently, but arms remain part of the original garment artwork; a full
+sketch handoff requires separate arm assets rather than overlaying extra limbs.
+
+These are renderer capabilities, not topic rules. They apply to every
+supported person entity, including directly authored motion outside process
+scenes. Other assets use their own bounded operation cues, described below;
+they keep their authored geometry and do not acquire human gestures. This
+does not supply new character species, arbitrary actions or missing
+storyboards, and visual review is still needed for each final explanation.
+
+### Semantic object performance
+
+Motion visuals may now include optional `cues`, a list of up to 48 records.
+Every authored record contains `entityId`, `kind`, `startLine`, `endLine`,
+`startOffset` and `endOffset`. Timing uses the same measured narration anchors
+as actions. The compiler retains those anchors and adds absolute `from` and
+`durationInFrames`. Cue intervals must be positive and inside the scene;
+same-entity cues cannot overlap. They can overlap that object's movement
+action because they articulate details rather than changing its position.
+
+| Cue | Supported entity kinds | Intended meaning |
+| --- | --- | --- |
+| `pack` | `box` | Close a parcel's flaps and seal it |
+| `scan` | `box`, `packet` | A visible scanning pass |
+| `send`, `receive` | `packet`, `server`, `laptop`, `cloud`, `satellite` | Emission or reception at a narrated transfer boundary |
+| `compute` | `packet`, `server`, `laptop`, `cloud` | Ongoing processing, without invented percent completion |
+| `thrust` | `spacecraft`, `rocket`, `lander`, `lander-ascent`, `satellite` | An explicitly narrated powered burn |
+
+The process compiler emits these same cue records from explicit station
+operations, only while the actor is at its service position. `pack` and
+`scan` target the actor; `compute` targets both packet and server. Queue
+positions, counts, paths, event timings and existing activity tracks remain
+unchanged. A packing workflow also sets a compiler-only `packingState` on
+every parcel, including waiting parcels whose work occurs in a later scene:
+`open` for queued/future actors and `prepared` for actors already at a packing
+station in `initialService`. This keeps waiting parcels open across cuts
+instead of switching from a generic sealed box when a later cue appears.
+Generic boxes receive no packing state. A compiled pack cue has `complete: true` only when work leads into
+an authored finish; ongoing work ending at the scene boundary has
+`complete: false`, so it cannot falsely seal the parcel. An actor already in
+`initialService` has `continued: true`, retaining a partially packed pose
+instead of reopening at the next scene. These two fields are compiler-only;
+authored motion packing cues represent a complete packing action.
+
+The planner now requests visible send/receive reactions around packet travel
+and explicitly chooses process packing, scanning or computing when justified
+by the topic. It keeps passive orbits continuous using a single linear orbit
+action across related narration lines. An orbit is not evidence of thrust,
+self-rotation or a changing lunar phase; those facts are never inferred from
+motion alone. A gauge continues to display only its authored numeric value.
+Existing plans without cues retain their source serialization and narration
+hashes, so adding this capability does not require re-narrating saved runs.
+
+Motion scenes also draw a short direction trace from the object's actual
+position history. It is trimmed behind the object and fades at the action's
+endpoints. Authored orbit actions gain a circular guide using the exact
+physical radius; closed follow-path orbits retain their authored geometry.
+Process scenes keep their hidden travel routes, and people never gain trails.
+Planet and moon drawings have fixed surface shading for depth, not animated
+phases or unrequested self-rotation. Completion marks, packing states and
+direction graphics participate in continuity checks. The motion inspector
+recognizes the rendered semantic parts, rather than mistaking stationary
+packing or computation for a frozen picture.
+
+This covers the current asset vocabulary and named operations, not every
+possible real-world action. Unsupported machinery, materials and gestures
+still need new assets and action definitions. Supporting slide templates
+remain available when an honest diagram explains the idea better.
+
+Run the regression suite and a silent, reproducible preview across a person,
+parcel handling, a network and an orbit. These commands use no planner, TTS or
+video-generation API. The preview includes return travel and service cues;
+it is a visual acceptance fixture, not a narrated lesson.
+
+```bash
+cd renderer
+npm run typecheck
+npm run test:motion
+node scripts/quality-preview.mjs ../runs/quality-vector vector
+node scripts/quality-preview.mjs ../runs/quality-sketch sketch
+```
+
+Each preview writes its timeline, a 720p MP4 and four inspection frames. Use
+a new output directory for each run. Check the video at normal speed as well
+as the stills: unit tests establish geometry and timing, not acting quality.
+
+For the extended nonhuman acceptance set (packing, lunar orbit, networking,
+explicit spacecraft burn/coast and an illustrative value change), use:
+
+```bash
+node scripts/broad-quality-preview.mjs ../runs/broad-vector vector
+node scripts/broad-quality-preview.mjs ../runs/broad-sketch sketch
+```
+
+This writes a silent 36-second video, the timeline, and inspection stills.
+`--timeline-only` creates the inputs without launching a browser, so the same
+timeline can also be rendered through the normal Remotion CLI.
 
 The resulting `video/timeline.json` scene uses `template: "motion"` for the
 existing renderer. Its `processTrace` records source events, measured frame

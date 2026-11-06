@@ -4,10 +4,12 @@ import type {StationState} from './processState';
 import type {MotionColor, MotionEntity} from './types';
 import {carryOf, limbPath, personLimbs, walkBob, workbenchPress, type ActivityPose, type IllustrationPose} from './pose';
 import {SketchCounter, SketchObject, SketchPerson, SKETCHED_KINDS, type Look} from './sketch';
+import {ObjectDetails, PackingBox} from './ObjectDetails';
+import type {ObjectPerformancePose} from './objectPerformance';
 
 export type Palette = Record<MotionColor, string> & {paper: string; soft: string; line: string};
 type Props = {entity: MotionEntity; state: EntityState; palette: Palette; prefix: string; pose?: IllustrationPose;
-  station?: StationState | null; look?: Look};
+  station?: StationState | null; look?: Look; objectPose?: ObjectPerformancePose};
 
 const clamp = (value: number) => Math.max(0, Math.min(1, value));
 const smooth = (value: number) => clamp(value) * clamp(value) * (3 - 2 * clamp(value));
@@ -43,7 +45,7 @@ const ActivityMark: React.FC<{activity: ActivityPose; palette: Palette; color: s
 );
 
 /** Original small vector illustrations. All actors share the same ink, stroke weight and materials. */
-export const Illustration: React.FC<Props> = ({entity, state, palette: p, prefix, pose, station, look = 'vector'}) => {
+export const Illustration: React.FC<Props> = ({entity, state, palette: p, prefix, pose, station, look = 'vector', objectPose}) => {
   // How open a station looks: it brightens over its opening instead of switching on its last frame.
   const opened = !station ? 1 : station.open ? 1 : smooth(station.openingProgress);
   const color = station ? mixColor(p.muted, p[entity.color], opened) : p[entity.color];
@@ -55,8 +57,15 @@ export const Illustration: React.FC<Props> = ({entity, state, palette: p, prefix
   const carry = carryOf(pose);
   const breath = pose?.idle ? pose.idle.breath * (1 - (pose.movement.strength ?? 0)) : 0;
   const blink = pose?.idle?.blink ?? 0;
-  const facing = pose?.movement.facing ?? 0;
+  const performance = pose?.performance;
+  const facing = performance?.lookX ?? pose?.movement.facing ?? 0;
+  const reach = performance?.reach ?? carry;
+  const acknowledge = performance?.acknowledge ?? 0;
+  const torsoLift = -walkBob(pose) * 0.65 + (performance?.settle ?? 0) * 0.55;
   const content = (() => {
+    if (entity.kind === 'box' && objectPose?.pack) {
+      return <PackingBox pose={objectPose.pack} palette={p} color={color} prefix={clip} sketch={look === 'sketch'} />;
+    }
     // Hand-drawn people and counters; an ink actor wears paper-coloured clothes, others their colour.
     if (look === 'sketch' && entity.kind === 'person') {
       return <SketchPerson id={entity.id} fill={entity.color === 'ink' ? p.paper : color} ink={p.ink} paper={p.paper}
@@ -71,16 +80,28 @@ export const Illustration: React.FC<Props> = ({entity, state, palette: p, prefix
     }
     switch (entity.kind) {
       case 'planet': return <>
-        <defs><clipPath id={clip}><circle r={68} /></clipPath></defs>
+        <defs><clipPath id={clip}><circle r={68} /></clipPath>
+          <radialGradient id={`${clip}-light`} cx="32%" cy="27%" r="77%">
+            <stop offset="0" stopColor={p.paper} stopOpacity={0.2} />
+            <stop offset="0.5" stopColor={p.ink} stopOpacity={0} />
+            <stop offset="1" stopColor={p.ink} stopOpacity={0.34} />
+          </radialGradient>
+        </defs>
         <circle r={68} fill={color} {...stroke} />
         <g clipPath={`url(#${clip})`} fill={p.paper} opacity={0.82}>
           <path d="M-55-51-35-61-15-45-25-30-10-17-17-2-36 0-41 18-59 8-72-18Z" />
           <path d="M-15 16 9 10 23 27 14 44-2 65-12 47-6 30Z" />
           <path d="M21-64 49-48 66-26 43-15 28-22 18-9 3-29Z M49 23 68 32 61 50 36 45Z" />
         </g>
+        <circle r={67} fill={`url(#${clip}-light)`} data-object-part="sphere-lighting" />
         <path d="M-43-47C-64-28-69-1-61 21" fill="none" stroke={p.paper} strokeWidth={4} opacity={0.5} />
       </>;
       case 'moon': return <>
+        <defs><radialGradient id={`${clip}-light`} cx="32%" cy="27%" r="77%">
+          <stop offset="0" stopColor={p.paper} stopOpacity={0.35} />
+          <stop offset="0.5" stopColor={p.ink} stopOpacity={0} />
+          <stop offset="1" stopColor={p.ink} stopOpacity={0.28} />
+        </radialGradient></defs>
         <circle r={68} fill={p.soft} {...stroke} />
         <path d="M33-59C15-29 16 31 49 47A68 68 0 0 0 33-59" fill={color} opacity={0.17} />
         <g fill={p.paper} stroke={p.ink} strokeWidth={2} opacity={0.55}>
@@ -89,9 +110,10 @@ export const Illustration: React.FC<Props> = ({entity, state, palette: p, prefix
         </g>
         <path d="M-38-28q11-10 23-1M11 16q13-12 27-1" fill="none" stroke={color} strokeWidth={2} opacity={0.5} />
         <circle cx={-5} cy={-1} r={3} fill={p.muted} opacity={0.4} />
+        <circle r={67} fill={`url(#${clip}-light)`} data-object-part="sphere-lighting" />
       </>;
       case 'spacecraft': return <>
-        <path d="M-49-18-65-27-65 27-49 18" fill={color} {...stroke} />
+        <path d="M-49-12-55-9V9L-49 12Z" fill={p.soft} {...stroke} />
         <path d="M-49-25H-8V25H-49Z" fill={p.soft} {...stroke} />
         <path d="M-7-30 43-5Q52 0 43 5L-7 30Z" {...filled} />
         <path d="M-37-24V24M-26-24V24" fill="none" stroke={p.muted} strokeWidth={2} />
@@ -117,13 +139,12 @@ export const Illustration: React.FC<Props> = ({entity, state, palette: p, prefix
         </> : null}
       </>;
       case 'rocket': return <>
-        <path d="M-15 38-23 60 0 52 23 60 15 38" fill={p.secondary} {...stroke} />
+        <path d="M-12 40V47H12V40" fill={p.soft} {...stroke} />
         <path d="M-19 23-34 48-18 44M19 23 34 48 18 44" fill={color} {...stroke} />
         <path d="M-19 40V-34Q-17-57 0-74Q17-57 19-34V40Z" {...filled} />
         <path d="M-17-42Q-10-61 0-74Q10-61 17-42Z" fill={color} {...stroke} />
         <path d="M-19 13H19M-19 26H19M-19-12H19" stroke={p.ink} strokeWidth={3} />
         <circle cy={-27} r={8} fill={color} {...stroke} />
-        <path d="M-8 40 0 59 8 40" fill={p.paper} stroke={p.ink} strokeWidth={2} />
       </>;
       case 'satellite': return <>
         <path d="M-60-20H-23V20H-60Z M23-20H60V20H23Z" fill={color} {...stroke} />
@@ -132,23 +153,26 @@ export const Illustration: React.FC<Props> = ({entity, state, palette: p, prefix
         <path d="M-23 0H-17M17 0H23M0-25V-39M-15-43Q0-28 15-43" fill="none" {...stroke} />
         <circle cy={3} r={7} fill={p.paper} {...stroke} />
       </>;
-      case 'person': return <g transform={`translate(0 ${-walkBob(pose)})`}>
+      case 'person': return <g data-character-rig="vector">
+        {/* Feet stay on the floor while the torso absorbs each footfall and settles after stopping. */}
         <path d={`${limbPath(limbs.leftLeg)} ${limbPath(limbs.rightLeg)}`} fill="none" {...stroke} strokeWidth={6} />
+        <g data-character-part="torso" transform={`translate(0 ${torsoLift}) rotate(${performance?.lean ?? 0} 0 32)`}>
         <path d="M-22-2Q0-14 22-2L27 34H-27Z" fill={color} {...stroke} />
         {/* Items rise into the hands as service starts and sink away after it ends. */}
-        {carry > 0.01 ? <g opacity={carry} transform={`translate(0 ${(1 - carry) * 8})`}>
+        {carry > 0.01 ? <g opacity={carry} transform={`translate(${facing * reach * 7 * carry} ${(1 - carry) * 8})`}>
           <rect x={-16} y={4} width={32} height={25} rx={2} {...filled} strokeWidth={2} />
         </g> : null}
         <path d={`${limbPath(limbs.leftArm)} ${limbPath(limbs.rightArm)}`} fill="none" {...stroke} strokeWidth={6} />
-        {/* The head leads slightly and the face turns toward where a walker is going. */}
-        <g transform={`translate(${facing * 2} ${-breath * 1.2})`}>
+        {/* Attention and acknowledgement happen independently of the torso's follow-through. */}
+        <g data-character-part="head" transform={`translate(${facing * 1.8} ${-breath * 0.8 + acknowledge * 1.5}) rotate(${performance?.headTilt ?? 0} 0 -31)`}>
           <circle cy={-31} r={24} {...filled} />
           <path d="M-23-37Q-8-65 17-48L23-37Q2-39-5-49Q-14-36-23-37" fill={p.ink} />
           <g transform={`translate(${facing * 4} 0)`}>
             <ellipse cx={-8} cy={-30} rx={2.5} ry={2.5 * (1 - 0.85 * blink)} fill={p.ink} />
             <ellipse cx={8} cy={-30} rx={2.5} ry={2.5 * (1 - 0.85 * blink)} fill={p.ink} />
-            <path d="M-7-20q7 7 14 0" fill="none" {...stroke} strokeWidth={2} />
+            <path d={`M-7-20q7 ${7 - reach * 3 + acknowledge} 14 0`} fill="none" {...stroke} strokeWidth={2} />
           </g>
+        </g>
         </g>
       </g>;
       case 'packet': return <>
@@ -234,7 +258,10 @@ export const Illustration: React.FC<Props> = ({entity, state, palette: p, prefix
   const mark = entity.kind === 'counter' ? {x: 24, y: -34}
     : entity.kind === 'workbench' ? {x: -13, y: -20}
       : entity.kind === 'person' ? {x: 0, y: 15} : {x: 0, y: 0};
-  return <g><g opacity={station ? 0.5 + 0.5 * opened : 1}>{content}</g>{station ? <g data-station-state={station.open ? 'open' : 'closed'}>
+  const hasSurfaceCompletion = objectPose && ['box', 'packet', 'server', 'laptop', 'cloud'].includes(entity.kind);
+  return <g><g opacity={station ? 0.5 + 0.5 * opened : 1}>{content}
+    <ObjectDetails kind={entity.kind} pose={objectPose} palette={p} color={color} prefix={clip} />
+  </g>{station ? <g data-station-state={station.open ? 'open' : 'closed'}>
     <rect x={-43} y={12} width={86} height={25} rx={4} fill={p.paper}
       stroke={mixColor(p.muted, p.secondary, opened)} strokeWidth={2} />
     <circle cx={-31} cy={24.5} r={3.5} fill={mixColor(p.muted, p.secondary, opened)} />
@@ -248,7 +275,9 @@ export const Illustration: React.FC<Props> = ({entity, state, palette: p, prefix
         opacity={clamp((1 - station.openingProgress) / 0.15)}
         strokeDasharray={`${station.openingProgress} 1`} /> : null}
   </g> : null}{/* A sketched person shows service through the counter's screen, not a mark on their body. */}
-  {activity && !(look === 'sketch' && entity.kind === 'person') ? <g transform={`translate(${mark.x} ${mark.y})`}>
+  {activity && !(look === 'sketch' && entity.kind === 'person') &&
+    (!objectPose || entity.kind === 'person' || entity.kind === 'counter' || entity.kind === 'workbench' ||
+      activity.kind === 'complete' && !hasSurfaceCompletion) ? <g transform={`translate(${mark.x} ${mark.y})`}>
     <ActivityMark activity={activity} palette={p} color={color} grow={pose?.markIn ?? 1} />
   </g> : null}</g>;
 };

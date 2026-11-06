@@ -7,6 +7,9 @@ import {Illustration, mixColor, type Palette} from './Illustration';
 import {placeActorLabels, planLabelSlots, sceneFrames} from './labels';
 import {fitMotionViewport, motionStageRect} from './camera';
 import {illustrationPoseAtFrame} from './pose';
+import {objectPerformanceAtFrame} from './objectPerformance';
+import {motionEffectsAtFrame} from './motionEffects';
+import {DirectionLayer} from './DirectionLayer';
 import {processStageLayout, processStateAtFrame, stationStateAtFrame, type ProcessSnapshot} from './processState';
 import type {ProcessPresentation} from './processPresentation';
 import {LookContext, loadSketchFont} from './sketch';
@@ -65,17 +68,19 @@ export const MotionScene: React.FC<Props> = ({scene, label, presentation}) => {
   const frame = scene.from + useCurrentFrame();
   const program = useMemo(() => compileMotion(scene.visual), [scene.visual]);
   // One camera for the whole scene (and for every related process shot): nothing re-frames mid-scene.
-  const viewport = useMemo(() => presentation?.viewport ?? fitMotionViewport(program), [program, presentation]);
+  const viewport = useMemo(() => presentation?.viewport ?? fitMotionViewport(program, {look}), [program, presentation, look]);
   // Each label keeps one side for the whole scene (process shots: for the whole run of related shots).
   const slots = useMemo(() => presentation?.labelSlots
-    ?? planLabelSlots([{program, frames: sceneFrames(scene.from, scene.durationInFrames)}]),
-  [program, presentation, scene.from, scene.durationInFrames]);
-  const {width, height} = useVideoConfig();
+    ?? planLabelSlots([{program, frames: sceneFrames(scene.from, scene.durationInFrames)}], undefined,
+      {viewport, look, fontScale: look === 'sketch' ? 1.25 : 1}),
+  [program, presentation, scene.from, scene.durationInFrames, viewport, look]);
+  const {width, height, fps} = useVideoConfig();
   const baseStage = motionStageRect(width, height);
   const processLayout = scene.processTrace ? processStageLayout(baseStage, height) : null;
   const stage = baseStage;
   const palette = paletteFor(theme);
-  const prefix = scene.id.replace(/[^a-zA-Z0-9_-]/g, '-');
+  // Shared stage seeds keep hand-drawn room and prop strokes identical across related shots.
+  const prefix = presentation ? `motion-stage-${presentation.group}` : scene.id.replace(/[^a-zA-Z0-9_-]/g, '-');
   const actors = program.entities.map((prepared) => ({prepared, state: entityAtFrame(prepared, frame)}));
   // The sketch look stages process scenes: floor light, contact shadows, props and depth order.
   const staged = look === 'sketch' && Boolean(scene.processTrace && presentation);
@@ -106,6 +111,7 @@ export const MotionScene: React.FC<Props> = ({scene, label, presentation}) => {
               size={state.size} opacity={state.opacity} prefix={prefix} />;
           })}
         </> : null}
+        <DirectionLayer effects={motionEffectsAtFrame(program, frame, fps, Boolean(scene.processTrace))} palette={palette} />
         {/* A staged scene draws back to front by where things touch the floor, so nearer things overlap farther ones. */}
         {[...actors.map(({prepared, state}) => ({key: prepared.entity.id,
           depth: staged ? toStage(state).y + groundOffset(prepared.entity.kind, state.size) : 0,
@@ -115,7 +121,8 @@ export const MotionScene: React.FC<Props> = ({scene, label, presentation}) => {
             return <g key={entity.id} opacity={state.opacity} transform={`translate(${point.x} ${point.y})`}>
               <g transform={`rotate(${state.rotation % 360}) scale(${state.size})`}>
                 <Illustration entity={entity} state={state} palette={palette} prefix={prefix} look={look}
-                  pose={illustrationPoseAtFrame(prepared, frame)}
+                  pose={illustrationPoseAtFrame(prepared, frame, fps)}
+                  objectPose={objectPerformanceAtFrame(prepared, frame, fps)}
                   station={scene.processTrace ? stationStateAtFrame(scene.processTrace, entity.id, frame) : null} />
               </g>
             </g>;
@@ -127,7 +134,7 @@ export const MotionScene: React.FC<Props> = ({scene, label, presentation}) => {
         {placeActorLabels(actors, viewport, slots).map(({actor: {prepared, state}, x, y, fontSize}) => {
           return <text key={`${prepared.entity.id}-label`} x={x} y={y}
             textAnchor="middle" fill={palette.ink} opacity={state.opacity}
-            fontSize={look === 'sketch' ? fontSize * 1.25 : fontSize} fontWeight={look === 'sketch' ? 400 : 650}
+            fontSize={fontSize} fontWeight={look === 'sketch' ? 400 : 650}
             fontFamily={look === 'sketch' ? loadSketchFont() : undefined}
             stroke={palette.paper} strokeWidth={7} strokeLinejoin="round" paintOrder="stroke">
             {prepared.entity.label}

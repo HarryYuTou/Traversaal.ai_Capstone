@@ -117,6 +117,7 @@ def compile_process_visual(visual: ProcessVisual, lines: list[dict], scene_start
     service = {item.station_id: item.actor_id for item in visual.initial_service}
     completed = []
     active_since = {item.actor_id: scene_start for item in visual.initial_service}
+    continued_actors = set(active_since)
     positions = {actor.id: (ENTRY_X, QUEUE_Y) for actor in visual.actors}
     positions.update({actor: _queue_point(index) for index, actor in enumerate(queue)})
     positions.update({actor: (SERVICE_X, station_y[station]) for station, actor in service.items()})
@@ -127,8 +128,17 @@ def compile_process_visual(visual: ProcessVisual, lines: list[dict], scene_start
     entities += [{"id": actor.id, "kind": visual.actor_kind, **_point(*positions[actor.id]),
                   "size": ACTOR_SIZE, "rotation": 0.0, "opacity": float(actor.id in visible), "value": 0.0,
                   "color": actor.color, "label": actor.label} for actor in visual.actors]
-    paths, actions, activities, events = [], [], [], []
+    paths, actions, activities, events, cues = [], [], [], [], []
     actor_colors = {actor.id: actor.color for actor in visual.actors}
+    operations = {station.id: station.operation or "generic" for station in visual.stations}
+    packing_stations = {station_id for station_id, operation in operations.items() if operation == "pack"}
+    if visual.actor_kind == "box" and packing_stations:
+        prepared_actors = {item.actor_id for item in visual.initial_service if item.station_id in packing_stations}
+        # Waiting parcels need the same open appearance in every related shot, even if their
+        # packing event happens only in a later scene. Cues then articulate this declared state.
+        for entity in entities:
+            if entity["kind"] == "box":
+                entity["packingState"] = "prepared" if entity["id"] in prepared_actors else "open"
     previous_end = scene_start
 
     def emit(event, actor_id, kind, start, end, *, path_id="", target=(0, 0), value=0.0, easing="ease-in-out"):
@@ -151,6 +161,25 @@ def compile_process_visual(visual: ProcessVisual, lines: list[dict], scene_start
         emit(event, actor_id, "follow-path", start, end, path_id=path_id, easing="walk")
         positions[actor_id] = cleaned[-1]
 
+    def perform_work(actor_id, station_id, start, end, complete=False):
+        for entity_id in (actor_id, station_id):
+            activities.append({"entityId": entity_id, "kind": "work", "from": start,
+                               "durationInFrames": end - start})
+        operation = operations[station_id]
+        if operation == "generic":
+            return
+        # The operation is authored explicitly; neither a label nor a moving box proves packing.
+        targets = (actor_id, station_id) if operation == "compute" else (actor_id,)
+        for entity_id in targets:
+            cue = {"entityId": entity_id, "kind": operation, "from": start,
+                   "durationInFrames": end - start}
+            if operation == "pack":
+                # Work continuing across the scene boundary must not acquire a finished seal.
+                cue["complete"] = complete
+                if actor_id in continued_actors:
+                    cue["continued"] = True
+            cues.append(cue)
+
     def work_until(actor_id, end, event_index):
         start = active_since.pop(actor_id)
         if end - start < MIN_WORK_FRAMES:
@@ -158,9 +187,7 @@ def compile_process_visual(visual: ProcessVisual, lines: list[dict], scene_start
                                       f"{end - start} visible work frames after reaching its station; "
                                       f"at least {MIN_WORK_FRAMES} are required. Add a narrated hold or finish later.")
         station_id = next(station for station, actor in service.items() if actor == actor_id)
-        for entity_id in (actor_id, station_id):
-            activities.append({"entityId": entity_id, "kind": "work", "from": start,
-                               "durationInFrames": end - start})
+        perform_work(actor_id, station_id, start, end, complete=True)
 
     for index, event in enumerate(visual.events):
         start, end = _event_frames(event, lines, scene_start, scene_end, index)
@@ -280,9 +307,7 @@ def compile_process_visual(visual: ProcessVisual, lines: list[dict], scene_start
     for actor_id, start in active_since.items():
         if scene_end > start:
             station_id = next(station for station, actor in service.items() if actor == actor_id)
-            for entity_id in (actor_id, station_id):
-                activities.append({"entityId": entity_id, "kind": "work", "from": start,
-                                   "durationInFrames": scene_end - start})
+            perform_work(actor_id, station_id, start, scene_end)
     # Guard the expanded representation too; queue compaction, travel and fades may share event
     # anchors but can never compete for an entity's actual frame/property interval.
     channels = {}
@@ -294,6 +319,8 @@ def compile_process_visual(visual: ProcessVisual, lines: list[dict], scene_start
         channels.setdefault(key, []).append((start, end))
     result = {"title": visual.title, "entities": entities, "paths": paths, "actions": actions,
               "activities": sorted(activities, key=lambda activity: (activity["from"], activity["entityId"]))}
+    if cues:
+        result["cues"] = sorted(cues, key=lambda cue: (cue["from"], cue["entityId"]))
     trace = {"sourceTemplate": "process", "actorIds": [actor.id for actor in visual.actors],
              "stationEntityIds": [station.id for station in visual.stations],
              "initialOpenStationIds": initial_open,

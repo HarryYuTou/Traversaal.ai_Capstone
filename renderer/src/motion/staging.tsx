@@ -181,13 +181,13 @@ export const planProps = (shots: {program: MotionProgram; frames: number[]}[], v
       for (const {prepared, state} of actors) {
         if (state.opacity <= 0.05) continue;
         const at = toStage(state);
-        const {x, y} = entityHalfExtents(prepared.entity.kind, state.size, state.rotation);
+        const {x, y} = entityHalfExtents(prepared.entity.kind, state.size, state.rotation, 'sketch');
         // Props keep a clear margin around anyone, so a shelf never looks like a hat.
         taken.push({left: at.x - x - 22, right: at.x + x + 22, top: at.y - y - 26, bottom: at.y + y + 22});
       }
       for (const label of placeActorLabels(actors, viewport, slots)) {
-        const half = label.actor.prepared.entity.label.length * label.fontSize * 0.36 + 10;
-        taken.push({left: label.x - half, right: label.x + half, top: label.y - label.fontSize - 8, bottom: label.y + 10});
+        taken.push({left: label.bounds.left - 8, right: label.bounds.right + 8,
+          top: label.bounds.top - 8, bottom: label.bounds.bottom + 8});
       }
     }
   }

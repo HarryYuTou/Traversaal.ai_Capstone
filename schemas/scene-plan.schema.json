@@ -891,6 +891,62 @@
       "title": "MotionAction",
       "type": "object"
     },
+    "MotionCue": {
+      "additionalProperties": false,
+      "description": "A stated physical operation synchronized to narration, independent of travel.",
+      "properties": {
+        "entityId": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Entityid",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "pack",
+            "scan",
+            "send",
+            "receive",
+            "thrust",
+            "compute"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "startLine": {
+          "minimum": 0,
+          "title": "Startline",
+          "type": "integer"
+        },
+        "endLine": {
+          "minimum": 0,
+          "title": "Endline",
+          "type": "integer"
+        },
+        "startOffset": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Startoffset",
+          "type": "number"
+        },
+        "endOffset": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Endoffset",
+          "type": "number"
+        }
+      },
+      "required": [
+        "entityId",
+        "kind",
+        "startLine",
+        "endLine",
+        "startOffset",
+        "endOffset"
+      ],
+      "title": "MotionCue",
+      "type": "object"
+    },
     "MotionEntity": {
       "additionalProperties": false,
       "description": "Initial state on a stage measured in percentages, independent of output resolution.",
@@ -1161,6 +1217,22 @@
           "maxItems": 48,
           "title": "Actions",
           "type": "array"
+        },
+        "cues": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/MotionCue"
+              },
+              "maxItems": 48,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cues"
         }
       },
       "required": [
@@ -1391,6 +1463,24 @@
           ],
           "default": null,
           "title": "Initialstate"
+        },
+        "operation": {
+          "anyOf": [
+            {
+              "enum": [
+                "generic",
+                "pack",
+                "scan",
+                "compute"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Operation"
         }
       },
       "required": [
