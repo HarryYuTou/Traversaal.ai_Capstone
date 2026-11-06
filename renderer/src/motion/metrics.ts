@@ -9,16 +9,23 @@ export const ENTITY_EXTENTS: Record<EntityKind, [number, number]> = {
   counter: [58, 52], workbench: [58, 52],
 };
 
-export const entityHalfExtents = (kind: EntityKind, size: number, rotation: number) => {
-  const [w, h] = ENTITY_EXTENTS[kind];
+export type IllustrationLook = 'vector' | 'sketch';
+
+/** Sketch people stand on the same floor but their hair reaches above the vector head. */
+export const entityExtents = (kind: EntityKind, look: IllustrationLook = 'vector'): [number, number] =>
+  kind === 'person' && look === 'sketch' ? [45, 94] : ENTITY_EXTENTS[kind];
+
+export const entityHalfExtents = (kind: EntityKind, size: number, rotation: number,
+  look: IllustrationLook = 'vector') => {
+  const [w, h] = entityExtents(kind, look);
   if (kind === 'planet' || kind === 'moon') return {x: (w + 3) * size, y: (h + 3) * size};
   const angle = (rotation % 360) * Math.PI / 180;
   return {x: size * (Math.abs(w * Math.cos(angle)) + Math.abs(h * Math.sin(angle)) + 3),
     y: size * (Math.abs(w * Math.sin(angle)) + Math.abs(h * Math.cos(angle)) + 3)};
 };
 
-export const labelMetrics = (label: string) => {
-  const fontSize = label.length > 24 ? 19 : 22;
+export const labelMetrics = (label: string, fontScale = 1) => {
+  const fontSize = (label.length > 24 ? 19 : 22) * fontScale;
   // One em per code unit is deliberately conservative for wide capitals, CJK and fallback fonts.
   return {fontSize, width: label.length * fontSize + 14, height: fontSize + 10};
 };

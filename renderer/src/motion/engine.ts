@@ -1,4 +1,4 @@
-import type {MotionAction, MotionActivity, MotionEasing, MotionEntity, MotionPath, MotionPoint, MotionVisual} from './types';
+import type {MotionAction, MotionActivity, MotionCue, MotionEasing, MotionEntity, MotionPath, MotionPoint, MotionVisual} from './types';
 
 // All geometry, including orbit radii, is evaluated in these physical SVG coordinates.
 export const STAGE_WIDTH = 1200;
@@ -86,7 +86,7 @@ export const pointOnPath = (geometry: PathGeometry, progress: number): MotionPoi
 
 export type EntityState = Pick<MotionEntity, 'x' | 'y' | 'size' | 'rotation' | 'opacity' | 'value'>;
 export type PreparedAction = {action: MotionAction; initial: EntityState; geometry?: PathGeometry};
-export type PreparedEntity = {entity: MotionEntity; actions: PreparedAction[]; activities: MotionActivity[]};
+export type PreparedEntity = {entity: MotionEntity; actions: PreparedAction[]; activities: MotionActivity[]; cues?: MotionCue[]};
 export type MotionProgram = {entities: PreparedEntity[]; paths: MotionPath[]};
 
 const apply = (state: EntityState, prepared: PreparedAction, frame: number): EntityState => {
@@ -119,7 +119,9 @@ export const entityAtFrame = (prepared: PreparedEntity, frame: number): EntitySt
 export const compileMotion = (visual: MotionVisual): MotionProgram => {
   const paths = new Map(visual.paths.map((path) => [path.id, path]));
   const entities = visual.entities.map((entity): PreparedEntity => {
-    const prepared: PreparedEntity = {entity, actions: [], activities: (visual.activities ?? [])
+    const prepared: PreparedEntity = {entity, actions: [], cues: (visual.cues ?? [])
+      .filter((cue) => cue.entityId === entity.id)
+      .sort((a, b) => a.from - b.from || a.kind.localeCompare(b.kind)), activities: (visual.activities ?? [])
       .filter((activity) => activity.entityId === entity.id)
       .sort((a, b) => a.from - b.from || a.kind.localeCompare(b.kind))};
     const actions = visual.actions.filter((action) => action.entityId === entity.id)

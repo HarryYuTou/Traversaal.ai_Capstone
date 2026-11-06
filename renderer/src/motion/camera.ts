@@ -1,5 +1,5 @@
 import {pathGeometry, STAGE_HEIGHT, STAGE_WIDTH, toStage, type MotionProgram} from './engine';
-import {ENTITY_EXTENTS, entityHalfExtents, labelMetrics} from './metrics';
+import {entityExtents, entityHalfExtents, labelMetrics, type IllustrationLook} from './metrics';
 
 export type StageViewport = {x: number; y: number; width: number; height: number};
 export const BASE_VIEWPORT: StageViewport = {x: 0, y: 0, width: STAGE_WIDTH, height: STAGE_HEIGHT};
@@ -19,6 +19,7 @@ export const fitMotionViewport = (program: MotionProgram, options: {
   fitContent?: boolean; minimumWidth?: number; minimumHeight?: number; labelsBeside?: boolean;
   /** Frame only where things stand (and the walks between those places): departures may leave the shot. */
   settledOnly?: boolean;
+  look?: IllustrationLook;
 } = {}): StageViewport => {
   let left = options.fitContent ? Infinity : 0;
   let top = options.fitContent ? Infinity : 0;
@@ -46,13 +47,13 @@ export const fitMotionViewport = (program: MotionProgram, options: {
     if (options.fitContent && entity.opacity <= 0.05 && !actions.some(({action}) =>
       action.kind === 'opacity' && action.value > 0.05)) continue;
     const size = Math.max(entity.size, ...actions.filter(({action}) => action.kind === 'scale').map(({action}) => action.value));
-    let extent = entityHalfExtents(entity.kind, size, entity.rotation);
+    let extent = entityHalfExtents(entity.kind, size, entity.rotation, options.look);
     if (actions.some(({action}) => action.kind === 'rotate') && !['moon', 'planet'].includes(entity.kind)) {
-      const [w, h] = ENTITY_EXTENTS[entity.kind];
+      const [w, h] = entityExtents(entity.kind, options.look);
       const radius = (Math.hypot(w, h) + 3) * size;
       extent = {x: radius, y: radius};
     }
-    const label = entity.label ? labelMetrics(entity.label) : null;
+    const label = entity.label ? labelMetrics(entity.label, options.look === 'sketch' ? 1.25 : 1) : null;
     const rx = Math.max(extent.x, label ? label.width / 2 : 0) + 12;
     const ry = extent.y + (label ? label.height + 27 : 0) + 12;
     const initial = toStage(entity);
@@ -96,7 +97,8 @@ export const fitMotionViewport = (program: MotionProgram, options: {
 
 /** Process scenes are compiler-positioned. Remove unused authored margins, but share a single
  * envelope across related shots so a counter does not jump merely because the queue got shorter. */
-export const fitProcessViewport = (programs: MotionProgram[], settledOnly = false): StageViewport => fitMotionViewport({
+export const fitProcessViewport = (programs: MotionProgram[], settledOnly = false,
+  look: IllustrationLook = settledOnly ? 'sketch' : 'vector'): StageViewport => fitMotionViewport({
   entities: programs.flatMap((program) => program.entities),
   paths: programs.flatMap((program) => program.paths),
-}, {fitContent: true, labelsBeside: true, settledOnly});
+}, {fitContent: true, labelsBeside: true, settledOnly, look});

@@ -80,5 +80,5 @@ export const ThemeContext = React.createContext<Theme>(themes.light);
 
 export const useTheme = () => React.useContext(ThemeContext);
 
-// Frames at 30 fps. Neighbouring scenes overlap by `overlap` frames while one leaves and the next arrives.
-export const motion = {enter: 16, exit: 14, reveal: 10, overlap: 14};
+// Frame durations for in-shot fades and item reveals; scene intervals never overlap.
+export const motion = {enter: 16, exit: 14, reveal: 10};

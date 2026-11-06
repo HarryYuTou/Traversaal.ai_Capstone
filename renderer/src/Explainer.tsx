@@ -1,6 +1,6 @@
 import React from 'react';
 import {AbsoluteFill, Html5Audio, Sequence, staticFile} from 'remotion';
-import {Backdrop, Shell, type Transition} from './Backdrop';
+import {Backdrop, Shell} from './Backdrop';
 import {Captions, ProgressBar} from './Overlays';
 import {ChapterCard, TitleCard} from './scenes/Cards';
 import {ComparisonScene} from './scenes/ComparisonScene';
@@ -14,7 +14,9 @@ import {StatScene} from './scenes/StatScene';
 import {MotionScene} from './motion/MotionScene';
 import {LookContext, loadSketchFont} from './motion/sketch';
 import {processPresentations, type ProcessPresentation} from './motion/processPresentation';
-import {ThemeContext, motion, themes} from './theme';
+import {motionBoundaryIsContinuous} from './motion/continuity';
+import {ThemeContext, themes} from './theme';
+import {transitionBetween} from './transitions';
 import type {Timeline, TimelineScene} from './types';
 
 const SceneView: React.FC<{scene: TimelineScene; label: string; presentation?: ProcessPresentation}> = ({scene, label, presentation}) => {
@@ -41,7 +43,8 @@ const SceneView: React.FC<{scene: TimelineScene; label: string; presentation?: P
 };
 
 
-type Part = {key: string; from: number; durationInFrames: number; content: React.ReactNode; stage?: number};
+type Part = {key: string; from: number; durationInFrames: number; content: React.ReactNode; stage?: number;
+  continuousFromPrevious?: boolean};
 
 /** The whole video: title card, chapter cards and scenes over a moving backdrop, with captions and progress. */
 export const Explainer: React.FC<Timeline> = (timeline) => {
@@ -53,6 +56,11 @@ export const Explainer: React.FC<Timeline> = (timeline) => {
   // Hand-drawn figures carry fine linework, so the sketch look frames process stages closer.
   const presentations = React.useMemo(() => processPresentations(timeline.scenes, timeline.look === 'sketch'),
     [timeline.scenes, timeline.look]);
+  const continuities = React.useMemo(() => timeline.scenes.map((scene, index) => {
+    const previous = timeline.scenes[index - 1];
+    return previous?.template === 'motion' && scene.template === 'motion'
+      && motionBoundaryIsContinuous(previous, scene, timeline.fps);
+  }), [timeline.scenes, timeline.fps]);
   const parts: Part[] = [
     {key: 'Title', from: 0, durationInFrames: timeline.titleFrames,
       content: <TitleCard title={timeline.title}
@@ -61,16 +69,15 @@ export const Explainer: React.FC<Timeline> = (timeline) => {
       key: `Chapter ${chapter.number}`, from: chapter.from, durationInFrames: chapter.cardFrames,
       content: <ChapterCard chapter={chapter} total={timeline.chapters.length} />,
     })),
-    ...timeline.scenes.map((scene) => {
+    ...timeline.scenes.map((scene, index) => {
       const chapter = scene.chapterId ? chapters.get(scene.chapterId) : undefined;
       const label = chapter ? `Chapter ${chapter.number} · ${chapter.title}` : timeline.title;
       return {key: scene.id, from: scene.from, durationInFrames: scene.durationInFrames,
         stage: presentations.get(scene.id)?.group,
+        continuousFromPrevious: continuities[index],
         content: <SceneView scene={scene} label={label} presentation={presentations.get(scene.id)} />};
     }),
   ].sort((a, b) => a.from - b.from);
-  // Neighbouring shots of one process stage dissolve in place, so the shared counters never slide away.
-  const sameStage = (a?: Part, b?: Part) => a?.stage !== undefined && a.stage === b?.stage;
   return (
     <ThemeContext.Provider value={theme}>
       <LookContext.Provider value={timeline.look ?? 'vector'}>
@@ -78,15 +85,14 @@ export const Explainer: React.FC<Timeline> = (timeline) => {
           <Backdrop />
           {timeline.audio.path ? <Html5Audio src={staticFile(timeline.audio.path)} /> : null}
           {timeline.music?.path ? <Html5Audio src={staticFile(timeline.music.path)} /> : null}
-          {/* Cards and scenes blend among themselves before landing on the backdrop (see Shell's dissolve). */}
-          <AbsoluteFill style={{isolation: 'isolate'}}>
+          <AbsoluteFill>
             {parts.map((part, index) => {
               const last = index === parts.length - 1;
-              const enter: Transition = sameStage(parts[index - 1], part) ? 'dissolve' : 'slide';
-              const exit: Transition = sameStage(part, parts[index + 1]) ? 'dissolve' : 'slide';
+              const enter = transitionBetween(parts[index - 1], part);
+              const exit = transitionBetween(part, parts[index + 1]);
               return (
                 <Sequence key={part.key} name={part.key} from={part.from}
-                  durationInFrames={part.durationInFrames + (last ? 0 : motion.overlap)}>
+                  durationInFrames={part.durationInFrames}>
                   <Shell durationInFrames={part.durationInFrames} last={last} enter={enter} exit={exit}>
                     {part.content}
                   </Shell>

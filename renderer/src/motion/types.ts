@@ -5,6 +5,8 @@ export type EntityKind = 'planet' | 'moon' | 'spacecraft' | 'lander' | 'lander-b
 export type MotionEntity = {
   id: string; kind: EntityKind; x: number; y: number; size: number; rotation: number;
   opacity: number; value: number; color: MotionColor; label: string;
+  /** Compiler-owned initial appearance keeps waiting parcels consistent across service shots. */
+  packingState?: 'open' | 'prepared' | 'sealed';
 };
 export type MotionPoint = {x: number; y: number};
 export type MotionPath = {id: string; points: MotionPoint[]; curved: boolean; closed: boolean; color: MotionColor};
@@ -22,7 +24,18 @@ export type MotionAction = {
 export type MotionActivity = {
   entityId: string; kind: 'work' | 'complete'; from: number; durationInFrames: number;
 };
+/** Semantic drawing instructions, separate from position and from process completion counts. */
+export type MotionCueKind = 'pack' | 'scan' | 'send' | 'receive' | 'thrust' | 'compute';
+export type MotionCue = {
+  entityId: string; kind: MotionCueKind; from: number; durationInFrames: number;
+  startLine?: number; endLine?: number; startOffset?: number; endOffset?: number;
+  /** An unfinished process may prepare a package but cannot show its finished seal. */
+  complete?: boolean;
+  /** The actor was already in service when this shot began; retain its prepared package. */
+  continued?: boolean;
+};
 export type MotionVisual = {
   title: string; entities: MotionEntity[]; paths: MotionPath[]; actions: MotionAction[];
   activities?: MotionActivity[];
+  cues?: MotionCue[];
 };

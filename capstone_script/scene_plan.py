@@ -65,6 +65,16 @@ MotionKind = Literal["planet", "moon", "spacecraft", "lander", "lander-base", "l
                      "server", "laptop", "cloud", "coin", "box", "marker", "gauge", "counter", "workbench"]
 ActionKind = Literal["move", "follow-path", "orbit", "opacity", "scale", "rotate", "value"]
 MotionEasing = Literal["linear", "ease-in-out", "ease-out"]
+CueKind = Literal["pack", "scan", "send", "receive", "thrust", "compute"]
+# Semantic cues articulate an existing asset; they never create or move story objects.
+CUE_ENTITY_KINDS = {
+    "pack": {"box"},
+    "scan": {"box", "packet"},
+    "send": {"packet", "server", "laptop", "cloud", "satellite"},
+    "receive": {"packet", "server", "laptop", "cloud", "satellite"},
+    "thrust": {"spacecraft", "rocket", "lander", "lander-ascent", "satellite"},
+    "compute": {"packet", "server", "laptop", "cloud"},
+}
 
 
 class _Model(BaseModel):
@@ -276,6 +286,18 @@ class MotionVisual(_Model):
     entities: list[MotionEntity] = Field(min_length=1, max_length=12)
     paths: list[MotionPath] = Field(max_length=12)
     actions: list[MotionAction] = Field(max_length=48)
+    cues: list["MotionCue"] | None = Field(default=None, max_length=48)
+
+
+class MotionCue(_Model):
+    """A stated physical operation synchronized to narration, independent of travel."""
+
+    entity_id: Id
+    kind: CueKind
+    start_line: Annotated[int, Field(ge=0)]
+    end_line: Annotated[int, Field(ge=0)]
+    start_offset: Fraction
+    end_offset: Fraction
 
 
 class ProcessActor(_Model):
@@ -290,6 +312,7 @@ class ProcessStation(_Model):
     kind: Literal["counter", "server", "workbench"]
     color: MotionColor
     initial_state: Literal["open", "closed"] | None = None
+    operation: Literal["generic", "pack", "scan", "compute"] | None = None
 
 
 class ProcessOccupancy(_Model):
@@ -570,6 +593,14 @@ def process_problems(visual: ProcessVisual, line_count: int, where: str) -> list
     stations = {station.id for station in visual.stations}
     open_stations = set(initial_open_station_ids(visual))
     closed = stations - open_stations
+    for index, station in enumerate(visual.stations):
+        operation = station.operation or "generic"
+        allowed = {"pack": ({"box"}, {"workbench"}),
+                   "scan": ({"box", "packet"}, {"workbench", "server"}),
+                   "compute": ({"packet"}, {"server"})}.get(operation)
+        if allowed and (visual.actor_kind not in allowed[0] or station.kind not in allowed[1]):
+            problems.append(f"{prefix}.stations[{index}].operation: {operation!r} requires actorKind "
+                            f"in {sorted(allowed[0])} and station kind in {sorted(allowed[1])}")
     for key in ("actors", "stations"):
         ids = [item.id for item in getattr(visual, key)]
         problems += [f"{prefix}.{key}[{index}].id: duplicate id {item!r}"
@@ -697,6 +728,26 @@ def motion_problems(visual: MotionVisual, line_count: int, where: str) -> list[s
                 problems.append(f"{at}: overlaps action {other_index} on entity {action.entity_id!r} "
                                 f"channel {channel[1]!r}")
         intervals.setdefault(channel, []).append((start, end, index))
+    entities = {entity.id: entity for entity in visual.entities}
+    cue_intervals = {}
+    for index, cue in enumerate(visual.cues or []):
+        at = f"{where}.visual.cues[{index}]"
+        entity = entities.get(cue.entity_id)
+        if entity is None:
+            problems.append(f"{at}.entityId: {cue.entity_id!r} is not an entity in this scene")
+        elif entity.kind not in CUE_ENTITY_KINDS[cue.kind]:
+            problems.append(f"{at}.kind: {cue.kind!r} cannot act on entity kind {entity.kind!r}")
+        for name, line_index in (("startLine", cue.start_line), ("endLine", cue.end_line)):
+            if line_index >= line_count:
+                problems.append(f"{at}.{name}: {line_index} is outside this scene's {line_count} narration lines")
+        start, end = (cue.start_line, cue.start_offset), (cue.end_line, cue.end_offset)
+        if end <= start:
+            problems.append(f"{at}: the end anchor must be after the start anchor")
+            continue
+        for other_start, other_end, other_index in cue_intervals.get(cue.entity_id, []):
+            if start < other_end and other_start < end:
+                problems.append(f"{at}: overlaps cue {other_index} on entity {cue.entity_id!r}")
+        cue_intervals.setdefault(cue.entity_id, []).append((start, end, index))
     return problems
 
 

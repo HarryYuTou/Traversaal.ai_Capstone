@@ -516,6 +516,64 @@
             "value": 0,
             "easing": "ease-in-out"
           }
+        ],
+        "cues": [
+          {
+            "entityId": "sender",
+            "kind": "compute",
+            "startLine": 1,
+            "endLine": 1,
+            "startOffset": 0,
+            "endOffset": 0.8
+          },
+          {
+            "entityId": "sender",
+            "kind": "send",
+            "startLine": 2,
+            "endLine": 2,
+            "startOffset": 0,
+            "endOffset": 0.3
+          },
+          {
+            "entityId": "packet-two",
+            "kind": "receive",
+            "startLine": 3,
+            "endLine": 3,
+            "startOffset": 0.35,
+            "endOffset": 0.75
+          },
+          {
+            "entityId": "packet-one",
+            "kind": "receive",
+            "startLine": 4,
+            "endLine": 4,
+            "startOffset": 0.45,
+            "endOffset": 0.85
+          },
+          {
+            "entityId": "packet-three",
+            "kind": "receive",
+            "startLine": 4,
+            "endLine": 5,
+            "startOffset": 0.95,
+            "endOffset": 0.15
+          },
+          {
+            "entityId": "receiver",
+            "kind": "receive",
+            "startLine": 3,
+            "endLine": 4,
+            "startOffset": 0.35,
+            "endOffset": 1
+          },
+          {
+            "entityId": "receiver",
+            "kind": "compute",
+            "startLine": 5,
+            "endLine": 6,
+            "startOffset": 0,
+            "endOffset": 1
+          }
         ]
       },
       "narration": [

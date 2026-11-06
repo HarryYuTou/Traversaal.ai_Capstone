@@ -56,7 +56,27 @@ def compile_motion_actions(visual: dict, lines: list[dict], scene_start: int, sc
                                     f"{channel[0]!r} channel {channel[1]!r} after frame compilation.")
         intervals.setdefault(channel, []).append((start, end, index))
         actions.append({**action, "from": start, "durationInFrames": end - start})
-    return {**visual, "actions": actions}
+    result = {**visual, "actions": actions}
+    if visual.get("cues") is not None:
+        cues, cue_intervals = [], {}
+        for index, cue in enumerate(visual["cues"]):
+            try:
+                first, last = lines[cue["startLine"]], lines[cue["endLine"]]
+                start = first["from"] + round(cue["startOffset"] * first["durationInFrames"])
+                end = last["from"] + round(cue["endOffset"] * last["durationInFrames"])
+            except (IndexError, KeyError, TypeError, ValueError, OverflowError) as exc:
+                raise TimelineError(f"Motion cue {index} has an unusable narration anchor: {exc}") from None
+            if not scene_start <= start < end <= scene_end:
+                raise TimelineError(f"Motion cue {index} must span at least one frame inside its scene "
+                                    f"({scene_start}–{scene_end}); got {start}–{end}.")
+            for other_start, other_end, other_index in cue_intervals.get(cue["entityId"], []):
+                if start < other_end and other_start < end:
+                    raise TimelineError(f"Motion cue {index} overlaps cue {other_index} on entity "
+                                        f"{cue['entityId']!r} after frame compilation.")
+            cue_intervals.setdefault(cue["entityId"], []).append((start, end, index))
+            cues.append({**cue, "from": start, "durationInFrames": end - start})
+        result["cues"] = cues
+    return result
 
 
 def build_timeline(plan, manifest: dict) -> dict:
@@ -98,7 +118,7 @@ def build_timeline(plan, manifest: dict) -> dict:
             lines.append(entry)
             frame += frames
         frame += TAIL_FRAMES
-        visual = scene.visual.model_dump(mode="json", by_alias=True)
+        visual = scene.visual.model_dump(mode="json", by_alias=True, exclude_none=True)
         template, metadata = scene.template, {}
         if scene.template == "motion":
             visual = compile_motion_actions(visual, lines, start, frame)

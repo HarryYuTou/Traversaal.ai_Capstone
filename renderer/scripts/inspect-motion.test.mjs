@@ -16,6 +16,15 @@ test('importing diagnostics does not execute its CLI', () => {
   assert.notEqual(process.exitCode, 1);
 });
 
+test('sketch diagnostics include the taller human silhouette', () => {
+  const shot = scene('different silhouettes', 0, 10, {entities: [
+    entity('a', {x: 50, y: 30}), entity('b', {x: 50, y: 51}),
+  ]});
+  const timeline = {fps: 30, scenes: [shot]};
+  assert.equal(inspectTimeline({...timeline, look: 'vector'}).scenes[0].collisions.length, 0);
+  assert.equal(inspectTimeline({...timeline, look: 'sketch'}).scenes[0].collisions.length, 1);
+});
+
 test('collisions, holds and suggested samples use absolute frames in every scene', () => {
   const report = inspect(scene('first', 60, 150, {entities: [entity('a'), entity('b')]}),
     scene('later', 900, 180, {entities: [entity('c'), entity('d')]}, {
@@ -102,4 +111,63 @@ test('collision worst frame is chosen using full precision, rounding only the re
     actions: [action('b', 'move', 30, 10, {x: 31.000002})],
   }));
   assert.equal(report.scenes[0].collisions[0].worstFrame, 30);
+});
+
+test('stationary semantic packing and computing are visible operations with inspection coverage', () => {
+  const report = inspect(scene('packing', 600, 180, {
+    entities: [entity('parcel', {kind: 'box'})],
+    cues: [{entityId: 'parcel', kind: 'pack', from: 600, durationInFrames: 180}],
+  }), scene('computing', 900, 180, {
+    entities: [entity('device', {kind: 'server'})],
+    cues: [{entityId: 'device', kind: 'compute', from: 900, durationInFrames: 180}],
+  }));
+  for (const [index, kind] of ['pack', 'compute'].entries()) {
+    const item = report.scenes[index];
+    assert.equal(item.staticHolds.length, 0, kind);
+    assert.ok(item.suggestedFrames.some((frame) => frame > item.from + 60 && frame < item.from + 120));
+    assert.deepEqual(item.eventCoverage[0].cues, [{entityId: index ? 'device' : 'parcel', kind}]);
+  }
+  assert.equal(report.status, 'geometry-and-timing-checks-passed');
+});
+
+test('hidden, unsupported and out-of-scene cues cannot conceal a hold or create useful inspection samples', () => {
+  const report = inspect(scene('quiet-cues', 300, 180, {
+    entities: [entity('planet', {kind: 'planet'}), entity('hidden', {kind: 'box', opacity: 0})],
+    cues: [{entityId: 'planet', kind: 'pack', from: 300, durationInFrames: 180},
+      {entityId: 'hidden', kind: 'pack', from: 300, durationInFrames: 180},
+      {entityId: 'planet', kind: 'compute', from: 700, durationInFrames: 180}],
+  }));
+  const item = report.scenes[0];
+  assert.deepEqual(item.staticHolds.map(({from, durationInFrames}) => ({from, durationInFrames})),
+    [{from: 300, durationInFrames: 180}]);
+  assert.deepEqual(item.eventCoverage, []);
+  assert.deepEqual(item.suggestedFrames, [330, 390, 479]);
+});
+
+test('a completed parcel stays sealed and static after packing; a continuing incomplete cue is not fake motion', () => {
+  const report = inspect(scene('sealed', 0, 330, {
+    entities: [entity('parcel', {kind: 'box'})],
+    cues: [{entityId: 'parcel', kind: 'pack', from: 0, durationInFrames: 120}],
+  }), scene('still-packing', 400, 180, {
+    entities: [entity('parcel', {kind: 'box'})],
+    cues: [{entityId: 'parcel', kind: 'pack', from: 400, durationInFrames: 180, continued: true, complete: false}],
+  }));
+  assert.ok(report.scenes[0].staticHolds.some((hold) => hold.from >= 110 && hold.from <= 120 && hold.durationInFrames >= 210));
+  assert.deepEqual(report.scenes[1].staticHolds.map(({from, durationInFrames}) => ({from, durationInFrames})),
+    [{from: 400, durationInFrames: 180}]);
+});
+
+test('cue coverage respects the frames where the actor is actually visible', () => {
+  const report = inspect(scene('revealed-compute', 100, 240, {
+    entities: [entity('packet', {kind: 'packet', opacity: 0})],
+    actions: [action('packet', 'opacity', 220, 10, {value: 1})],
+    cues: [{entityId: 'packet', kind: 'compute', from: 100, durationInFrames: 240}],
+  }, {lines: [
+    {id: 'hidden-line', text: 'No packet yet.', from: 100, durationInFrames: 100},
+    {id: 'visible-line', text: 'The packet is being processed.', from: 230, durationInFrames: 100},
+  ]}));
+  const item = report.scenes[0];
+  assert.deepEqual(item.eventCoverage.map((line) => line.cues), [[], [{entityId: 'packet', kind: 'compute'}]]);
+  assert.ok(item.suggestedFrames.includes(280));
+  assert.ok(item.staticHolds.some((hold) => hold.from === 100 && hold.durationInFrames >= 120));
 });

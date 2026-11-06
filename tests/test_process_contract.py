@@ -83,7 +83,7 @@ class ProcessContractTests(unittest.TestCase):
         self.assertNotIn("MotionAction", schema["$defs"])
         for name in ("_OutputProcess", "ProcessActor", "ProcessStation", "ProcessOccupancy", "ProcessEvent"):
             part = schema["$defs"][name]
-            optional = {"initialState"} if name == "ProcessStation" else set()
+            optional = {"initialState", "operation"} if name == "ProcessStation" else set()
             self.assertEqual(set(part["required"]), set(part["properties"]) - optional)
 
     def test_actor_and_station_ids_are_unique_in_a_shared_namespace(self):

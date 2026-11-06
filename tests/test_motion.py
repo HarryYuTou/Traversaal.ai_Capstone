@@ -188,12 +188,13 @@ class MotionPlannerTests(unittest.TestCase):
         self.assertEqual(problems, [])
         self.assertEqual(json.loads(dump_plan(validate_plan(back))), data)
         schema = output_schema()
-        # Ten optional visual parts plus the nullable process station initial state.
-        self.assertEqual(complexity(schema), (11, 1))
-        self.assertEqual(complexity(output_schema(["motion"])), (0, 0))
-        for name in ("_OutputMotion", "MotionEntity", "MotionPoint", "MotionPath", "MotionAction"):
+        # Ten visual parts, motion cues and two nullable process station options.
+        self.assertEqual(complexity(schema), (13, 2))
+        self.assertEqual(complexity(output_schema(["motion"])), (1, 0))
+        for name in ("_OutputMotion", "MotionEntity", "MotionPoint", "MotionPath", "MotionAction", "MotionCue"):
             definition = schema["$defs"][name]
-            self.assertEqual(set(definition["properties"]), set(definition["required"]))
+            optional = {"cues"} if name == "_OutputMotion" else set()
+            self.assertEqual(set(definition["properties"]) - optional, set(definition["required"]))
         self.assertNotIn("anyOf", schema["$defs"]["_OutputVisual"]["properties"]["motion"])
 
     def test_motion_highlight_must_be_empty_and_is_reported_for_repair(self):
