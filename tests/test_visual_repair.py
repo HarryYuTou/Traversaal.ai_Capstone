@@ -53,6 +53,35 @@ class VisualRepairTests(unittest.TestCase):
         self.assertIsNone(candidate)
         self.assertIn("identity color", " ".join(problems))
 
+    def test_custom_repair_changes_acting_without_redrawing_identity(self):
+        source = load_plan(ROOT / "fixtures/scene-plan.custom-rigs.json")
+        data = json.loads(dump_plan(source))
+        data["scenes"] = data["scenes"][:1]
+        track = data["scenes"][0]["visual"]["rigs"][0]["clips"][0]["tracks"][0]
+        track["keyframes"][1]["easing"] = "ease-out"
+        repaired, problems = check_visual_repair(json.dumps(as_model_output(data)), source, source.scenes[0].id)
+        self.assertEqual(problems, [])
+        self.assertIsNotNone(repaired)
+
+        part = next(part for part in data["scenes"][0]["visual"]["rigs"][0]["parts"] if part["shapes"])
+        part["shapes"][0]["fill"] = "#ff0000"
+        rejected, problems = check_visual_repair(json.dumps(as_model_output(data)), source, source.scenes[0].id)
+        self.assertIsNone(rejected)
+        self.assertIn("part hierarchy and shapes", " ".join(problems))
+
+    def test_contact_repair_cannot_drop_grounding_but_can_correct_its_anchor(self):
+        source = load_plan(ROOT / "fixtures/scene-plan.spatial-quality.json")
+        data = json.loads(dump_plan(source))
+        data["scenes"] = data["scenes"][:1]
+        data["scenes"][0]["visual"]["contacts"][0]["targetY"] = -1
+        repaired, problems = check_visual_repair(json.dumps(as_model_output(data)), source, "scene-01")
+        self.assertEqual(problems, [])
+        self.assertIsNotNone(repaired)
+        data["scenes"][0]["visual"]["contacts"] = []
+        rejected, problems = check_visual_repair(json.dumps(as_model_output(data)), source, "scene-01")
+        self.assertIsNone(rejected)
+        self.assertIn("Preserve authored contact relationships", " ".join(problems))
+
     def test_closed_baseline_repair_keeps_counter_without_inventing_an_opening(self):
         data = process_plan()
         scene = data["scenes"][0]

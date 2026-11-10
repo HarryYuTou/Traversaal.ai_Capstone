@@ -32,6 +32,19 @@ their storyboards contain data, not topic-specific rendering code. See the
 [motion and process guide](docs/MOTION_GUIDE.md) for local demos, contracts and
 measured timing checks. Both source formats use the same frame renderer;
 process events compile into motion actions and activity intervals.
+
+Motion scenes also accept **model-authored 2D rigs**: new objects built from vector
+shapes, parented parts and reusable animation clips. The planner can define their
+geometry and joint motion as validated data, without adding a new renderer component
+or calling a video-generation model. Objects are created once and their poses are
+evaluated deterministically at each frame. Explicit anchor contacts can keep a foot
+on a platform or a separate sample aligned with a gripper, acquire that relationship
+smoothly, and retain its solved position offset after release. Framing includes these
+relationships and uses a fixed camera across related shots. Contacts constrain
+translation only; they do not add inverse kinematics, inherited inertia, or a physical
+simulation. See the [custom rig guide](docs/custom-rigs.md) for the authoring contract,
+contact/framing fixtures, sample prompts and current limitations.
+
 Live Claude planning has also been exercised on a new queueing example:
 the API produced an unedited two-scene motion plan, followed by local Kokoro
 narration and Remotion rendering. The [verification record](docs/MOTION_GUIDE.md#live-planning-check)

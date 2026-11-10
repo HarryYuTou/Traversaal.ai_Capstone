@@ -1,0 +1,1741 @@
+{
+  "schemaVersion": "1",
+  "projectId": "spatial-quality-acceptance",
+  "title": "Keeping Objects in Contact",
+  "scenes": [
+    {
+      "id": "scene-01",
+      "purpose": "A grounded presenter shifts weight, raises a hand, follows with the head and holds the finished gesture.",
+      "template": "motion",
+      "visual": {
+        "title": "Settle, gesture, and come to rest",
+        "entities": [
+          {
+            "id": "platform",
+            "kind": "custom",
+            "rigId": "standing-platform",
+            "x": 50,
+            "y": 80,
+            "size": 2.5,
+            "rotation": 0,
+            "opacity": 1,
+            "value": 0,
+            "color": "accent",
+            "label": ""
+          },
+          {
+            "id": "presenter",
+            "kind": "custom",
+            "rigId": "grounded-presenter",
+            "x": 50,
+            "y": 50,
+            "size": 2.5,
+            "rotation": 0,
+            "opacity": 1,
+            "value": 0,
+            "color": "accent",
+            "label": ""
+          }
+        ],
+        "paths": [],
+        "actions": [],
+        "rigs": [
+          {
+            "id": "standing-platform",
+            "parts": [
+              {
+                "id": "surface",
+                "parentId": "",
+                "x": 0,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "rect",
+                    "x": -95,
+                    "y": 0,
+                    "width": 190,
+                    "height": 12,
+                    "radius": 3,
+                    "path": "",
+                    "fill": "#BCCCBF",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "rect",
+                    "x": -82,
+                    "y": 12,
+                    "width": 164,
+                    "height": 8,
+                    "radius": 2,
+                    "path": "",
+                    "fill": "#DCE3D7",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M -96 21 L 96 21",
+                    "fill": "none",
+                    "stroke": "line",
+                    "strokeWidth": 1.2
+                  }
+                ]
+              }
+            ],
+            "clips": []
+          },
+          {
+            "id": "grounded-presenter",
+            "parts": [
+              {
+                "id": "pelvis",
+                "parentId": "",
+                "x": 0,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "rect",
+                    "x": -19,
+                    "y": -4,
+                    "width": 38,
+                    "height": 17,
+                    "radius": 5,
+                    "path": "",
+                    "fill": "#384C60",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  }
+                ]
+              },
+              {
+                "id": "left-leg",
+                "parentId": "pelvis",
+                "x": -12,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "rect",
+                    "x": -7,
+                    "y": 0,
+                    "width": 14,
+                    "height": 54,
+                    "radius": 5,
+                    "path": "",
+                    "fill": "#384C60",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  }
+                ]
+              },
+              {
+                "id": "left-foot",
+                "parentId": "left-leg",
+                "x": 0,
+                "y": 54,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M -8 -3 L 6 -3 Q 9 0 16 1 L 16 6 L -8 6 Z",
+                    "fill": "#393D43",
+                    "stroke": "ink",
+                    "strokeWidth": 1.5
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M -6 5 L 14 5",
+                    "fill": "none",
+                    "stroke": "paper",
+                    "strokeWidth": 1.2
+                  }
+                ]
+              },
+              {
+                "id": "right-leg",
+                "parentId": "pelvis",
+                "x": 12,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "rect",
+                    "x": -7,
+                    "y": 0,
+                    "width": 14,
+                    "height": 54,
+                    "radius": 5,
+                    "path": "",
+                    "fill": "#384C60",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  }
+                ]
+              },
+              {
+                "id": "right-foot",
+                "parentId": "right-leg",
+                "x": 0,
+                "y": 54,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M -8 -3 L 6 -3 Q 9 0 16 1 L 16 6 L -8 6 Z",
+                    "fill": "#393D43",
+                    "stroke": "ink",
+                    "strokeWidth": 1.5
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M -6 5 L 14 5",
+                    "fill": "none",
+                    "stroke": "paper",
+                    "strokeWidth": 1.2
+                  }
+                ]
+              },
+              {
+                "id": "torso",
+                "parentId": "pelvis",
+                "x": 0,
+                "y": -4,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M -16 -45 Q 0 -52 16 -45 L 24 4 Q 0 12 -24 4 Z",
+                    "fill": "#E18D61",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M 0 -45 L 0 6",
+                    "fill": "none",
+                    "stroke": "#B46E4F",
+                    "strokeWidth": 1.2
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M 7 -17 L 17 -17 L 16 -8 L 7 -8 Z",
+                    "fill": "#EDAC80",
+                    "stroke": "ink",
+                    "strokeWidth": 1
+                  }
+                ]
+              },
+              {
+                "id": "left-arm",
+                "parentId": "torso",
+                "x": -20,
+                "y": -40,
+                "rotation": 5,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "rect",
+                    "x": -6,
+                    "y": 0,
+                    "width": 12,
+                    "height": 35,
+                    "radius": 5,
+                    "path": "",
+                    "fill": "#E18D61",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "ellipse",
+                    "x": 0,
+                    "y": 37,
+                    "width": 11,
+                    "height": 13,
+                    "radius": 0,
+                    "path": "",
+                    "fill": "#DCA885",
+                    "stroke": "ink",
+                    "strokeWidth": 1.5
+                  }
+                ]
+              },
+              {
+                "id": "right-arm",
+                "parentId": "torso",
+                "x": 20,
+                "y": -40,
+                "rotation": -6,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "rect",
+                    "x": -6,
+                    "y": 0,
+                    "width": 12,
+                    "height": 32,
+                    "radius": 5,
+                    "path": "",
+                    "fill": "#E18D61",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  }
+                ]
+              },
+              {
+                "id": "right-hand",
+                "parentId": "right-arm",
+                "x": 0,
+                "y": 31,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "ellipse",
+                    "x": 0,
+                    "y": 5,
+                    "width": 11,
+                    "height": 14,
+                    "radius": 0,
+                    "path": "",
+                    "fill": "#DCA885",
+                    "stroke": "ink",
+                    "strokeWidth": 1.5
+                  }
+                ]
+              },
+              {
+                "id": "head",
+                "parentId": "torso",
+                "x": 0,
+                "y": -61,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "rect",
+                    "x": -6,
+                    "y": 8,
+                    "width": 12,
+                    "height": 13,
+                    "radius": 3,
+                    "path": "",
+                    "fill": "#DCA885",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "ellipse",
+                    "x": 0,
+                    "y": -2,
+                    "width": 34,
+                    "height": 40,
+                    "radius": 0,
+                    "path": "",
+                    "fill": "#DCA885",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M -17 -3 C -24 -30 14 -33 19 -11 L 16 3 L 10 -12 Q -1 -5 -14 -12 L -15 1 Z",
+                    "fill": "#393D43",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "ellipse",
+                    "x": -6,
+                    "y": -2,
+                    "width": 2.5,
+                    "height": 3,
+                    "radius": 0,
+                    "path": "",
+                    "fill": "#393D43",
+                    "stroke": "ink",
+                    "strokeWidth": 0
+                  },
+                  {
+                    "kind": "ellipse",
+                    "x": 7,
+                    "y": -2,
+                    "width": 2.5,
+                    "height": 3,
+                    "radius": 0,
+                    "path": "",
+                    "fill": "#393D43",
+                    "stroke": "ink",
+                    "strokeWidth": 0
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M -4 8 Q 1 11 6 8",
+                    "fill": "none",
+                    "stroke": "#393D43",
+                    "strokeWidth": 1.3
+                  }
+                ]
+              }
+            ],
+            "clips": [
+              {
+                "id": "explain-with-a-gesture",
+                "tracks": [
+                  {
+                    "partId": "left-leg",
+                    "property": "scaleY",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 1,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.2,
+                        "value": 0.975,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.46,
+                        "value": 0.985,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.82,
+                        "value": 1,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 1,
+                        "value": 1,
+                        "easing": "smooth"
+                      }
+                    ]
+                  },
+                  {
+                    "partId": "right-leg",
+                    "property": "scaleY",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 1,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.2,
+                        "value": 0.975,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.46,
+                        "value": 0.985,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.82,
+                        "value": 1,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 1,
+                        "value": 1,
+                        "easing": "smooth"
+                      }
+                    ]
+                  },
+                  {
+                    "partId": "right-arm",
+                    "property": "rotation",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 0,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.18,
+                        "value": 4,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.43,
+                        "value": -46,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.62,
+                        "value": -43,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.83,
+                        "value": -42,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 1,
+                        "value": -42,
+                        "easing": "smooth"
+                      }
+                    ]
+                  },
+                  {
+                    "partId": "right-hand",
+                    "property": "rotation",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 0,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.24,
+                        "value": 0,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.5,
+                        "value": -5,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.76,
+                        "value": -2,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 1,
+                        "value": -2,
+                        "easing": "smooth"
+                      }
+                    ]
+                  },
+                  {
+                    "partId": "head",
+                    "property": "rotation",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 0,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.24,
+                        "value": 0,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.5,
+                        "value": 3.5,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.72,
+                        "value": 2.5,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 1,
+                        "value": 2.5,
+                        "easing": "smooth"
+                      }
+                    ]
+                  },
+                  {
+                    "partId": "torso",
+                    "property": "rotation",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 0,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.2,
+                        "value": -0.5,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.55,
+                        "value": 1,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.8,
+                        "value": 0.7,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 1,
+                        "value": 0.7,
+                        "easing": "smooth"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "performances": [
+          {
+            "entityId": "presenter",
+            "clipId": "explain-with-a-gesture",
+            "startLine": 0,
+            "endLine": 1,
+            "startOffset": 0.12,
+            "endOffset": 0.85,
+            "repeat": 1
+          }
+        ],
+        "contacts": [
+          {
+            "entityId": "presenter",
+            "partId": "left-foot",
+            "x": 0,
+            "y": 6,
+            "targetId": "platform",
+            "targetPartId": "surface",
+            "targetX": -12,
+            "targetY": 0,
+            "startLine": 0,
+            "endLine": 1,
+            "startOffset": 0,
+            "endOffset": 1,
+            "approach": 0
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-01-line-01",
+          "text": "The presenter settles into a stance, then raises a hand."
+        },
+        {
+          "id": "scene-01-line-02",
+          "text": "The head follows the gesture, and the arm comes gently to rest."
+        }
+      ]
+    },
+    {
+      "id": "scene-02",
+      "purpose": "A rigid gripper descends, closes around a separate sample, pauses, lifts clear of the pedestal and only then carries the sample sideways.",
+      "template": "motion",
+      "visual": {
+        "title": "Lower, close, clear, then carry",
+        "entities": [
+          {
+            "id": "pedestal",
+            "kind": "custom",
+            "rigId": "sample-pedestal",
+            "x": 50,
+            "y": 83,
+            "size": 2.5,
+            "rotation": 0,
+            "opacity": 1,
+            "value": 0,
+            "color": "accent",
+            "label": ""
+          },
+          {
+            "id": "sample",
+            "kind": "custom",
+            "rigId": "separate-sample",
+            "x": 50,
+            "y": 75,
+            "size": 2.5,
+            "rotation": 0,
+            "opacity": 1,
+            "value": 0,
+            "color": "accent",
+            "label": ""
+          },
+          {
+            "id": "gripper",
+            "kind": "custom",
+            "rigId": "contact-gripper",
+            "x": 50,
+            "y": 37,
+            "size": 2.5,
+            "rotation": 0,
+            "opacity": 1,
+            "value": 0,
+            "color": "accent",
+            "label": ""
+          }
+        ],
+        "paths": [],
+        "actions": [
+          {
+            "entityId": "gripper",
+            "kind": "move",
+            "startLine": 0,
+            "endLine": 0,
+            "startOffset": 0.1,
+            "endOffset": 0.68,
+            "pathId": "",
+            "x": 50,
+            "y": 47.5,
+            "value": 0,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "gripper",
+            "kind": "move",
+            "startLine": 1,
+            "endLine": 2,
+            "startOffset": 0.38,
+            "endOffset": 0.12,
+            "pathId": "",
+            "x": 50,
+            "y": 27,
+            "value": 0,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "gripper",
+            "kind": "move",
+            "startLine": 2,
+            "endLine": 2,
+            "startOffset": 0.32,
+            "endOffset": 0.85,
+            "pathId": "",
+            "x": 62,
+            "y": 27,
+            "value": 0,
+            "easing": "ease-in-out"
+          }
+        ],
+        "rigs": [
+          {
+            "id": "sample-pedestal",
+            "parts": [
+              {
+                "id": "surface",
+                "parentId": "",
+                "x": 0,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "rect",
+                    "x": -55,
+                    "y": 0,
+                    "width": 110,
+                    "height": 11,
+                    "radius": 3,
+                    "path": "",
+                    "fill": "#D3D9D4",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "rect",
+                    "x": -47,
+                    "y": 11,
+                    "width": 94,
+                    "height": 13,
+                    "radius": 2,
+                    "path": "",
+                    "fill": "#E5E6DD",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M -60 25 L 60 25",
+                    "fill": "none",
+                    "stroke": "line",
+                    "strokeWidth": 1.2
+                  }
+                ]
+              }
+            ],
+            "clips": []
+          },
+          {
+            "id": "separate-sample",
+            "parts": [
+              {
+                "id": "body",
+                "parentId": "",
+                "x": 0,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "rect",
+                    "x": -16,
+                    "y": -16,
+                    "width": 32,
+                    "height": 32,
+                    "radius": 4,
+                    "path": "",
+                    "fill": "#D98E60",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "rect",
+                    "x": -10,
+                    "y": -10,
+                    "width": 20,
+                    "height": 18,
+                    "radius": 2,
+                    "path": "",
+                    "fill": "#F7EBD5",
+                    "stroke": "ink",
+                    "strokeWidth": 1.3
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M -5 -4 L 5 -4 M -5 1 L 2 1",
+                    "fill": "none",
+                    "stroke": "#B6744E",
+                    "strokeWidth": 1.2
+                  }
+                ]
+              }
+            ],
+            "clips": []
+          },
+          {
+            "id": "contact-gripper",
+            "parts": [
+              {
+                "id": "body",
+                "parentId": "",
+                "x": 0,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "rect",
+                    "x": -21,
+                    "y": -50,
+                    "width": 42,
+                    "height": 35,
+                    "radius": 5,
+                    "path": "",
+                    "fill": "#B9CCC4",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "rect",
+                    "x": -10,
+                    "y": -16,
+                    "width": 20,
+                    "height": 16,
+                    "radius": 2,
+                    "path": "",
+                    "fill": "#DBE3DE",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "rect",
+                    "x": -45,
+                    "y": -5,
+                    "width": 90,
+                    "height": 19,
+                    "radius": 4,
+                    "path": "",
+                    "fill": "#7B9F99",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "rect",
+                    "x": -16,
+                    "y": -1,
+                    "width": 32,
+                    "height": 10,
+                    "radius": 2,
+                    "path": "",
+                    "fill": "#F7F3E8",
+                    "stroke": "ink",
+                    "strokeWidth": 1.3
+                  },
+                  {
+                    "kind": "ellipse",
+                    "x": 0,
+                    "y": 4,
+                    "width": 4,
+                    "height": 4,
+                    "radius": 0,
+                    "path": "",
+                    "fill": "#D98E60",
+                    "stroke": "ink",
+                    "strokeWidth": 0
+                  }
+                ]
+              },
+              {
+                "id": "left-jaw",
+                "parentId": "body",
+                "x": -35,
+                "y": 11,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "rect",
+                    "x": -5,
+                    "y": 0,
+                    "width": 10,
+                    "height": 59,
+                    "radius": 3,
+                    "path": "",
+                    "fill": "#E8EBE4",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "rect",
+                    "x": -5,
+                    "y": 37,
+                    "width": 10,
+                    "height": 15,
+                    "radius": 1,
+                    "path": "",
+                    "fill": "#D98E60",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  }
+                ]
+              },
+              {
+                "id": "right-jaw",
+                "parentId": "body",
+                "x": 35,
+                "y": 11,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "rect",
+                    "x": -5,
+                    "y": 0,
+                    "width": 10,
+                    "height": 59,
+                    "radius": 3,
+                    "path": "",
+                    "fill": "#E8EBE4",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "rect",
+                    "x": -5,
+                    "y": 37,
+                    "width": 10,
+                    "height": 15,
+                    "radius": 1,
+                    "path": "",
+                    "fill": "#D98E60",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  }
+                ]
+              },
+              {
+                "id": "grip-point",
+                "parentId": "body",
+                "x": 0,
+                "y": 55,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": []
+              }
+            ],
+            "clips": [
+              {
+                "id": "close-jaws",
+                "tracks": [
+                  {
+                    "partId": "left-jaw",
+                    "property": "x",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 0,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.12,
+                        "value": 0,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.88,
+                        "value": 14,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 1,
+                        "value": 14,
+                        "easing": "smooth"
+                      }
+                    ]
+                  },
+                  {
+                    "partId": "right-jaw",
+                    "property": "x",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 0,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.12,
+                        "value": 0,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.88,
+                        "value": -14,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 1,
+                        "value": -14,
+                        "easing": "smooth"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "performances": [
+          {
+            "entityId": "gripper",
+            "clipId": "close-jaws",
+            "startLine": 0,
+            "endLine": 1,
+            "startOffset": 0.72,
+            "endOffset": 0.18,
+            "repeat": 1
+          }
+        ],
+        "contacts": [
+          {
+            "entityId": "sample",
+            "partId": "body",
+            "x": 0,
+            "y": 0,
+            "targetId": "gripper",
+            "targetPartId": "grip-point",
+            "targetX": 0,
+            "targetY": 0,
+            "startLine": 0,
+            "endLine": 2,
+            "startOffset": 0.7,
+            "endOffset": 0.95,
+            "approach": 0.08
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-02-line-01",
+          "text": "The gripper lowers over the sample and closes its jaws."
+        },
+        {
+          "id": "scene-02-line-02",
+          "text": "It pauses, then lifts the sample clear of the pedestal."
+        },
+        {
+          "id": "scene-02-line-03",
+          "text": "Only after clearing the surface does it carry the sample aside."
+        }
+      ]
+    },
+    {
+      "id": "scene-03",
+      "purpose": "A butterfly follows a moving leaf, prepares its wings, releases contact, tucks its feet and flies away with an asymmetric stroke rhythm and a small settling bank.",
+      "template": "motion",
+      "visual": {
+        "title": "Prepare, lift off, and fly",
+        "entities": [
+          {
+            "id": "leaf",
+            "kind": "custom",
+            "rigId": "resting-leaf",
+            "x": 50,
+            "y": 66,
+            "size": 2.5,
+            "rotation": 0,
+            "opacity": 1,
+            "value": 0,
+            "color": "accent",
+            "label": ""
+          },
+          {
+            "id": "butterfly",
+            "kind": "custom",
+            "rigId": "leaf-butterfly",
+            "x": 50,
+            "y": 55.72,
+            "size": 2.8,
+            "rotation": 0,
+            "opacity": 1,
+            "value": 0,
+            "color": "accent",
+            "label": ""
+          }
+        ],
+        "paths": [],
+        "actions": [
+          {
+            "entityId": "leaf",
+            "kind": "move",
+            "startLine": 0,
+            "endLine": 0,
+            "startOffset": 0.08,
+            "endOffset": 0.9,
+            "pathId": "",
+            "x": 54.5,
+            "y": 64,
+            "value": 0,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "butterfly",
+            "kind": "move",
+            "startLine": 1,
+            "endLine": 2,
+            "startOffset": 0.4,
+            "endOffset": 0.9,
+            "pathId": "",
+            "x": 76,
+            "y": 24,
+            "value": 0,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "butterfly",
+            "kind": "rotate",
+            "startLine": 1,
+            "endLine": 1,
+            "startOffset": 0.4,
+            "endOffset": 0.8,
+            "pathId": "",
+            "x": 0,
+            "y": 0,
+            "value": -5,
+            "easing": "ease-in-out"
+          },
+          {
+            "entityId": "butterfly",
+            "kind": "rotate",
+            "startLine": 1,
+            "endLine": 2,
+            "startOffset": 0.8,
+            "endOffset": 0.6,
+            "pathId": "",
+            "x": 0,
+            "y": 0,
+            "value": -2,
+            "easing": "ease-in-out"
+          }
+        ],
+        "rigs": [
+          {
+            "id": "resting-leaf",
+            "parts": [
+              {
+                "id": "stem",
+                "parentId": "",
+                "x": 0,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M -80 34 Q -39 2 1 -4",
+                    "fill": "none",
+                    "stroke": "#466D55",
+                    "strokeWidth": 4
+                  }
+                ]
+              },
+              {
+                "id": "blade",
+                "parentId": "",
+                "x": 0,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M -66 13 C -38 -35 34 -34 69 -12 C 34 30 -20 42 -66 13 Z",
+                    "fill": "#72A386",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M -62 12 Q 0 -6 65 -12",
+                    "fill": "none",
+                    "stroke": "#426C51",
+                    "strokeWidth": 1.6
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M -36 4 L -30 -14 M -7 -2 L 1 -21 M 20 -7 L 32 -22 M -34 6 L -14 23 M 0 -3 L 20 17 M 29 -8 L 44 4",
+                    "fill": "none",
+                    "stroke": "#568568",
+                    "strokeWidth": 1.2
+                  }
+                ]
+              }
+            ],
+            "clips": []
+          },
+          {
+            "id": "leaf-butterfly",
+            "parts": [
+              {
+                "id": "left-wing",
+                "parentId": "",
+                "x": -3,
+                "y": -6,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M 0 3 C -13 -30 -43 -42 -50 -23 C -55 -4 -31 8 -12 11 C -34 10 -43 24 -32 34 C -13 42 -4 21 0 3 Z",
+                    "fill": "#E4A65D",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M -8 0 C -18 -17 -35 -28 -40 -19 C -44 -9 -28 0 -12 7 Z",
+                    "fill": "#F7D99B",
+                    "stroke": "ink",
+                    "strokeWidth": 1.3
+                  },
+                  {
+                    "kind": "ellipse",
+                    "x": -24,
+                    "y": 22,
+                    "width": 8,
+                    "height": 10,
+                    "radius": 0,
+                    "path": "",
+                    "fill": "#B97452",
+                    "stroke": "ink",
+                    "strokeWidth": 1.2
+                  }
+                ]
+              },
+              {
+                "id": "right-wing",
+                "parentId": "",
+                "x": 3,
+                "y": -6,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M 0 3 C 13 -30 43 -42 50 -23 C 55 -4 31 8 12 11 C 34 10 43 24 32 34 C 13 42 4 21 0 3 Z",
+                    "fill": "#D98761",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M 8 0 C 18 -17 35 -28 40 -19 C 44 -9 28 0 12 7 Z",
+                    "fill": "#F7CCA1",
+                    "stroke": "ink",
+                    "strokeWidth": 1.3
+                  },
+                  {
+                    "kind": "ellipse",
+                    "x": 24,
+                    "y": 22,
+                    "width": 8,
+                    "height": 10,
+                    "radius": 0,
+                    "path": "",
+                    "fill": "#B5674F",
+                    "stroke": "ink",
+                    "strokeWidth": 1.2
+                  }
+                ]
+              },
+              {
+                "id": "thorax",
+                "parentId": "",
+                "x": 0,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "ellipse",
+                    "x": 0,
+                    "y": 0,
+                    "width": 10,
+                    "height": 29,
+                    "radius": 0,
+                    "path": "",
+                    "fill": "#56524A",
+                    "stroke": "ink",
+                    "strokeWidth": 1.5
+                  },
+                  {
+                    "kind": "ellipse",
+                    "x": 0,
+                    "y": -17,
+                    "width": 11,
+                    "height": 11,
+                    "radius": 0,
+                    "path": "",
+                    "fill": "#56524A",
+                    "stroke": "ink",
+                    "strokeWidth": 1.5
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M -2 -22 Q -4 -31 -12 -33 M 2 -22 Q 4 -31 12 -33",
+                    "fill": "none",
+                    "stroke": "#56524A",
+                    "strokeWidth": 1.5
+                  }
+                ]
+              },
+              {
+                "id": "feet",
+                "parentId": "thorax",
+                "x": 0,
+                "y": 10,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M -3 -3 L -9 3 L 0 3 M 3 -3 L 9 3 L 0 3",
+                    "fill": "none",
+                    "stroke": "#56524A",
+                    "strokeWidth": 1.5
+                  }
+                ]
+              }
+            ],
+            "clips": [
+              {
+                "id": "prepare-for-flight",
+                "tracks": [
+                  {
+                    "partId": "left-wing",
+                    "property": "scaleX",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 1,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.25,
+                        "value": 0.92,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.65,
+                        "value": 0.7,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 1,
+                        "value": 0.92,
+                        "easing": "smooth"
+                      }
+                    ]
+                  },
+                  {
+                    "partId": "right-wing",
+                    "property": "scaleX",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 1,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.25,
+                        "value": 0.98,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.65,
+                        "value": 0.78,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 1,
+                        "value": 0.95,
+                        "easing": "smooth"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "flight-wingbeat",
+                "tracks": [
+                  {
+                    "partId": "left-wing",
+                    "property": "scaleX",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 1,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.18,
+                        "value": 0.24,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.36,
+                        "value": 0.22,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.72,
+                        "value": 0.88,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 1,
+                        "value": 1,
+                        "easing": "smooth"
+                      }
+                    ]
+                  },
+                  {
+                    "partId": "right-wing",
+                    "property": "scaleX",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 1,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.2,
+                        "value": 0.28,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.39,
+                        "value": 0.24,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.74,
+                        "value": 0.9,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 1,
+                        "value": 1,
+                        "easing": "smooth"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "tuck-feet",
+                "tracks": [
+                  {
+                    "partId": "feet",
+                    "property": "y",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 0,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.35,
+                        "value": -3,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 1,
+                        "value": -6,
+                        "easing": "smooth"
+                      }
+                    ]
+                  },
+                  {
+                    "partId": "feet",
+                    "property": "scaleX",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 1,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 0.5,
+                        "value": 0.7,
+                        "easing": "smooth"
+                      },
+                      {
+                        "at": 1,
+                        "value": 0.55,
+                        "easing": "smooth"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "performances": [
+          {
+            "entityId": "butterfly",
+            "clipId": "prepare-for-flight",
+            "startLine": 0,
+            "endLine": 1,
+            "startOffset": 0.8,
+            "endOffset": 0.4,
+            "repeat": 1
+          },
+          {
+            "entityId": "butterfly",
+            "clipId": "flight-wingbeat",
+            "startLine": 1,
+            "endLine": 2,
+            "startOffset": 0.4,
+            "endOffset": 0.9,
+            "repeat": 10
+          },
+          {
+            "entityId": "butterfly",
+            "clipId": "tuck-feet",
+            "startLine": 1,
+            "endLine": 1,
+            "startOffset": 0.42,
+            "endOffset": 0.8,
+            "repeat": 1
+          }
+        ],
+        "contacts": [
+          {
+            "entityId": "butterfly",
+            "partId": "feet",
+            "x": 0,
+            "y": 3,
+            "targetId": "leaf",
+            "targetPartId": "blade",
+            "targetX": 0,
+            "targetY": -6,
+            "startLine": 0,
+            "endLine": 1,
+            "startOffset": 0,
+            "endOffset": 0.4,
+            "approach": 0
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-03-line-01",
+          "text": "The butterfly rests as the leaf moves beneath it."
+        },
+        {
+          "id": "scene-03-line-02",
+          "text": "A small opening of the wings prepares it to take off."
+        },
+        {
+          "id": "scene-03-line-03",
+          "text": "It lifts its feet, beats its wings, and flies away."
+        }
+      ]
+    }
+  ]
+}

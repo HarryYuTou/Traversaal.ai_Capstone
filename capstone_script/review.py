@@ -26,7 +26,7 @@ from .scene_plan import (
     validate_plan,
 )
 
-PROMPT_VERSION = "script-reviewer-v11"
+PROMPT_VERSION = "script-reviewer-v14"
 MAX_SCENE_REVISIONS = 2
 Note = Annotated[str, StringConstraints(min_length=1, max_length=300)]
 Location = Annotated[str, StringConstraints(min_length=1, max_length=60)]

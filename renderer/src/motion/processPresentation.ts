@@ -1,6 +1,6 @@
 import type {TimelineScene} from '../types';
 import {compileMotion} from './engine';
-import {fitMotionViewport, fitProcessViewport, type StageViewport} from './camera';
+import {fitAuthoredMotionViewport, fitProcessViewport, type StageViewport} from './camera';
 import {planLabelSlots, PROCESS_LABEL_ORDER, sceneFrames, type LabelSlots} from './labels';
 import {planProps, planRoom, type PropPlacement, type Room} from './staging';
 
@@ -30,7 +30,7 @@ export const processPresentations = (scenes: TimelineScene[], closeUp = false): 
     const programs = group.map((scene) => compileMotion(scene.visual));
     const process = Boolean(group[0].processTrace);
     const look = closeUp ? 'sketch' : 'vector';
-    const viewport = process ? fitProcessViewport(programs, closeUp, look) : fitMotionViewport({
+    const viewport = process ? fitProcessViewport(programs, closeUp, look) : fitAuthoredMotionViewport({
       entities: programs.flatMap((program) => program.entities), paths: programs.flatMap((program) => program.paths),
     }, {look});
     const shots = group.map((scene, index) => ({program: programs[index],

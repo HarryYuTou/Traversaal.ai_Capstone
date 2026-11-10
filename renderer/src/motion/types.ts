@@ -1,12 +1,14 @@
 export type MotionColor = 'ink' | 'accent' | 'secondary' | 'muted';
 export type EntityKind = 'planet' | 'moon' | 'spacecraft' | 'lander' | 'lander-base' | 'lander-ascent' | 'rocket' | 'satellite'
-  | 'person' | 'packet' | 'server' | 'laptop' | 'cloud' | 'coin' | 'box' | 'marker' | 'gauge' | 'counter' | 'workbench';
+  | 'person' | 'packet' | 'server' | 'laptop' | 'cloud' | 'coin' | 'box' | 'marker' | 'gauge' | 'counter' | 'workbench' | 'custom';
 
 export type MotionEntity = {
   id: string; kind: EntityKind; x: number; y: number; size: number; rotation: number;
   opacity: number; value: number; color: MotionColor; label: string;
   /** Compiler-owned initial appearance keeps waiting parcels consistent across service shots. */
   packingState?: 'open' | 'prepared' | 'sealed';
+  /** References a scene-owned, model-authored articulated SVG asset. */
+  rigId?: string;
 };
 export type MotionPoint = {x: number; y: number};
 export type MotionPath = {id: string; points: MotionPoint[]; curved: boolean; closed: boolean; color: MotionColor};
@@ -38,4 +40,33 @@ export type MotionVisual = {
   title: string; entities: MotionEntity[]; paths: MotionPath[]; actions: MotionAction[];
   activities?: MotionActivity[];
   cues?: MotionCue[];
+  rigs?: CustomRig[];
+  performances?: RigPerformance[];
+  contacts?: MotionContact[];
+};
+
+/** A local source point is translated onto a target point, then retains its offset at release. */
+export type MotionContact = {
+  entityId: string; partId: string; x: number; y: number;
+  targetId: string; targetPartId: string; targetX: number; targetY: number;
+  startLine: number; endLine: number; startOffset: number; endOffset: number;
+  approach: number; from: number; durationInFrames: number; approachFrames: number;
+};
+
+export type RigColor = MotionColor | 'paper' | 'soft' | 'line' | 'none' | `#${string}`;
+export type RigShape = {
+  kind: 'ellipse' | 'rect' | 'path'; x: number; y: number; width: number; height: number;
+  radius: number; path: string; fill: RigColor; stroke: RigColor; strokeWidth: number;
+};
+export type RigTransform = {x: number; y: number; rotation: number; scaleX: number; scaleY: number; opacity: number};
+export type RigPart = RigTransform & {id: string; parentId: string; shapes: RigShape[]};
+export type RigProperty = keyof RigTransform;
+export type RigKeyframe = {at: number; value: number; easing: 'linear' | 'ease-in-out' | 'ease-out' | 'smooth'};
+/** Translation/rotation/opacity tracks are offsets; scale tracks are multipliers. */
+export type RigTrack = {partId: string; property: RigProperty; keyframes: RigKeyframe[]};
+export type RigClip = {id: string; tracks: RigTrack[]};
+export type CustomRig = {id: string; parts: RigPart[]; clips: RigClip[]};
+export type RigPerformance = {
+  entityId: string; clipId: string; startLine: number; endLine: number;
+  startOffset: number; endOffset: number; repeat: number; from: number; durationInFrames: number;
 };

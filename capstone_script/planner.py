@@ -21,6 +21,9 @@ from typing import Literal
 
 from pydantic import ValidationError
 
+from .rig import CustomRig, RigPerformance
+from .contact import MotionContact
+
 from .scene_plan import (
     ICONS, MAP_REGIONS, TEMPLATES, WORDS_PER_SECOND, MotionAction, MotionCue, MotionEntity, MotionPath,
     ProcessActor, ProcessStation, ProcessOccupancy, ProcessEvent,
@@ -31,8 +34,8 @@ from .scene_plan import (
 MODEL = "claude-opus-5-5"
 EFFORT = "high"
 MAX_TOKENS = 16000
-PROMPT_VERSION = "scene-planner-v15"
-TEMPLATE_ROUTER_VERSION = "template-router-v3"
+PROMPT_VERSION = "scene-planner-v19-contact-geometry"
+TEMPLATE_ROUTER_VERSION = "template-router-v4"
 MAX_REQUEST_TEMPLATES = 3
 PROMPTS = Path(__file__).resolve().parents[1] / "prompts"
 # The timeline adds short pauses around lines, so speech fills about 95% of the video.
@@ -246,11 +249,15 @@ class _OutputMap(_Model):
 
 
 class _OutputMotion(_Model):
-    # Every nested field is required, so adding motion does not spend optional/union schema slots.
+    # Legacy plans may omit cues, custom rig data and contacts. Four optional arrays plus
+    # MotionEntity's nullable rigId remain inside the structured-output budget.
     entities: list[MotionEntity]
     paths: list[MotionPath]
     actions: list[MotionAction]
     cues: list[MotionCue] = None
+    rigs: list[CustomRig] = None
+    performances: list[RigPerformance] = None
+    contacts: list[MotionContact] = None
 
 
 class _OutputProcess(_Model):
@@ -532,6 +539,37 @@ def normalize_ids(data, project_id: str):
                     if isinstance(item, dict) and isinstance(item.get("id"), str):
                         item["id"] = slug(item["id"])
             if scene.get("template") == "motion":
+                for entity in visual.get("entities", []) if isinstance(visual.get("entities"), list) else []:
+                    if isinstance(entity, dict) and isinstance(entity.get("rigId"), str) and entity["rigId"]:
+                        entity["rigId"] = slug(entity["rigId"])
+                for rig in visual.get("rigs", []) if isinstance(visual.get("rigs"), list) else []:
+                    if not isinstance(rig, dict):
+                        continue
+                    if isinstance(rig.get("id"), str):
+                        rig["id"] = slug(rig["id"])
+                    for part in rig.get("parts", []) if isinstance(rig.get("parts"), list) else []:
+                        if isinstance(part, dict):
+                            for key in ("id", "parentId"):
+                                if isinstance(part.get(key), str) and part[key]:
+                                    part[key] = slug(part[key])
+                    for clip in rig.get("clips", []) if isinstance(rig.get("clips"), list) else []:
+                        if not isinstance(clip, dict):
+                            continue
+                        if isinstance(clip.get("id"), str):
+                            clip["id"] = slug(clip["id"])
+                        for track in clip.get("tracks", []) if isinstance(clip.get("tracks"), list) else []:
+                            if isinstance(track, dict) and isinstance(track.get("partId"), str):
+                                track["partId"] = slug(track["partId"])
+                for performance in visual.get("performances", []) if isinstance(visual.get("performances"), list) else []:
+                    if isinstance(performance, dict):
+                        for key in ("entityId", "clipId"):
+                            if isinstance(performance.get(key), str):
+                                performance[key] = slug(performance[key])
+                for contact in visual.get("contacts", []) if isinstance(visual.get("contacts"), list) else []:
+                    if isinstance(contact, dict):
+                        for key in ("entityId", "partId", "targetId", "targetPartId"):
+                            if isinstance(contact.get(key), str) and contact[key]:
+                                contact[key] = slug(contact[key])
                 actions = visual.get("actions")
                 for action in actions if isinstance(actions, list) else []:
                     if isinstance(action, dict):
@@ -688,21 +726,54 @@ def _record(step: str, response, latency_ms: int, text: str, problems: list[str]
 
 def request_json(client, system: str, request: str, schema: dict, review, noun: str, attempts: list,
                  step: str, progress=lambda message: None, *, max_tokens=MAX_TOKENS, effort=EFFORT):
-    """Send one structured-output request plus at most one repair and return the reviewed result.
+    """Request validated JSON with at most one content repair.
 
     `review(text)` returns (result, problems); a None result goes back with its problems.
     Every response is appended to `attempts` as it arrives, so a failed run keeps the evidence.
+    Only a server grammar-size rejection permits one retry without constrained decoding;
+    the same complete local validation and repair rules remain mandatory in that mode.
     """
     repair = Template((PROMPTS / "repair-scene-plan.txt").read_text(encoding="utf-8"))
     messages = [{"role": "user", "content": request}]
+    strict_format = True
+    request_effort = effort
     for attempt in (1, 2):
         progress(f"Requesting the {noun} from {MODEL} (attempt {attempt} of 2)...")
         started = perf_counter()
-        response = client.beta.messages.create(
-            model=MODEL, max_tokens=max_tokens, system=system, messages=messages,
-            output_config={"effort": effort, "format": {"type": "json_schema", "schema": schema}},
-            betas=["server-side-fallback-2026-07-01"], fallbacks="default",
-        )
+        def send():
+            # Rich geometry needs room for its actual JSON. Unconstrained high-effort
+            # planning can spend the whole response budget reasoning before writing it.
+            config = {"effort": request_effort}
+            if strict_format:
+                config["format"] = {"type": "json_schema", "schema": schema}
+            return client.beta.messages.create(
+                model=MODEL, max_tokens=max_tokens, system=system, messages=messages,
+                output_config=config, betas=["server-side-fallback-2026-07-01"], fallbacks="default",
+            )
+
+        try:
+            response = send()
+        except Exception as exc:
+            if (not strict_format or getattr(exc, "status_code", None) != 400
+                    or "compiled grammar is too large" not in str(exc).lower()):
+                raise
+            attempts.append({"step": f"{step}-format-fallback", "modelServed": None,
+                             "requestId": getattr(exc, "request_id", None), "stopReason": "grammar_limit",
+                             "latencyMs": round((perf_counter() - started) * 1000), "usage": {},
+                             "problems": ["Server rejected the compiled schema size; local validation remains required."],
+                             "rawText": "", "outputMode": "json-schema"})
+            strict_format = False
+            request_effort = "medium" if effort in ("high", "max") else effort
+            system += ("\n\nJSON output contract\nThe service cannot compile this schema for constrained decoding. "
+                       "Return only one complete JSON object matching the schema below, without Markdown. "
+                       "All fields, references, limits and semantic rules will still be validated locally. "
+                       "Keep the design compact: a few clearly articulated parts and short reusable clips. "
+                       "Prioritize complete scene data over decorative detail. Do not abbreviate geometry "
+                       "or insert placeholders.\n"
+                       + json.dumps(schema, separators=(",", ":")))
+            progress("The service's schema compiler limit was reached; retrying JSON with full local validation...")
+            started = perf_counter()
+            response = send()
         latency_ms = round((perf_counter() - started) * 1000)
         text = next((block.text for block in response.content if getattr(block, "type", None) == "text"), "")
         if response.stop_reason in FATAL_STOPS:
@@ -712,7 +783,8 @@ def request_json(client, system: str, request: str, schema: dict, review, noun: 
         else:
             result, problems = review(text)
         attempts.append({**_record(step, response, latency_ms, text, problems),
-                         "effort": effort, "maxTokens": max_tokens})
+                         "effort": request_effort, "maxTokens": max_tokens,
+                         "outputMode": "json-schema" if strict_format else "validated-json"})
         if result is not None:
             return result
         if response.stop_reason in FATAL_STOPS:

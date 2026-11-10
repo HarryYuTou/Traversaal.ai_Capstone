@@ -2,7 +2,7 @@ import React from 'react';
 import {entityAtFrame, toStage, type MotionProgram} from './engine';
 import type {StageViewport} from './camera';
 import {placeActorLabels, type LabelSlots} from './labels';
-import {ENTITY_EXTENTS, entityHalfExtents} from './metrics';
+import {entityExtents, entityHalfExtents} from './metrics';
 import {useRough, Shapes} from './sketch';
 import type {EntityKind} from './types';
 
@@ -16,8 +16,8 @@ import type {EntityKind} from './types';
 const SHADOW_SHIFT = 7;
 
 /** Distance from an entity's centre down to where it touches the floor. */
-export const groundOffset = (kind: EntityKind, size: number) =>
-  (kind === 'person' ? 60 : ENTITY_EXTENTS[kind][1] * 0.94) * size;
+export const groundOffset = (kind: EntityKind, size: number, rigExtents?: [number, number]) =>
+  (kind === 'person' ? 60 : entityExtents(kind, 'vector', rigExtents)[1] * 0.94) * size;
 
 const SHADOW_WIDTH: Partial<Record<EntityKind, number>> = {
   person: 25, counter: 64, workbench: 62, server: 48, box: 44, packet: 32, coin: 34,
@@ -143,9 +143,9 @@ export const StageRoom: React.FC<{viewport: StageViewport; room: Room; prefix: s
 
 /** A soft shadow where an entity meets the floor; it stays on the ground while a walker bobs. */
 export const ContactShadow: React.FC<{kind: EntityKind; x: number; y: number; size: number; opacity: number;
-  prefix: string}> = ({kind, x, y, size, opacity, prefix}) => {
-  const width = (SHADOW_WIDTH[kind] ?? entityHalfExtents(kind, 1, 0).x) * size;
-  return <ellipse cx={x + SHADOW_SHIFT * size} cy={y + groundOffset(kind, size) + 2 * size} rx={width}
+  prefix: string; rigExtents?: [number, number]}> = ({kind, x, y, size, opacity, prefix, rigExtents}) => {
+  const width = (SHADOW_WIDTH[kind] ?? entityHalfExtents(kind, 1, 0, 'vector', rigExtents).x) * size;
+  return <ellipse cx={x + SHADOW_SHIFT * size} cy={y + groundOffset(kind, size, rigExtents) + 2 * size} rx={width}
     ry={width * 0.24} fill={`url(#${prefix}-shadow)`} opacity={opacity} />;
 };
 
@@ -181,7 +181,7 @@ export const planProps = (shots: {program: MotionProgram; frames: number[]}[], v
       for (const {prepared, state} of actors) {
         if (state.opacity <= 0.05) continue;
         const at = toStage(state);
-        const {x, y} = entityHalfExtents(prepared.entity.kind, state.size, state.rotation, 'sketch');
+        const {x, y} = entityHalfExtents(prepared.entity.kind, state.size, state.rotation, 'sketch', prepared.rigExtents);
         // Props keep a clear margin around anyone, so a shelf never looks like a hat.
         taken.push({left: at.x - x - 22, right: at.x + x + 22, top: at.y - y - 26, bottom: at.y + y + 22});
       }

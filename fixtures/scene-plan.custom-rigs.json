@@ -1,0 +1,2014 @@
+{
+  "schemaVersion": "1",
+  "projectId": "custom-rig-acceptance",
+  "title": "New Objects, Authored Actions",
+  "scenes": [
+    {
+      "id": "scene-01",
+      "purpose": "A newly defined articulated animal prepares for a hop and lands without changing its identity.",
+      "template": "motion",
+      "visual": {
+        "title": "Anticipate. Jump. Settle.",
+        "entities": [
+          {
+            "id": "fox",
+            "kind": "custom",
+            "rigId": "woodland-fox",
+            "x": 50,
+            "y": 58,
+            "size": 2.8,
+            "rotation": 0,
+            "opacity": 1,
+            "value": 0,
+            "color": "accent",
+            "label": ""
+          }
+        ],
+        "paths": [],
+        "actions": [],
+        "rigs": [
+          {
+            "id": "woodland-fox",
+            "parts": [
+              {
+                "id": "ground",
+                "parentId": "",
+                "x": 0,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M -100 41 L 100 41",
+                    "fill": "none",
+                    "stroke": "line",
+                    "strokeWidth": 1.5
+                  }
+                ]
+              },
+              {
+                "id": "fox",
+                "parentId": "",
+                "x": 0,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": []
+              },
+              {
+                "id": "tail",
+                "parentId": "fox",
+                "x": -38,
+                "y": -6,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M 0 0 C -15 -25 -36 -46 -56 -39 C -51 -16 -29 7 0 10 Z",
+                    "fill": "#DA7E49",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  }
+                ]
+              },
+              {
+                "id": "tail-tip",
+                "parentId": "tail",
+                "x": -39,
+                "y": -30,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M 0 0 C -5 -7 -11 -10 -17 -9 C -15 0 -9 9 -2 13 L 1 6 L -4 4 Z",
+                    "fill": "#FFF4DF",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  }
+                ]
+              },
+              {
+                "id": "back-leg",
+                "parentId": "fox",
+                "x": -23,
+                "y": 12,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "rect",
+                    "x": -5,
+                    "y": 0,
+                    "width": 10,
+                    "height": 28,
+                    "radius": 4,
+                    "path": "",
+                    "fill": "#DA7E49",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  }
+                ]
+              },
+              {
+                "id": "back-paw",
+                "parentId": "back-leg",
+                "x": 0,
+                "y": 28,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "rect",
+                    "x": -6,
+                    "y": -4,
+                    "width": 18,
+                    "height": 5,
+                    "radius": 2,
+                    "path": "",
+                    "fill": "#343B43",
+                    "stroke": "ink",
+                    "strokeWidth": 1.5
+                  }
+                ]
+              },
+              {
+                "id": "front-leg",
+                "parentId": "fox",
+                "x": 22,
+                "y": 12,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "rect",
+                    "x": -5,
+                    "y": 0,
+                    "width": 10,
+                    "height": 28,
+                    "radius": 4,
+                    "path": "",
+                    "fill": "#DA7E49",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  }
+                ]
+              },
+              {
+                "id": "front-paw",
+                "parentId": "front-leg",
+                "x": 0,
+                "y": 28,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "rect",
+                    "x": -6,
+                    "y": -4,
+                    "width": 18,
+                    "height": 5,
+                    "radius": 2,
+                    "path": "",
+                    "fill": "#343B43",
+                    "stroke": "ink",
+                    "strokeWidth": 1.5
+                  }
+                ]
+              },
+              {
+                "id": "body",
+                "parentId": "fox",
+                "x": 0,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "ellipse",
+                    "x": -5,
+                    "y": -2,
+                    "width": 79,
+                    "height": 43,
+                    "radius": 0,
+                    "path": "",
+                    "fill": "#DA7E49",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M 16 -20 C 31 -20 36 -10 30 15 C 21 15 13 10 12 1 Z",
+                    "fill": "#FFF4DF",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  }
+                ]
+              },
+              {
+                "id": "head",
+                "parentId": "fox",
+                "x": 30,
+                "y": -22,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M -19 -11 L -20 -36 L -5 -23 L 9 -24 L 22 -38 L 23 -8 C 25 10 9 23 -4 17 C -16 17 -24 3 -19 -11 Z",
+                    "fill": "#DA7E49",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M -16 -17 L -17 -29 L -9 -21 Z",
+                    "fill": "#343B43",
+                    "stroke": "ink",
+                    "strokeWidth": 1
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M 15 -22 L 19 -31 L 20 -16 Z",
+                    "fill": "#343B43",
+                    "stroke": "ink",
+                    "strokeWidth": 1
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M -17 1 C -8 -2 -4 7 1 7 C 6 1 14 -1 22 0 C 21 13 10 21 -2 18 C -11 16 -16 11 -17 1 Z",
+                    "fill": "#FFF4DF",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "ellipse",
+                    "x": -8,
+                    "y": -5,
+                    "width": 3,
+                    "height": 4,
+                    "radius": 0,
+                    "path": "",
+                    "fill": "#343B43",
+                    "stroke": "ink",
+                    "strokeWidth": 0
+                  },
+                  {
+                    "kind": "ellipse",
+                    "x": 13,
+                    "y": -6,
+                    "width": 3,
+                    "height": 4,
+                    "radius": 0,
+                    "path": "",
+                    "fill": "#343B43",
+                    "stroke": "ink",
+                    "strokeWidth": 0
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M -2 9 Q 3 7 7 9 Q 5 14 2 13 Z",
+                    "fill": "#343B43",
+                    "stroke": "ink",
+                    "strokeWidth": 1
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M 2 13 Q 4 17 8 14",
+                    "fill": "none",
+                    "stroke": "ink",
+                    "strokeWidth": 1.2
+                  }
+                ]
+              }
+            ],
+            "clips": [
+              {
+                "id": "crouch-hop-land",
+                "tracks": [
+                  {
+                    "partId": "fox",
+                    "property": "y",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.13,
+                        "value": 7,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.22,
+                        "value": 3,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.38,
+                        "value": -42,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.5,
+                        "value": -45,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.64,
+                        "value": -15,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.72,
+                        "value": 6,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.83,
+                        "value": -2,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 1,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      }
+                    ]
+                  },
+                  {
+                    "partId": "head",
+                    "property": "rotation",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.13,
+                        "value": -8,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.38,
+                        "value": 8,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.65,
+                        "value": 1,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.78,
+                        "value": -6,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 1,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      }
+                    ]
+                  },
+                  {
+                    "partId": "tail",
+                    "property": "rotation",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.17,
+                        "value": -13,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.4,
+                        "value": 17,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.67,
+                        "value": -19,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.85,
+                        "value": 6,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 1,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      }
+                    ]
+                  },
+                  {
+                    "partId": "tail-tip",
+                    "property": "rotation",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.23,
+                        "value": -8,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.48,
+                        "value": 13,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.75,
+                        "value": -9,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 1,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      }
+                    ]
+                  },
+                  {
+                    "partId": "back-leg",
+                    "property": "scaleY",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 1,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.13,
+                        "value": 0.75,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.22,
+                        "value": 0.8928571428571429,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.38,
+                        "value": 1.05,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.61,
+                        "value": 1.05,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.72,
+                        "value": 0.7857142857142857,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.83,
+                        "value": 1.0714285714285714,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 1,
+                        "value": 1,
+                        "easing": "ease-in-out"
+                      }
+                    ]
+                  },
+                  {
+                    "partId": "back-leg",
+                    "property": "rotation",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.22,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.4,
+                        "value": -17,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.6,
+                        "value": -7,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.69,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 1,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      }
+                    ]
+                  },
+                  {
+                    "partId": "front-leg",
+                    "property": "scaleY",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 1,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.13,
+                        "value": 0.75,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.22,
+                        "value": 0.8928571428571429,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.38,
+                        "value": 1.05,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.61,
+                        "value": 1.05,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.72,
+                        "value": 0.7857142857142857,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.83,
+                        "value": 1.0714285714285714,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 1,
+                        "value": 1,
+                        "easing": "ease-in-out"
+                      }
+                    ]
+                  },
+                  {
+                    "partId": "front-leg",
+                    "property": "rotation",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.22,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.4,
+                        "value": 17,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.6,
+                        "value": 7,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.69,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 1,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "performances": [
+          {
+            "entityId": "fox",
+            "clipId": "crouch-hop-land",
+            "startLine": 0,
+            "endLine": 1,
+            "startOffset": 0.2,
+            "endOffset": 0.3,
+            "repeat": 1
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-01-line-01",
+          "text": "A small fox lowers its body before a short hop."
+        },
+        {
+          "id": "scene-01-line-02",
+          "text": "Its legs land first, then its head and tail settle."
+        }
+      ]
+    },
+    {
+      "id": "scene-02",
+      "purpose": "A newly defined plant unfolds five independently hinged petals, retains the open pose, then makes a small reversible sway.",
+      "template": "motion",
+      "visual": {
+        "title": "An opening flower holds its new shape",
+        "entities": [
+          {
+            "id": "flower",
+            "kind": "custom",
+            "rigId": "folding-flower",
+            "x": 50,
+            "y": 58,
+            "size": 3,
+            "rotation": 0,
+            "opacity": 1,
+            "value": 0,
+            "color": "accent",
+            "label": ""
+          }
+        ],
+        "paths": [],
+        "actions": [],
+        "rigs": [
+          {
+            "id": "folding-flower",
+            "parts": [
+              {
+                "id": "pot",
+                "parentId": "",
+                "x": 0,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M -24 39 L 24 39 L 18 62 L -18 62 Z",
+                    "fill": "#C89276",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "rect",
+                    "x": -27,
+                    "y": 32,
+                    "width": 54,
+                    "height": 10,
+                    "radius": 2,
+                    "path": "",
+                    "fill": "#DCA58B",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M -14 46 L 13 46",
+                    "fill": "none",
+                    "stroke": "#FFF4DF",
+                    "strokeWidth": 2
+                  }
+                ]
+              },
+              {
+                "id": "stem",
+                "parentId": "",
+                "x": 0,
+                "y": 32,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M 0 0 C -2 -20 4 -37 0 -62",
+                    "fill": "none",
+                    "stroke": "#709C76",
+                    "strokeWidth": 7
+                  }
+                ]
+              },
+              {
+                "id": "left-leaf",
+                "parentId": "stem",
+                "x": 0,
+                "y": -19,
+                "rotation": -12,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M 0 0 C -17 -1 -28 -10 -26 -20 C -11 -21 -3 -11 0 0 Z",
+                    "fill": "#709C76",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M -1 -2 L -19 -15",
+                    "fill": "none",
+                    "stroke": "#426B4B",
+                    "strokeWidth": 1
+                  }
+                ]
+              },
+              {
+                "id": "right-leaf",
+                "parentId": "stem",
+                "x": 0,
+                "y": -31,
+                "rotation": 14,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M 0 0 C 16 -1 26 -10 24 -20 C 10 -21 2 -11 0 0 Z",
+                    "fill": "#709C76",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M 1 -2 L 18 -15",
+                    "fill": "none",
+                    "stroke": "#426B4B",
+                    "strokeWidth": 1
+                  }
+                ]
+              },
+              {
+                "id": "bloom",
+                "parentId": "stem",
+                "x": 0,
+                "y": -62,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": []
+              },
+              {
+                "id": "petal-1",
+                "parentId": "bloom",
+                "x": 0,
+                "y": 0,
+                "rotation": -18,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M 0 5 C -14 -4 -16 -28 0 -43 C 16 -28 14 -4 0 5 Z",
+                    "fill": "#DB8B99",
+                    "stroke": "ink",
+                    "strokeWidth": 1.7
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M 0 -4 L 0 -28",
+                    "fill": "none",
+                    "stroke": "#C47587",
+                    "strokeWidth": 1
+                  }
+                ]
+              },
+              {
+                "id": "petal-2",
+                "parentId": "bloom",
+                "x": 0,
+                "y": 0,
+                "rotation": 18,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M 0 5 C -14 -4 -16 -28 0 -43 C 16 -28 14 -4 0 5 Z",
+                    "fill": "#DB8B99",
+                    "stroke": "ink",
+                    "strokeWidth": 1.7
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M 0 -4 L 0 -28",
+                    "fill": "none",
+                    "stroke": "#C47587",
+                    "strokeWidth": 1
+                  }
+                ]
+              },
+              {
+                "id": "petal-3",
+                "parentId": "bloom",
+                "x": 0,
+                "y": 0,
+                "rotation": -10,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M 0 5 C -14 -4 -16 -28 0 -43 C 16 -28 14 -4 0 5 Z",
+                    "fill": "#E7A5AD",
+                    "stroke": "ink",
+                    "strokeWidth": 1.7
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M 0 -4 L 0 -28",
+                    "fill": "none",
+                    "stroke": "#C47587",
+                    "strokeWidth": 1
+                  }
+                ]
+              },
+              {
+                "id": "petal-4",
+                "parentId": "bloom",
+                "x": 0,
+                "y": 0,
+                "rotation": 10,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M 0 5 C -14 -4 -16 -28 0 -43 C 16 -28 14 -4 0 5 Z",
+                    "fill": "#E7A5AD",
+                    "stroke": "ink",
+                    "strokeWidth": 1.7
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M 0 -4 L 0 -28",
+                    "fill": "none",
+                    "stroke": "#C47587",
+                    "strokeWidth": 1
+                  }
+                ]
+              },
+              {
+                "id": "petal-5",
+                "parentId": "bloom",
+                "x": 0,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M 0 5 C -14 -4 -16 -28 0 -43 C 16 -28 14 -4 0 5 Z",
+                    "fill": "#F3BBC0",
+                    "stroke": "ink",
+                    "strokeWidth": 1.7
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M 0 -4 L 0 -28",
+                    "fill": "none",
+                    "stroke": "#C47587",
+                    "strokeWidth": 1
+                  }
+                ]
+              },
+              {
+                "id": "pollen",
+                "parentId": "bloom",
+                "x": 0,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "ellipse",
+                    "x": 0,
+                    "y": 0,
+                    "width": 18,
+                    "height": 18,
+                    "radius": 0,
+                    "path": "",
+                    "fill": "#EACB6D",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "ellipse",
+                    "x": -3,
+                    "y": -2,
+                    "width": 2,
+                    "height": 2,
+                    "radius": 0,
+                    "path": "",
+                    "fill": "#AA8545",
+                    "stroke": "ink",
+                    "strokeWidth": 0
+                  },
+                  {
+                    "kind": "ellipse",
+                    "x": 3,
+                    "y": 2,
+                    "width": 2,
+                    "height": 2,
+                    "radius": 0,
+                    "path": "",
+                    "fill": "#AA8545",
+                    "stroke": "ink",
+                    "strokeWidth": 0
+                  }
+                ]
+              }
+            ],
+            "clips": [
+              {
+                "id": "unfold",
+                "tracks": [
+                  {
+                    "partId": "petal-1",
+                    "property": "rotation",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.08,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.72,
+                        "value": -76.32000000000001,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.9,
+                        "value": -72,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 1,
+                        "value": -72,
+                        "easing": "ease-in-out"
+                      }
+                    ]
+                  },
+                  {
+                    "partId": "petal-1",
+                    "property": "scaleX",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 1,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.12,
+                        "value": 1,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.72,
+                        "value": 1.12,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 1,
+                        "value": 1.08,
+                        "easing": "ease-in-out"
+                      }
+                    ]
+                  },
+                  {
+                    "partId": "petal-2",
+                    "property": "rotation",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.10500000000000001,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.72,
+                        "value": 76.32000000000001,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.9,
+                        "value": 72,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 1,
+                        "value": 72,
+                        "easing": "ease-in-out"
+                      }
+                    ]
+                  },
+                  {
+                    "partId": "petal-2",
+                    "property": "scaleX",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 1,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.12,
+                        "value": 1,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.72,
+                        "value": 1.12,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 1,
+                        "value": 1.08,
+                        "easing": "ease-in-out"
+                      }
+                    ]
+                  },
+                  {
+                    "partId": "petal-3",
+                    "property": "rotation",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.13,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.72,
+                        "value": -37.1,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.9,
+                        "value": -35,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 1,
+                        "value": -35,
+                        "easing": "ease-in-out"
+                      }
+                    ]
+                  },
+                  {
+                    "partId": "petal-3",
+                    "property": "scaleX",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 1,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.12,
+                        "value": 1,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.72,
+                        "value": 1.12,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 1,
+                        "value": 1.08,
+                        "easing": "ease-in-out"
+                      }
+                    ]
+                  },
+                  {
+                    "partId": "petal-4",
+                    "property": "rotation",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.15500000000000003,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.72,
+                        "value": 37.1,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.9,
+                        "value": 35,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 1,
+                        "value": 35,
+                        "easing": "ease-in-out"
+                      }
+                    ]
+                  },
+                  {
+                    "partId": "petal-4",
+                    "property": "scaleX",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 1,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.12,
+                        "value": 1,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.72,
+                        "value": 1.12,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 1,
+                        "value": 1.08,
+                        "easing": "ease-in-out"
+                      }
+                    ]
+                  },
+                  {
+                    "partId": "petal-5",
+                    "property": "rotation",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.18,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.72,
+                        "value": 0.0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.9,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 1,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      }
+                    ]
+                  },
+                  {
+                    "partId": "petal-5",
+                    "property": "scaleX",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 1,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.12,
+                        "value": 1,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.72,
+                        "value": 1.12,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 1,
+                        "value": 1.08,
+                        "easing": "ease-in-out"
+                      }
+                    ]
+                  },
+                  {
+                    "partId": "left-leaf",
+                    "property": "rotation",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.3,
+                        "value": -5,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.75,
+                        "value": 5,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 1,
+                        "value": 4,
+                        "easing": "ease-in-out"
+                      }
+                    ]
+                  },
+                  {
+                    "partId": "right-leaf",
+                    "property": "rotation",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.36,
+                        "value": 5,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.8,
+                        "value": -5,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 1,
+                        "value": -4,
+                        "easing": "ease-in-out"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "gentle-sway",
+                "tracks": [
+                  {
+                    "partId": "bloom",
+                    "property": "rotation",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.25,
+                        "value": 3,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.5,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.75,
+                        "value": -3,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 1,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      }
+                    ]
+                  },
+                  {
+                    "partId": "left-leaf",
+                    "property": "rotation",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.3,
+                        "value": 2,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.55,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.8,
+                        "value": -2,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 1,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "performances": [
+          {
+            "entityId": "flower",
+            "clipId": "unfold",
+            "startLine": 0,
+            "endLine": 0,
+            "startOffset": 0.08,
+            "endOffset": 0.95,
+            "repeat": 1
+          },
+          {
+            "entityId": "flower",
+            "clipId": "gentle-sway",
+            "startLine": 1,
+            "endLine": 1,
+            "startOffset": 0.05,
+            "endOffset": 0.95,
+            "repeat": 2
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-02-line-01",
+          "text": "Each petal opens around its own hinge at the flower center."
+        },
+        {
+          "id": "scene-02-line-02",
+          "text": "The open flower keeps its shape as the leaves make a gentle sway."
+        }
+      ]
+    },
+    {
+      "id": "scene-03",
+      "purpose": "A newly defined mechanical assembly closes two jaws around a sample, preserves the closed pose, and lifts the held assembly from its pedestal.",
+      "template": "motion",
+      "visual": {
+        "title": "Close the grip. Then lift.",
+        "entities": [
+          {
+            "id": "gripper",
+            "kind": "custom",
+            "rigId": "parallel-gripper",
+            "x": 50,
+            "y": 58,
+            "size": 2.55,
+            "rotation": 0,
+            "opacity": 1,
+            "value": 0,
+            "color": "accent",
+            "label": ""
+          }
+        ],
+        "paths": [],
+        "actions": [],
+        "rigs": [
+          {
+            "id": "parallel-gripper",
+            "parts": [
+              {
+                "id": "pedestal",
+                "parentId": "",
+                "x": 0,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "rect",
+                    "x": -51,
+                    "y": 47,
+                    "width": 102,
+                    "height": 10,
+                    "radius": 3,
+                    "path": "",
+                    "fill": "soft",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "rect",
+                    "x": -42,
+                    "y": 57,
+                    "width": 84,
+                    "height": 8,
+                    "radius": 2,
+                    "path": "",
+                    "fill": "paper",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M -57 65 L 57 65",
+                    "fill": "none",
+                    "stroke": "line",
+                    "strokeWidth": 1.5
+                  }
+                ]
+              },
+              {
+                "id": "gantry",
+                "parentId": "",
+                "x": 0,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "rect",
+                    "x": -63,
+                    "y": -89,
+                    "width": 13,
+                    "height": 136,
+                    "radius": 3,
+                    "path": "",
+                    "fill": "soft",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "rect",
+                    "x": 50,
+                    "y": -89,
+                    "width": 13,
+                    "height": 136,
+                    "radius": 3,
+                    "path": "",
+                    "fill": "soft",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "rect",
+                    "x": -67,
+                    "y": -94,
+                    "width": 134,
+                    "height": 14,
+                    "radius": 3,
+                    "path": "",
+                    "fill": "secondary",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "rect",
+                    "x": -10,
+                    "y": -79,
+                    "width": 20,
+                    "height": 48,
+                    "radius": 3,
+                    "path": "",
+                    "fill": "soft",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M -58 -72 L -58 34 M 58 -72 L 58 34",
+                    "fill": "none",
+                    "stroke": "line",
+                    "strokeWidth": 1.5
+                  }
+                ]
+              },
+              {
+                "id": "carriage",
+                "parentId": "",
+                "x": 0,
+                "y": -31,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "rect",
+                    "x": -45,
+                    "y": -8,
+                    "width": 90,
+                    "height": 19,
+                    "radius": 4,
+                    "path": "",
+                    "fill": "secondary",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "rect",
+                    "x": -17,
+                    "y": -4,
+                    "width": 34,
+                    "height": 11,
+                    "radius": 2,
+                    "path": "",
+                    "fill": "paper",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "ellipse",
+                    "x": 0,
+                    "y": 1,
+                    "width": 5,
+                    "height": 5,
+                    "radius": 0,
+                    "path": "",
+                    "fill": "accent",
+                    "stroke": "ink",
+                    "strokeWidth": 0
+                  }
+                ]
+              },
+              {
+                "id": "left-jaw",
+                "parentId": "carriage",
+                "x": -35,
+                "y": 9,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "rect",
+                    "x": -5,
+                    "y": 0,
+                    "width": 10,
+                    "height": 60,
+                    "radius": 3,
+                    "path": "",
+                    "fill": "paper",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "rect",
+                    "x": -5,
+                    "y": 47,
+                    "width": 10,
+                    "height": 12,
+                    "radius": 1,
+                    "path": "",
+                    "fill": "accent",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  }
+                ]
+              },
+              {
+                "id": "right-jaw",
+                "parentId": "carriage",
+                "x": 35,
+                "y": 9,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "rect",
+                    "x": -5,
+                    "y": 0,
+                    "width": 10,
+                    "height": 60,
+                    "radius": 3,
+                    "path": "",
+                    "fill": "paper",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "rect",
+                    "x": -5,
+                    "y": 47,
+                    "width": 10,
+                    "height": 12,
+                    "radius": 1,
+                    "path": "",
+                    "fill": "accent",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  }
+                ]
+              },
+              {
+                "id": "sample",
+                "parentId": "carriage",
+                "x": 0,
+                "y": 62,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1,
+                "shapes": [
+                  {
+                    "kind": "rect",
+                    "x": -16,
+                    "y": -16,
+                    "width": 32,
+                    "height": 32,
+                    "radius": 4,
+                    "path": "",
+                    "fill": "accent",
+                    "stroke": "ink",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M -9 -8 L 8 -8 L 8 7 L -9 7 Z",
+                    "fill": "paper",
+                    "stroke": "ink",
+                    "strokeWidth": 1.5
+                  },
+                  {
+                    "kind": "path",
+                    "x": 0,
+                    "y": 0,
+                    "width": 0,
+                    "height": 0,
+                    "radius": 0,
+                    "path": "M -4 -3 L 4 -3 M -4 2 L 2 2",
+                    "fill": "none",
+                    "stroke": "accent",
+                    "strokeWidth": 1.5
+                  }
+                ]
+              }
+            ],
+            "clips": [
+              {
+                "id": "close-grip",
+                "tracks": [
+                  {
+                    "partId": "left-jaw",
+                    "property": "x",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.15,
+                        "value": -2,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.72,
+                        "value": 14,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.88,
+                        "value": 14,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 1,
+                        "value": 14,
+                        "easing": "ease-in-out"
+                      }
+                    ]
+                  },
+                  {
+                    "partId": "right-jaw",
+                    "property": "x",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.15,
+                        "value": 2,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.72,
+                        "value": -14,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.88,
+                        "value": -14,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 1,
+                        "value": -14,
+                        "easing": "ease-in-out"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "lift-held-sample",
+                "tracks": [
+                  {
+                    "partId": "carriage",
+                    "property": "y",
+                    "keyframes": [
+                      {
+                        "at": 0,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.12,
+                        "value": 0,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 0.82,
+                        "value": -23,
+                        "easing": "ease-in-out"
+                      },
+                      {
+                        "at": 1,
+                        "value": -23,
+                        "easing": "ease-in-out"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "performances": [
+          {
+            "entityId": "gripper",
+            "clipId": "close-grip",
+            "startLine": 0,
+            "endLine": 0,
+            "startOffset": 0.12,
+            "endOffset": 0.9,
+            "repeat": 1
+          },
+          {
+            "entityId": "gripper",
+            "clipId": "lift-held-sample",
+            "startLine": 1,
+            "endLine": 1,
+            "startOffset": 0.12,
+            "endOffset": 0.9,
+            "repeat": 1
+          }
+        ]
+      },
+      "narration": [
+        {
+          "id": "scene-03-line-01",
+          "text": "The two jaws close around the sample while it rests on the pedestal."
+        },
+        {
+          "id": "scene-03-line-02",
+          "text": "The closed jaws and the sample rise together, keeping contact."
+        }
+      ]
+    }
+  ]
+}

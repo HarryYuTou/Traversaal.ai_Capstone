@@ -4,6 +4,7 @@ import {illustrationPoseAtFrame} from './pose';
 import {objectPerformanceAtFrame} from './objectPerformance';
 import {motionEffectsAtFrame} from './motionEffects';
 import {processStateAtFrame, stationStateAtFrame} from './processState';
+import {rigPictureAtFrame} from './rig';
 
 type MotionScene = Extract<TimelineScene, {template: 'motion'}>;
 const EPSILON = 1e-6;
@@ -41,8 +42,9 @@ const snapshot = (scene: MotionScene, frame: number, fps: number) => {
       state: {...state, rotation: undefined, rotationX: Math.cos(rotation), rotationY: Math.sin(rotation)},
       // Human limbs, gaze and idle motion may retain history after a move or work interval ends.
       // Semantic object parts can also retain history (for example a package's completed seal).
-      pose: entity.kind === 'person' ? pose : {activity: pose.activity, markIn: pose.markIn},
-      objectPose: entity.kind === 'person' ? undefined : objectPerformanceAtFrame(prepared, frame, fps),
+      pose: prepared.rig ? undefined : entity.kind === 'person' ? pose : {activity: pose.activity, markIn: pose.markIn},
+      objectPose: entity.kind === 'person' || prepared.rig ? undefined : objectPerformanceAtFrame(prepared, frame, fps),
+      rigPicture: prepared.rig ? rigPictureAtFrame(prepared.rig, frame) : undefined,
       station: station ? {...station, openingProgress: station.open ? 1 : station.openingProgress} : null}];
   });
   // Source order is retained: overlapping SVG actors can change their appearance if reordered.

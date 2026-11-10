@@ -18,10 +18,19 @@ result has the required length:
 | Review | The review completed, or no review was requested | `review.json` |
 | Narration | Every line was voiced | `audio-manifest.json` |
 | Render | A full-size `video.mp4` exists and its probed length matches the timeline within 0.2 s | `video-info.json` |
+| Spatial | When spatial evidence exists, its status is `spatial-checks-passed` | `spatial-inspection.json`, or `video-info.json` → `spatialInspection` |
 | Length | The video lasts at least 420 seconds (change with `--min-seconds`) | `video-info.json` |
 
 Animation diagnostics (`motion-inspection.json`) are reported but do not fail
 a run. A `needs-review` result tells the raters where to look.
+
+Spatial checks for custom objects and explicit contacts are different: a failed
+spatial preflight blocks automatic success and appears in the report's Spatial
+check column, including when the run stopped before rendering. A current standalone
+spatial report takes precedence over an older video's recorded status. Runs with
+no spatial report retain the existing checks; the scorecard does not infer a new
+failure for legacy runs. Passing spatial checks is evidence of alignment and
+framing, not a human animation-quality rating.
 
 The **success rate** is automatic successes divided by live attempts. A live
 attempt is a run that started from a topic and called Claude to plan it. Count

@@ -6,6 +6,7 @@ Every replacement passes the ordinary full-plan and event-coverage validators.
 """
 
 import json
+from collections import Counter
 
 from .planner import coverage_problems, from_model_output, output_schema, parse_json, planner_prompt, request_json
 from .scene_plan import PlanValidationError, validate_plan
@@ -34,6 +35,16 @@ def _identities(scene):
     if scene.template == "motion":
         return {entity.id: (entity.kind, entity.color) for entity in scene.visual.entities}
     return {}
+
+
+def _rig_identity(scene, entity):
+    """A repair may change acting, but cannot quietly redraw a continuing character."""
+    rig = next((rig for rig in scene.visual.rigs or () if rig.id == entity.rig_id), None)
+    if rig is None:
+        return None
+    return (entity.rig_id, [(part.id, part.parent_id,
+                            [shape.model_dump(mode="json", by_alias=True) for shape in part.shapes])
+                           for part in rig.parts])
 
 
 def repair_invariant_problems(source, repaired, previous_scene=None, *, allow_narration_edits=False):
@@ -79,6 +90,20 @@ def repair_invariant_problems(source, repaired, previous_scene=None, *, allow_na
         restored_alias = alias and entity_id not in identities and identities.get(alias) == previous[alias]
         if identities.get(entity_id) not in allowed and not restored_alias:
             problems.append(f"Preserve object {entity_id!r}, its kind and its identity color.")
+    if source.template == "motion":
+        relation = lambda contact: (contact.entity_id, contact.part_id, contact.target_id, contact.target_part_id)
+        before = Counter(relation(contact) for contact in source.visual.contacts or ())
+        after = Counter(relation(contact) for contact in repaired.visual.contacts or ())
+        if before - after:
+            problems.append("Preserve authored contact relationships and their source/target parts; "
+                            "repair anchor coordinates and timing without dropping the physical relationship.")
+        revised_entities = {entity.id: entity for entity in repaired.visual.entities}
+        for entity in source.visual.entities:
+            revised = revised_entities.get(entity.id)
+            if entity.kind == "custom" and revised is not None and revised.kind == "custom":
+                if _rig_identity(source, entity) != _rig_identity(repaired, revised):
+                    problems.append(f"Preserve custom object {entity.id!r}, its rigId, part hierarchy and shapes; "
+                                    "repair its poses, clips or timing without changing its identity.")
     return problems
 
 
@@ -128,8 +153,11 @@ def repair_visuals(plan, issues, spec, client, reference_text=None, progress=lam
             "Return exactly the one requested scene using the planner output shape. Preserve its id, template, "
             "all narration ids and words, and all existing object kinds. Preserve object ids, except restoring "
             "a continuing process station's previous id when its unique label and kind identify the same station. "
-            "Update every station reference consistently. Preserve identity colors, "
-            "except restoring the immediately preceding scene's established color for the same object id. Narration highlights "
+            "Update every station reference consistently. Preserve identity colors, except restoring "
+            "the immediately preceding scene's established color for the same object id. "
+            "For custom objects, preserve rigId, ordered part ids, parentId hierarchy and shape geometry/colors; "
+            "change part poses, clips and performances to repair the action. Preserve existing contact "
+            "relationships and source/target parts; you may repair their anchor coordinates and timing. Narration highlights "
             "must also stay unchanged (use the normal planner highlight field). Repair only the visual and "
             "purpose so its actual events demonstrate the narration. Do not invent statistics or change "
             "the story to disguise a mismatch. Preserve a continuing scene's established state and identity. "

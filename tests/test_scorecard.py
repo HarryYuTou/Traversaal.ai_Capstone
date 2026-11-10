@@ -112,6 +112,45 @@ class CheckTests(unittest.TestCase):
         write(run / "motion-inspection.json", {"status": "geometry-and-timing-checks-passed", "scenes": []})
         self.assertEqual(run_checks(run)["motionInspection"], "geometry-and-timing-checks-passed")
 
+    def test_failed_spatial_preflight_is_reported_before_render_and_over_stale_success(self):
+        for rendered in (False, True):
+            with self.subTest(rendered=rendered):
+                run = make_run(self.root, f"spatial-{rendered}", render=rendered)
+                if rendered:
+                    info = json.loads((run / "video-info.json").read_text())
+                    info["spatialInspection"] = {"path": "spatial-inspection.json", "status": "spatial-checks-passed"}
+                    write(run / "video-info.json", info)
+                write(run / "spatial-inspection.json", {"status": "needs-review"})
+                checks = run_checks(run)
+                self.assertFalse(checks["automaticPass"])
+                self.assertEqual(checks["spatialInspection"], "needs-review")
+                self.assertIn("spatial: needs-review; contact or camera checks did not pass", checks["failures"])
+
+    def test_spatial_status_in_video_metadata_is_respected_without_full_report(self):
+        run = make_run(self.root, "spatial-metadata")
+        info = json.loads((run / "video-info.json").read_text())
+        info["spatialInspection"] = {"path": "spatial-inspection.json", "status": "needs-review"}
+        write(run / "video-info.json", info)
+        self.assertFalse(run_checks(run)["automaticPass"])
+        write(run / "spatial-inspection.json", {})
+        self.assertEqual(run_checks(run)["spatialInspection"], "unknown")
+        self.assertFalse(run_checks(run)["automaticPass"])
+
+    def test_passed_spatial_check_is_exported_without_changing_motion_warning_policy(self):
+        run = make_run(self.root, "spatial-passed", motion="needs-review")
+        write(run / "spatial-inspection.json", {"status": "spatial-checks-passed"})
+        checks = run_checks(run)
+        self.assertTrue(checks["automaticPass"])
+        self.assertEqual(checks["motionInspection"], "needs-review")
+        self.assertEqual(checks["spatialInspection"], "spatial-checks-passed")
+        self.assertEqual(checks["failures"], [])
+        out = write_report(build([run]), self.root / "spatial-scorecard")
+        self.assertIn("Spatial check", (out / "scorecard.md").read_text())
+        self.assertIn("spatial-checks-passed", (out / "scorecard.md").read_text())
+        with (out / "scorecard.csv").open(newline="") as handle:
+            row = next(csv.DictReader(handle))
+        self.assertEqual(row["spatial_check"], "spatial-checks-passed")
+
     def test_review_is_optional_and_minimum_length_is_configurable(self):
         checks = run_checks(make_run(self.root, "unreviewed", review=None, seconds=300), min_seconds=240)
         self.assertEqual(checks["stages"]["review"], "not requested")

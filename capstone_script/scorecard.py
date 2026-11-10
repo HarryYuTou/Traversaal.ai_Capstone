@@ -93,6 +93,13 @@ def run_checks(run_dir: Path, min_seconds: float = MIN_SECONDS) -> dict:
 
     # The animation report is written before rendering, so read it even when the render did not finish.
     motion = (info or {}).get("motionInspection") or _read(run_dir / "motion-inspection.json")
+    # A newer failed preflight must not be hidden by metadata from an older render.
+    spatial_report = _read(run_dir / "spatial-inspection.json")
+    spatial = spatial_report if spatial_report is not None else (info or {}).get("spatialInspection")
+    spatial_status = spatial.get("status", "unknown") if spatial is not None else None
+    spatial_ok = spatial is None or spatial_status == "spatial-checks-passed"
+    if not spatial_ok:
+        failures.append(f"spatial: {spatial_status}; contact or camera checks did not pass")
     review_cost = (review or {}).get("estimatedCostUsd", 0.0)
     if extension:
         if "initialReviewCostUsd" in extension:
@@ -111,13 +118,15 @@ def run_checks(run_dir: Path, min_seconds: float = MIN_SECONDS) -> dict:
         "title": plan.get("title"), "targetSeconds": spec.get("targetDurationSec"),
         "live": live, "stages": stages, "seconds": seconds, "lengthOk": length_ok,
         "motionInspection": motion["status"] if motion else None,
+        "spatialInspection": spatial_status,
         "costUsd": round((llm or {}).get("estimatedCostUsd", 0.0) + review_cost, 4),
         "reviewScores": review["scores"] if review and review.get("status") == "completed" else None,
         "failures": failures,
     }
     checks["automaticPass"] = (stages["plan"] in ("passed", "reproduction")
                                and stages["review"] in ("passed", "not requested")
-                               and stages["narration"] == "passed" and stages["render"] == "passed" and length_ok)
+                               and stages["narration"] == "passed" and stages["render"] == "passed"
+                               and length_ok and spatial_ok)
     return checks
 
 
@@ -251,9 +260,9 @@ def markdown(results: dict) -> str:
         f"- **Reproductions listed but not counted:** {summary['reproductions']}",
         f"- **Mean length:** {_clock(summary['meanSeconds'])} (minimum {_clock(summary['minSeconds'])})",
         f"- **API cost recorded in the runs:** ${summary['costUsd']:.2f}", "",
-        "| # | Run | Topic | Length | Plan | Review | Narration | Render | Motion check | "
+        "| # | Run | Topic | Length | Plan | Review | Narration | Render | Motion check | Spatial check | "
         "Human: accuracy, clarity, visuals, audio, sync | Quality | Reviewer (script) | Cost | Verdict |",
-        "| ---: | --- | --- | ---: | --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | --- |",
+        "| ---: | --- | --- | ---: | --- | --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | --- |",
     ]
     for number, run in enumerate(results["runs"], start=1):
         stages = run["stages"]
@@ -262,6 +271,7 @@ def markdown(results: dict) -> str:
         lines.append(
             f"| {number} | `{run['run']}` | {run['topic']} | {_clock(run['seconds'])} | {stages['plan']} | "
             f"{stages['review']} | {stages['narration']} | {stages['render']} | {run['motionInspection'] or '—'} | "
+            f"{run['spatialInspection'] or '—'} | "
             f"{human} | {_number(run['quality']['score'])} | {reviewer} | ${run['costUsd']:.2f} | "
             f"**{run['verdict']}** |")
     problems = [(run["run"], reason) for run in results["runs"] for reason in run["failures"]]
@@ -280,7 +290,8 @@ def csv_rows(results: dict) -> list[dict]:
     for run in results["runs"]:
         row = {"run": run["run"], "topic": run["topic"], "live": run["live"],
                "seconds": run["seconds"], **{f"stage_{name}": value for name, value in run["stages"].items()},
-               "motion_check": run["motionInspection"], "automatic_pass": run["automaticPass"],
+               "motion_check": run["motionInspection"], "spatial_check": run["spatialInspection"],
+               "automatic_pass": run["automaticPass"],
                **{f"human_{name}": run["quality"]["criteria"][name] for name in HUMAN_CRITERIA},
                "quality_score": run["quality"]["score"], "raters": len(run["quality"]["raters"]),
                **{f"review_{name}": (run["reviewScores"] or {}).get(name) for name in REVIEW_CRITERIA},

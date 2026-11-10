@@ -3,16 +3,113 @@
 from pathlib import Path
 import json
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from capstone_script.render import RenderError, inspect_motion, render_command, render_video, share_command, still_command
+from capstone_script.render import RenderError, inspect_motion, inspect_spatial, render_command, render_video, share_command, still_command
 
 TIMELINE = Path("runs") / "demo" / "video" / "timeline.json"
 OUTPUT = Path("runs") / "demo" / "video.mp4"
 
 
 class RenderCommandTests(unittest.TestCase):
+    def test_render_video_checks_actual_props_and_stops_before_media_on_spatial_failure(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            run_dir = Path(temporary)
+            (run_dir / "video").mkdir()
+            timeline = {"durationSeconds": 1, "durationInFrames": 30, "width": 1920, "height": 1080,
+                        "fps": 30, "scenes": [{"template": "motion", "visual": {"entities": [{"kind": "custom"}]}}]}
+            (run_dir / "video" / "timeline.json").write_text(json.dumps(timeline))
+            inspected = []
+
+            def failed_inspection(command, **kwargs):
+                self.assertEqual(Path(command[1]).name, "inspect-spatial.mjs")
+                self.assertEqual(command[-1], "--custom-contact-only")
+                inspected.append(json.loads(Path(command[-3]).read_text()))
+                Path(command[-2]).write_text(json.dumps({"status": "needs-review"}))
+                return SimpleNamespace(returncode=1, stderr="Contact gap exceeds tolerance")
+
+            with patch("capstone_script.render.inspect_motion", return_value=None), \
+                    patch("capstone_script.render._node", return_value="node"), \
+                    patch("capstone_script.render.subprocess.run", side_effect=failed_inspection) as run, \
+                    patch("capstone_script.render.render_command") as media_command, \
+                    patch("capstone_script.render.probe_seconds") as probe, \
+                    self.assertRaisesRegex(RenderError, "Contact gap exceeds tolerance"):
+                render_video(run_dir, look="sketch", theme="night", music=False)
+            self.assertEqual(len(inspected), 1)
+            self.assertEqual((inspected[0]["look"], inspected[0]["theme"], inspected[0]["music"]),
+                             ("sketch", "night", None))
+            self.assertEqual(run.call_count, 1)
+            media_command.assert_not_called()
+            probe.assert_not_called()
+            self.assertFalse((run_dir / "video.mp4").exists())
+            self.assertFalse((run_dir / "video-info.json").exists())
+
+    def test_render_video_records_passed_spatial_gate_with_the_selected_look(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            run_dir = Path(temporary)
+            (run_dir / "video").mkdir()
+            timeline = {"durationSeconds": 1, "durationInFrames": 30, "width": 1920, "height": 1080,
+                        "fps": 30, "scenes": [{"template": "motion", "visual": {"entities": [{"kind": "custom"}]}}]}
+            (run_dir / "video" / "timeline.json").write_text(json.dumps(timeline))
+            calls = []
+
+            def inspected_then_rendered(command, **kwargs):
+                calls.append(command)
+                if command[0] == "test-media":
+                    self.assertEqual(len(calls), 2)
+                    (run_dir / "video-draft.mp4").write_bytes(b"synthetic media")
+                else:
+                    self.assertEqual(Path(command[1]).name, "inspect-spatial.mjs")
+                    self.assertEqual(command[-1], "--custom-contact-only")
+                    self.assertEqual(json.loads(Path(command[-3]).read_text())["look"], "sketch")
+                    Path(command[-2]).write_text(json.dumps({"status": "spatial-checks-passed"}))
+                return SimpleNamespace(returncode=0, stderr="")
+
+            with patch("capstone_script.render.inspect_motion", return_value=None), \
+                    patch("capstone_script.render._node", return_value="node"), \
+                    patch("capstone_script.render.subprocess.run", side_effect=inspected_then_rendered), \
+                    patch("capstone_script.render.render_command", return_value=["test-media"]) as media_command, \
+                    patch("capstone_script.render.probe_seconds", return_value=1):
+                info = render_video(run_dir, draft=True, look="sketch", music=False)
+            self.assertEqual(info["spatialInspection"],
+                             {"path": "spatial-inspection.json", "status": "spatial-checks-passed"})
+            self.assertEqual(info["look"], "sketch")
+            self.assertEqual(media_command.call_args.args[0], run_dir.resolve() / "video" / "props.json")
+            self.assertEqual(json.loads((run_dir / "video-draft-info.json").read_text()), info)
+
+    def test_spatial_inspection_uses_render_props_and_leaves_legacy_scenes_alone(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            run_dir = Path(temporary)
+            props = run_dir / "video" / "props.json"
+            report = run_dir / "spatial-inspection.json"
+            report.write_text(json.dumps({"status": "spatial-checks-passed"}))
+            with patch("capstone_script.render._node", return_value="node"), \
+                    patch("capstone_script.render.subprocess.run") as run:
+                run.return_value.returncode = 0
+                self.assertIsNone(inspect_spatial(props, {"scenes": [{"template": "motion", "visual": {"entities": [{"kind": "person"}]}}]}))
+                run.assert_not_called()
+                result = inspect_spatial(props, {"scenes": [{"template": "motion", "visual": {"entities": [{"kind": "custom"}]}}]})
+                self.assertEqual(result, {"path": report.name, "status": "spatial-checks-passed"})
+                self.assertEqual(run.call_args.args[0][-3:], [str(props), str(report), "--custom-contact-only"])
+
+    def test_failed_spatial_checks_stop_rendering_instead_of_becoming_a_success_warning(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            run_dir = Path(temporary)
+            report = run_dir / "spatial-inspection.json"
+            report.write_text(json.dumps({"status": "needs-review"}))
+            timeline = {"scenes": [{"template": "motion", "visual": {"contacts": [{}]}}]}
+            with patch("capstone_script.render._node", return_value="node"), \
+                    patch("capstone_script.render.subprocess.run") as run:
+                run.return_value.returncode = 0
+                with self.assertRaisesRegex(RenderError, "Contact or camera checks"):
+                    inspect_spatial(run_dir / "video" / "props.json", timeline)
+                run.return_value.returncode = 1
+                run.return_value.stderr = "Bad timeline"
+                with self.assertRaisesRegex(RenderError, "Spatial inspection did not finish"):
+                    inspect_spatial(run_dir / "video" / "props.json", timeline)
+
     def test_motion_inspection_keeps_warnings_reviewable_and_skips_slides(self):
         with tempfile.TemporaryDirectory() as temporary:
             run_dir = Path(temporary)

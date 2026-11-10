@@ -77,6 +77,17 @@ deliberately dock objects together. A passed report does not verify factual
 accuracy, labels or teaching quality; inspect rendered frames too. The report
 path and status are included in `video-info.json`.
 
+Motion scenes with custom rigs or explicit contacts also run a required spatial
+preflight using `video/props.json`, so the check uses the selected illustration
+look. It writes `spatial-inspection.json` and stops before MP4 rendering unless
+the status is `spatial-checks-passed`. Successful video metadata records its path
+and status as `spatialInspection`. Enforcement covers custom/contact scenes and
+their related camera groups. Unrelated legacy groups remain advisory, including
+intentional off-frame process travel; reports list those advisory findings. This checks anchor alignment, release position
+continuity, actor framing, and shared cameras; it does not establish physical
+realism, velocity continuity, or visual quality. See the [custom rig guide](custom-rigs.md)
+for the contact contract and standalone inspection command.
+
 To run the same diagnostics without encoding an MP4:
 
 ```bash
