@@ -4,8 +4,9 @@ import {useTheme, type Theme} from '../theme';
 import type {ProcessTrace, TimelineScene} from '../types';
 import {compileMotion, displayedPaths, entityAtFrame, toStage} from './engine';
 import {Illustration, mixColor, type Palette} from './Illustration';
+import {RigIllustration} from './RigIllustration';
 import {placeActorLabels, planLabelSlots, sceneFrames} from './labels';
-import {fitMotionViewport, motionStageRect} from './camera';
+import {fitAuthoredMotionViewport, motionStageRect} from './camera';
 import {illustrationPoseAtFrame} from './pose';
 import {objectPerformanceAtFrame} from './objectPerformance';
 import {motionEffectsAtFrame} from './motionEffects';
@@ -68,7 +69,7 @@ export const MotionScene: React.FC<Props> = ({scene, label, presentation}) => {
   const frame = scene.from + useCurrentFrame();
   const program = useMemo(() => compileMotion(scene.visual), [scene.visual]);
   // One camera for the whole scene (and for every related process shot): nothing re-frames mid-scene.
-  const viewport = useMemo(() => presentation?.viewport ?? fitMotionViewport(program, {look}), [program, presentation, look]);
+  const viewport = useMemo(() => presentation?.viewport ?? fitAuthoredMotionViewport(program, {look}), [program, presentation, look]);
   // Each label keeps one side for the whole scene (process shots: for the whole run of related shots).
   const slots = useMemo(() => presentation?.labelSlots
     ?? planLabelSlots([{program, frames: sceneFrames(scene.from, scene.durationInFrames)}], undefined,
@@ -108,22 +109,22 @@ export const MotionScene: React.FC<Props> = ({scene, label, presentation}) => {
           {actors.map(({prepared, state}) => {
             const point = toStage(state);
             return <ContactShadow key={`${prepared.entity.id}-shadow`} kind={prepared.entity.kind} x={point.x} y={point.y}
-              size={state.size} opacity={state.opacity} prefix={prefix} />;
+              size={state.size} opacity={state.opacity} prefix={prefix} rigExtents={prepared.rigExtents} />;
           })}
         </> : null}
         <DirectionLayer effects={motionEffectsAtFrame(program, frame, fps, Boolean(scene.processTrace))} palette={palette} />
         {/* A staged scene draws back to front by where things touch the floor, so nearer things overlap farther ones. */}
         {[...actors.map(({prepared, state}) => ({key: prepared.entity.id,
-          depth: staged ? toStage(state).y + groundOffset(prepared.entity.kind, state.size) : 0,
+          depth: staged ? toStage(state).y + groundOffset(prepared.entity.kind, state.size, prepared.rigExtents) : 0,
           node: (() => {
             const {entity} = prepared;
             const point = toStage(state);
             return <g key={entity.id} opacity={state.opacity} transform={`translate(${point.x} ${point.y})`}>
               <g transform={`rotate(${state.rotation % 360}) scale(${state.size})`}>
-                <Illustration entity={entity} state={state} palette={palette} prefix={prefix} look={look}
+                {prepared.rig ? <RigIllustration rig={prepared.rig} frame={frame} palette={palette} /> : <Illustration entity={entity} state={state} palette={palette} prefix={prefix} look={look}
                   pose={illustrationPoseAtFrame(prepared, frame, fps)}
                   objectPose={objectPerformanceAtFrame(prepared, frame, fps)}
-                  station={scene.processTrace ? stationStateAtFrame(scene.processTrace, entity.id, frame) : null} />
+                  station={scene.processTrace ? stationStateAtFrame(scene.processTrace, entity.id, frame) : null} />}
               </g>
             </g>;
           })()})),

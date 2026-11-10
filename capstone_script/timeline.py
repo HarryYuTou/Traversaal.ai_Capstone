@@ -31,6 +31,56 @@ class TimelineError(ValueError):
     pass
 
 
+def compile_motion_contacts(visual: dict, lines: list[dict], scene_start: int, scene_end: int) -> dict:
+    """Resolve contacts after actions, preserving authored anchors and continuous release intent.
+
+    A scene-initial zero-approach lock includes the scene's silent lead so supported
+    objects never float before narration. Other contacts acquire over at least two
+    measured frames. Actual release offsets are computed by the renderer, which
+    retains them during subsequent free movement rather than resetting positions.
+    """
+    if visual.get("contacts") is None:
+        return visual
+    contacts, intervals = [], {}
+    for index, contact in enumerate(visual["contacts"]):
+        try:
+            first, last = lines[contact["startLine"]], lines[contact["endLine"]]
+            start = first["from"] + round(contact["startOffset"] * first["durationInFrames"])
+            end = last["from"] + round(contact["endOffset"] * last["durationInFrames"])
+            approach = contact["approach"]
+            initial = contact["startLine"] == 0 and contact["startOffset"] == 0
+            if approach == 0 and initial:
+                start = scene_start
+        except (IndexError, KeyError, TypeError, ValueError, OverflowError) as exc:
+            raise TimelineError(f"Motion contact {index} has an unusable narration anchor: {exc}") from None
+        if not math.isfinite(approach) or not 0 <= approach <= 0.5 or (approach == 0 and not initial):
+            raise TimelineError(f"Motion contact {index} needs an approach within 0–0.5; zero is allowed "
+                                "only for a scene-initial contact.")
+        if not scene_start <= start < end <= scene_end:
+            raise TimelineError(f"Motion contact {index} must span at least one frame inside its scene "
+                                f"({scene_start}–{scene_end}); got {start}–{end}.")
+        approach_frames = round((end - start) * approach)
+        if approach > 0 and approach_frames < 2:
+            raise TimelineError(f"Motion contact {index} needs at least two acquisition frames; "
+                                "increase approach or extend the contact interval.")
+        if approach_frames >= end - start:
+            raise TimelineError(f"Motion contact {index} must leave at least one frame locked after acquisition.")
+        for previous_start, previous_end, previous_index in intervals.get(contact["entityId"], []):
+            if start < previous_end and previous_start < end:
+                raise TimelineError(f"Motion contact {index} overlaps contact {previous_index} on source "
+                                    f"entity {contact['entityId']!r} after frame compilation.")
+        intervals.setdefault(contact["entityId"], []).append((start, end, index))
+        for action_index, action in enumerate(visual["actions"]):
+            if action["entityId"] != contact["entityId"] or action["kind"] not in ("move", "follow-path", "orbit"):
+                continue
+            if start < action["from"] + action["durationInFrames"] and action["from"] < end:
+                raise TimelineError(f"Motion contact {index} overlaps source travel action {action_index} "
+                                    "after frame compilation; schedule source travel after release.")
+        contacts.append({**contact, "from": start, "durationInFrames": end - start,
+                         "approachFrames": approach_frames})
+    return {**visual, "contacts": contacts}
+
+
 def compile_motion_actions(visual: dict, lines: list[dict], scene_start: int, scene_end: int) -> dict:
     """Resolve narration-relative action anchors onto the measured audio timeline.
 
@@ -76,7 +126,35 @@ def compile_motion_actions(visual: dict, lines: list[dict], scene_start: int, sc
             cue_intervals.setdefault(cue["entityId"], []).append((start, end, index))
             cues.append({**cue, "from": start, "durationInFrames": end - start})
         result["cues"] = cues
-    return result
+    if visual.get("performances") is not None:
+        performances, performance_intervals = [], {}
+        entities = {entity["id"]: entity for entity in visual["entities"]}
+        rigs = {rig["id"]: rig for rig in visual.get("rigs") or []}
+        for index, performance in enumerate(visual["performances"]):
+            try:
+                first, last = lines[performance["startLine"]], lines[performance["endLine"]]
+                start = first["from"] + round(performance["startOffset"] * first["durationInFrames"])
+                end = last["from"] + round(performance["endOffset"] * last["durationInFrames"])
+                rig = rigs[entities[performance["entityId"]]["rigId"]]
+                clip = next(clip for clip in rig["clips"] if clip["id"] == performance["clipId"])
+            except (IndexError, KeyError, TypeError, ValueError, OverflowError, StopIteration) as exc:
+                raise TimelineError(f"Rig performance {index} has an unusable anchor or reference: {exc}") from None
+            if not scene_start <= start < end <= scene_end:
+                raise TimelineError(f"Rig performance {index} must span at least one frame inside its scene "
+                                    f"({scene_start}–{scene_end}); got {start}–{end}.")
+            if performance["repeat"] > 1 and end - start < performance["repeat"] * 4:
+                raise TimelineError(f"Rig performance {index} needs at least four frames per repeated cycle; "
+                                    "reduce repeat or extend the interval.")
+            for track in clip["tracks"]:
+                channel = (performance["entityId"], track["partId"], track["property"])
+                for other_start, other_end, other_index in performance_intervals.get(channel, []):
+                    if start < other_end and other_start < end:
+                        raise TimelineError(f"Rig performance {index} overlaps performance {other_index} on "
+                                            f"part/property {channel[1:]!r} after frame compilation.")
+                performance_intervals.setdefault(channel, []).append((start, end, index))
+            performances.append({**performance, "from": start, "durationInFrames": end - start})
+        result["performances"] = performances
+    return compile_motion_contacts(result, lines, scene_start, scene_end)
 
 
 def build_timeline(plan, manifest: dict) -> dict:

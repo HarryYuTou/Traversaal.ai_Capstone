@@ -12,6 +12,41 @@ const scene = (id, from, durationInFrames, visual = {}, extra = {}) => ({id, fro
   lines: [{id: `${id}-line`, text: 'Narration', from: from + 6, durationInFrames: durationInFrames - 12}], ...extra});
 const inspect = (...scenes) => inspectTimeline({projectId: 'test', fps: 30, scenes});
 
+test('malformed or unbounded frame ranges are rejected before diagnostic iteration', () => {
+  for (const [from, duration] of [[-1, 60], [1e20, 1], [0, 1e9], [0, Infinity], [0, 0], [0.5, 60]]) {
+    assert.throws(() => inspect(scene('unsafe', from, duration)), /safe whole-frame intervals/);
+  }
+});
+
+const customVisual = (opacity = 1, displacement = 35) => ({
+  entities: [entity('new-object', {kind: 'custom', rigId: 'novel'})],
+  rigs: [{id: 'novel', parts: [{id: 'joint', parentId: '', x: 0, y: 0, rotation: 0,
+    scaleX: 1, scaleY: 1, opacity,
+    shapes: [{kind: 'ellipse', x: 0, y: 0, width: 50, height: 30, radius: 0, path: '',
+      fill: 'accent', stroke: 'ink', strokeWidth: 2}]}],
+    clips: [{id: 'reach', tracks: [{partId: 'joint', property: 'x', keyframes: [
+      {at: 0, value: 0, easing: 'linear'}, {at: 1, value: displacement, easing: 'linear'},
+    ]}]}]}],
+  performances: [{entityId: 'new-object', clipId: 'reach', from: 300, durationInFrames: 180,
+    startLine: 0, endLine: 0, startOffset: 0, endOffset: 1, repeat: 1}],
+});
+
+test('articulated custom geometry counts as visible motion without moving the entity', () => {
+  const report = inspect(scene('custom', 300, 180, customVisual()));
+  assert.deepEqual(report.scenes[0].staticHolds, []);
+  assert.deepEqual(report.scenes[0].eventCoverage[0].performances,
+    [{entityId: 'new-object', clipId: 'reach'}]);
+  assert.equal(report.status, 'geometry-and-timing-checks-passed');
+});
+
+test('hidden or unchanged custom parts cannot conceal a static hold', () => {
+  for (const visual of [customVisual(0), customVisual(1, 0)]) {
+    const report = inspect(scene('static-custom', 300, 180, visual));
+    assert.equal(report.scenes[0].staticHolds[0].durationInFrames, 180);
+    assert.deepEqual(report.scenes[0].eventCoverage, []);
+  }
+});
+
 test('importing diagnostics does not execute its CLI', () => {
   assert.notEqual(process.exitCode, 1);
 });

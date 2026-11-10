@@ -188,12 +188,14 @@ class MotionPlannerTests(unittest.TestCase):
         self.assertEqual(problems, [])
         self.assertEqual(json.loads(dump_plan(validate_plan(back))), data)
         schema = output_schema()
-        # Ten visual parts, motion cues and two nullable process station options.
-        self.assertEqual(complexity(schema), (13, 2))
-        self.assertEqual(complexity(output_schema(["motion"])), (1, 0))
+        # Ten visual parts, four optional motion arrays, nullable rig reference,
+        # and the two nullable process station options fit the API grammar budget.
+        self.assertEqual(complexity(schema), (17, 3))
+        self.assertEqual(complexity(output_schema(["motion"])), (5, 1))
         for name in ("_OutputMotion", "MotionEntity", "MotionPoint", "MotionPath", "MotionAction", "MotionCue"):
             definition = schema["$defs"][name]
-            optional = {"cues"} if name == "_OutputMotion" else set()
+            optional = {"cues", "rigs", "performances", "contacts"} if name == "_OutputMotion" \
+                else {"rigId"} if name == "MotionEntity" else set()
             self.assertEqual(set(definition["properties"]) - optional, set(definition["required"]))
         self.assertNotIn("anyOf", schema["$defs"]["_OutputVisual"]["properties"]["motion"])
 

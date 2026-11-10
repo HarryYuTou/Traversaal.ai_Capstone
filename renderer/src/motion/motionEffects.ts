@@ -48,7 +48,7 @@ const traceFor = (prepared: PreparedEntity, frame: number, fps: number): MotionT
   const start = Math.max(action.from, at - history);
   const points = Array.from({length: 49}, (_, i) =>
     toStage(entityAtFrame(prepared, start + (at - start) * i / 48)));
-  const extent = entityHalfExtents(prepared.entity.kind, state.size, state.rotation);
+  const extent = entityHalfExtents(prepared.entity.kind, state.size, state.rotation, 'vector', prepared.rigExtents);
   const tip = points.at(-1)!;
   const near = points.at(-2)!;
   const tangent = distance(tip, near);

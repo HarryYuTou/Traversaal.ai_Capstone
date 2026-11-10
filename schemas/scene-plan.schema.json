@@ -314,6 +314,41 @@
       "title": "ConceptVisual",
       "type": "object"
     },
+    "CustomRig": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "parts": {
+          "items": {
+            "$ref": "#/$defs/RigPart"
+          },
+          "maxItems": 32,
+          "minItems": 1,
+          "title": "Parts",
+          "type": "array"
+        },
+        "clips": {
+          "items": {
+            "$ref": "#/$defs/RigClip"
+          },
+          "maxItems": 12,
+          "title": "Clips",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "parts",
+        "clips"
+      ],
+      "title": "CustomRig",
+      "type": "object"
+    },
     "DefinitionLine": {
       "additionalProperties": false,
       "properties": {
@@ -891,6 +926,104 @@
       "title": "MotionAction",
       "type": "object"
     },
+    "MotionContact": {
+      "additionalProperties": false,
+      "properties": {
+        "entityId": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Entityid",
+          "type": "string"
+        },
+        "partId": {
+          "maxLength": 48,
+          "pattern": "^(?:[a-z0-9]+(?:-[a-z0-9]+)*)?$",
+          "title": "Partid",
+          "type": "string"
+        },
+        "x": {
+          "maximum": 256,
+          "minimum": -256,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "maximum": 256,
+          "minimum": -256,
+          "title": "Y",
+          "type": "number"
+        },
+        "targetId": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Targetid",
+          "type": "string"
+        },
+        "targetPartId": {
+          "maxLength": 48,
+          "pattern": "^(?:[a-z0-9]+(?:-[a-z0-9]+)*)?$",
+          "title": "Targetpartid",
+          "type": "string"
+        },
+        "targetX": {
+          "maximum": 256,
+          "minimum": -256,
+          "title": "Targetx",
+          "type": "number"
+        },
+        "targetY": {
+          "maximum": 256,
+          "minimum": -256,
+          "title": "Targety",
+          "type": "number"
+        },
+        "startLine": {
+          "minimum": 0,
+          "title": "Startline",
+          "type": "integer"
+        },
+        "endLine": {
+          "minimum": 0,
+          "title": "Endline",
+          "type": "integer"
+        },
+        "startOffset": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Startoffset",
+          "type": "number"
+        },
+        "endOffset": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Endoffset",
+          "type": "number"
+        },
+        "approach": {
+          "maximum": 0.5,
+          "minimum": 0,
+          "title": "Approach",
+          "type": "number"
+        }
+      },
+      "required": [
+        "entityId",
+        "partId",
+        "x",
+        "y",
+        "targetId",
+        "targetPartId",
+        "targetX",
+        "targetY",
+        "startLine",
+        "endLine",
+        "startOffset",
+        "endOffset",
+        "approach"
+      ],
+      "title": "MotionContact",
+      "type": "object"
+    },
     "MotionCue": {
       "additionalProperties": false,
       "description": "A stated physical operation synchronized to narration, independent of travel.",
@@ -977,7 +1110,8 @@
             "marker",
             "gauge",
             "counter",
-            "workbench"
+            "workbench",
+            "custom"
           ],
           "title": "Kind",
           "type": "string"
@@ -1030,6 +1164,20 @@
           "maxLength": 32,
           "title": "Label",
           "type": "string"
+        },
+        "rigId": {
+          "anyOf": [
+            {
+              "maxLength": 48,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rigid"
         }
       },
       "required": [
@@ -1233,6 +1381,54 @@
           ],
           "default": null,
           "title": "Cues"
+        },
+        "rigs": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/CustomRig"
+              },
+              "maxItems": 6,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rigs"
+        },
+        "performances": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/RigPerformance"
+              },
+              "maxItems": 48,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Performances"
+        },
+        "contacts": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/MotionContact"
+              },
+              "maxItems": 24,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Contacts"
         }
       },
       "required": [
@@ -1689,6 +1885,316 @@
         "author"
       ],
       "title": "QuoteVisual",
+      "type": "object"
+    },
+    "RigClip": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "tracks": {
+          "items": {
+            "$ref": "#/$defs/RigTrack"
+          },
+          "maxItems": 32,
+          "minItems": 1,
+          "title": "Tracks",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "tracks"
+      ],
+      "title": "RigClip",
+      "type": "object"
+    },
+    "RigKeyframe": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "At",
+          "type": "number"
+        },
+        "value": {
+          "maximum": 720,
+          "minimum": -720,
+          "title": "Value",
+          "type": "number"
+        },
+        "easing": {
+          "enum": [
+            "linear",
+            "ease-in-out",
+            "ease-out",
+            "smooth"
+          ],
+          "title": "Easing",
+          "type": "string"
+        }
+      },
+      "required": [
+        "at",
+        "value",
+        "easing"
+      ],
+      "title": "RigKeyframe",
+      "type": "object"
+    },
+    "RigPart": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "parentId": {
+          "maxLength": 48,
+          "pattern": "^(?:[a-z0-9]+(?:-[a-z0-9]+)*)?$",
+          "title": "Parentid",
+          "type": "string"
+        },
+        "x": {
+          "maximum": 256,
+          "minimum": -256,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "maximum": 256,
+          "minimum": -256,
+          "title": "Y",
+          "type": "number"
+        },
+        "rotation": {
+          "maximum": 3600,
+          "minimum": -3600,
+          "title": "Rotation",
+          "type": "number"
+        },
+        "scaleX": {
+          "maximum": 4,
+          "minimum": 0.1,
+          "title": "Scalex",
+          "type": "number"
+        },
+        "scaleY": {
+          "maximum": 4,
+          "minimum": 0.1,
+          "title": "Scaley",
+          "type": "number"
+        },
+        "opacity": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Opacity",
+          "type": "number"
+        },
+        "shapes": {
+          "items": {
+            "$ref": "#/$defs/RigShape"
+          },
+          "maxItems": 8,
+          "title": "Shapes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "parentId",
+        "x",
+        "y",
+        "rotation",
+        "scaleX",
+        "scaleY",
+        "opacity",
+        "shapes"
+      ],
+      "title": "RigPart",
+      "type": "object"
+    },
+    "RigPerformance": {
+      "additionalProperties": false,
+      "properties": {
+        "entityId": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Entityid",
+          "type": "string"
+        },
+        "clipId": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Clipid",
+          "type": "string"
+        },
+        "startLine": {
+          "minimum": 0,
+          "title": "Startline",
+          "type": "integer"
+        },
+        "endLine": {
+          "minimum": 0,
+          "title": "Endline",
+          "type": "integer"
+        },
+        "startOffset": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Startoffset",
+          "type": "number"
+        },
+        "endOffset": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Endoffset",
+          "type": "number"
+        },
+        "repeat": {
+          "maximum": 12,
+          "minimum": 1,
+          "title": "Repeat",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "entityId",
+        "clipId",
+        "startLine",
+        "endLine",
+        "startOffset",
+        "endOffset",
+        "repeat"
+      ],
+      "title": "RigPerformance",
+      "type": "object"
+    },
+    "RigShape": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "ellipse",
+            "rect",
+            "path"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "x": {
+          "maximum": 256,
+          "minimum": -256,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "maximum": 256,
+          "minimum": -256,
+          "title": "Y",
+          "type": "number"
+        },
+        "width": {
+          "maximum": 512,
+          "minimum": 0,
+          "title": "Width",
+          "type": "number"
+        },
+        "height": {
+          "maximum": 512,
+          "minimum": 0,
+          "title": "Height",
+          "type": "number"
+        },
+        "radius": {
+          "maximum": 256,
+          "minimum": 0,
+          "title": "Radius",
+          "type": "number"
+        },
+        "path": {
+          "maxLength": 2048,
+          "title": "Path",
+          "type": "string"
+        },
+        "fill": {
+          "maxLength": 9,
+          "pattern": "^(?:ink|accent|secondary|muted|paper|soft|line|none|#[0-9a-fA-F]{6})$",
+          "title": "Fill",
+          "type": "string"
+        },
+        "stroke": {
+          "maxLength": 9,
+          "pattern": "^(?:ink|accent|secondary|muted|paper|soft|line|none|#[0-9a-fA-F]{6})$",
+          "title": "Stroke",
+          "type": "string"
+        },
+        "strokeWidth": {
+          "maximum": 12,
+          "minimum": 0,
+          "title": "Strokewidth",
+          "type": "number"
+        }
+      },
+      "required": [
+        "kind",
+        "x",
+        "y",
+        "width",
+        "height",
+        "radius",
+        "path",
+        "fill",
+        "stroke",
+        "strokeWidth"
+      ],
+      "title": "RigShape",
+      "type": "object"
+    },
+    "RigTrack": {
+      "additionalProperties": false,
+      "properties": {
+        "partId": {
+          "maxLength": 48,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Partid",
+          "type": "string"
+        },
+        "property": {
+          "enum": [
+            "x",
+            "y",
+            "rotation",
+            "scaleX",
+            "scaleY",
+            "opacity"
+          ],
+          "title": "Property",
+          "type": "string"
+        },
+        "keyframes": {
+          "items": {
+            "$ref": "#/$defs/RigKeyframe"
+          },
+          "maxItems": 16,
+          "minItems": 2,
+          "title": "Keyframes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "partId",
+        "property",
+        "keyframes"
+      ],
+      "title": "RigTrack",
       "type": "object"
     },
     "Stat": {

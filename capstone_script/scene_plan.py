@@ -19,6 +19,9 @@ import unicodedata
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError
 from pydantic.alias_generators import to_camel
 
+from .rig import CustomRig, RigPerformance, rig_problems
+from .contact import MotionContact, contact_problems
+
 SCHEMA_VERSION = "1"
 TEMPLATES = ("concept", "flow", "comparison", "definition", "timeline", "stat", "quote", "map", "motion", "process")
 MAX_SCENES = 60
@@ -62,7 +65,7 @@ Fraction = Annotated[float, Field(allow_inf_nan=False, ge=0, le=1)]
 MotionSize = Annotated[float, Field(allow_inf_nan=False, ge=0.25, le=3)]
 MotionColor = Literal["ink", "accent", "secondary", "muted"]
 MotionKind = Literal["planet", "moon", "spacecraft", "lander", "lander-base", "lander-ascent", "rocket", "satellite", "person", "packet",
-                     "server", "laptop", "cloud", "coin", "box", "marker", "gauge", "counter", "workbench"]
+                     "server", "laptop", "cloud", "coin", "box", "marker", "gauge", "counter", "workbench", "custom"]
 ActionKind = Literal["move", "follow-path", "orbit", "opacity", "scale", "rotate", "value"]
 MotionEasing = Literal["linear", "ease-in-out", "ease-out"]
 CueKind = Literal["pack", "scan", "send", "receive", "thrust", "compute"]
@@ -246,6 +249,7 @@ class MotionEntity(_Model):
     value: Fraction
     color: MotionColor
     label: Annotated[str, StringConstraints(max_length=32)]
+    rig_id: Id | None = None
 
 
 class MotionPoint(_Model):
@@ -287,6 +291,9 @@ class MotionVisual(_Model):
     paths: list[MotionPath] = Field(max_length=12)
     actions: list[MotionAction] = Field(max_length=48)
     cues: list["MotionCue"] | None = Field(default=None, max_length=48)
+    rigs: list[CustomRig] | None = Field(default=None, max_length=6)
+    performances: list[RigPerformance] | None = Field(default=None, max_length=48)
+    contacts: list[MotionContact] | None = Field(default=None, max_length=24)
 
 
 class MotionCue(_Model):
@@ -494,6 +501,7 @@ def text_problems(text: str) -> list[str]:
 def semantic_problems(plan: ScenePlan) -> list[str]:
     problems = []
     scene_ids, line_ids = set(), set()
+    rig_identities, entity_identities = {}, {}
     for s, scene in enumerate(plan.scenes):
         where = f"scenes[{s}]"
         if scene.id in scene_ids:
@@ -514,6 +522,23 @@ def semantic_problems(plan: ScenePlan) -> list[str]:
             problems += map_problems(scene.visual, where)
         elif scene.template == "motion":
             problems += motion_problems(scene.visual, len(scene.narration), where)
+            # A new base pose may carry the previous shot's ending state, but the
+            # same named character must not redraw its geometry between shots.
+            for index, rig in enumerate(scene.visual.rigs or []):
+                identity = [(part.id, part.parent_id, [shape.model_dump() for shape in part.shapes])
+                            for part in rig.parts]
+                if rig.id in rig_identities and rig_identities[rig.id] != identity:
+                    problems.append(f"{where}.visual.rigs[{index}]: rig {rig.id!r} must preserve its "
+                                    "ordered parts, parent links and shapes across scenes")
+                rig_identities[rig.id] = identity
+            for index, entity in enumerate(scene.visual.entities):
+                identity = (entity.kind, entity.rig_id)
+                previous = entity_identities.get(entity.id)
+                if previous is not None and (entity.kind == "custom" or previous[0] == "custom") \
+                        and identity != previous:
+                    problems.append(f"{where}.visual.entities[{index}]: custom entity {entity.id!r} "
+                                    "must preserve its kind and rigId across scenes")
+                entity_identities[entity.id] = identity
         elif scene.template == "process":
             problems += process_problems(scene.visual, len(scene.narration), where)
         for i, line in enumerate(scene.narration):
@@ -693,7 +718,7 @@ def process_problems(visual: ProcessVisual, line_count: int, where: str) -> list
 
 
 def motion_problems(visual: MotionVisual, line_count: int, where: str) -> list[str]:
-    problems = []
+    problems = rig_problems(visual, line_count, where) + contact_problems(visual, line_count, where)
     for key in ("entities", "paths"):
         ids = [item.id for item in getattr(visual, key)]
         problems += [f"{where}.visual.{key}[{index}].id: duplicate id {item!r}"

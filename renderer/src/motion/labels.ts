@@ -1,10 +1,11 @@
 import {entityAtFrame, toStage, type EntityState, type MotionProgram, type PreparedEntity} from './engine';
 import {BASE_VIEWPORT, type StageViewport} from './camera';
 import {entityHalfExtents, labelMetrics} from './metrics';
+import {rotatedRigExtents, transformedRigBounds} from './rig';
 
 export type Actor = {prepared: PreparedEntity; state: EntityState};
 type Box = {left: number; top: number; right: number; bottom: number};
-type LabelLayout = {fontSize: number; width: number; height: number; halfWidth: number; halfHeight: number};
+type LabelLayout = {fontSize: number; width: number; height: number; halfWidth: number; halfHeight: number; bounds?: Box};
 /** Side and reserved geometry stay fixed throughout every related shot: 0 below, 1 above, 2 right, 3 left. */
 export type LabelSlots = Map<string, number> & {layouts?: Map<string, LabelLayout>; look?: 'vector' | 'sketch'};
 /** Process stations read best labelled beside them: walkers pass above and below, the queue is on the left. */
@@ -22,14 +23,19 @@ export const sceneFrames = (from: number, durationInFrames: number, step = 2) =>
   if (frames.at(-1) !== last) frames.push(last);
   return frames;
 };
-type Body = {point: {x: number; y: number}; radius: number | null; box: Box};
+type Body = {point: {x: number; y: number}; radius: number | null; box: Box; localBounds?: Box};
 const intersects = (a: Box, b: Box) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
 const SLOTS = [0, 1, 2, 3];
 const EDGE = 12;
 
 const bodiesOf = (actors: Actor[], look: 'vector' | 'sketch' = 'vector'): Body[] => actors.map(({prepared, state}) => {
   const point = toStage(state);
-  const {x: rx, y: ry} = entityHalfExtents(prepared.entity.kind, state.size, state.rotation, look);
+  if (prepared.entity.kind === 'custom' && prepared.rig) {
+    const box = transformedRigBounds(prepared.rig.bounds, [state.size, state.size], [state.rotation, state.rotation]);
+    return {point, radius: null, localBounds: box, box: {left: point.x + box.left, right: point.x + box.right,
+      top: point.y + box.top, bottom: point.y + box.bottom}};
+  }
+  const {x: rx, y: ry} = entityHalfExtents(prepared.entity.kind, state.size, state.rotation, look, prepared.rigExtents);
   return {point, radius: ['moon', 'planet'].includes(prepared.entity.kind) ? Math.max(rx, ry) : null,
     box: {left: point.x - rx, right: point.x + rx, top: point.y - ry, bottom: point.y + ry}};
 });
@@ -51,11 +57,13 @@ const candidateFor = (body: Body, metrics: Pick<LabelLayout, 'fontSize' | 'width
   const {fontSize, width} = metrics;
   const halfWidth = layout?.halfWidth ?? (body.box.right - body.box.left) / 2;
   const halfHeight = layout?.halfHeight ?? (body.box.bottom - body.box.top) / 2;
+  const bounds = layout?.bounds ?? (!layout ? body.localBounds : undefined)
+    ?? {left: -halfWidth, right: halfWidth, top: -halfHeight, bottom: halfHeight};
   const position = [
-    {x: point.x, y: point.y + halfHeight + fontSize + 12},
-    {x: point.x, y: point.y - halfHeight - 16},
-    {x: point.x + halfWidth + width / 2 + 16, y: point.y + fontSize / 3},
-    {x: point.x - halfWidth - width / 2 - 16, y: point.y + fontSize / 3},
+    {x: point.x, y: point.y + bounds.bottom + fontSize + 12},
+    {x: point.x, y: point.y + bounds.top - 16},
+    {x: point.x + bounds.right + width / 2 + 16, y: point.y + fontSize / 3},
+    {x: point.x + bounds.left - width / 2 - 16, y: point.y + fontSize / 3},
   ][slot];
   const clamp = (value: number, min: number, max: number) => max < min ? (min + max) / 2 : Math.max(min, Math.min(max, value));
   const x = clamp(position.x, viewport.x + width / 2 + EDGE, viewport.x + viewport.width - width / 2 - EDGE);
@@ -126,18 +134,33 @@ export const planLabelSlots = (shots: Shot[], order: number[] = SLOTS, options: 
     const height = fontSize + 10;
     let halfWidth = 0;
     let halfHeight = 0;
-    for (const {entity, actions} of instances) {
+    let bounds: Box | undefined;
+    for (const {entity, actions, rigExtents, rig} of instances) {
       const size = Math.max(entity.size, ...actions.filter(({action}) => action.kind === 'scale').map(({action}) => action.value));
-      let extents = entityHalfExtents(entity.kind, size, entity.rotation, look);
+      let extents = entityHalfExtents(entity.kind, size, entity.rotation, look, rigExtents);
       if (actions.some(({action}) => action.kind === 'rotate') && !['moon', 'planet'].includes(entity.kind)) {
-        const unrotated = entityHalfExtents(entity.kind, size, 0, look);
-        const radius = Math.hypot(unrotated.x, unrotated.y);
-        extents = {x: radius, y: radius};
+        if (entity.kind === 'custom' && rigExtents) {
+          const rotations = [entity.rotation, ...actions.filter(({action}) => action.kind === 'rotate').map(({action}) => action.value)];
+          const rotated = rotatedRigExtents(rigExtents, [Math.min(...rotations), Math.max(...rotations)]);
+          extents = {x: (rotated.x + 3) * size, y: (rotated.y + 3) * size};
+        } else {
+          const unrotated = entityHalfExtents(entity.kind, size, 0, look, rigExtents);
+          const radius = Math.hypot(unrotated.x, unrotated.y);
+          extents = {x: radius, y: radius};
+        }
       }
       halfWidth = Math.max(halfWidth, extents.x);
       halfHeight = Math.max(halfHeight, extents.y);
+      if (entity.kind === 'custom' && rig) {
+        const sizes = [entity.size, ...actions.filter(({action}) => action.kind === 'scale').map(({action}) => action.value)];
+        const rotations = [entity.rotation, ...actions.filter(({action}) => action.kind === 'rotate').map(({action}) => action.value)];
+        const box = transformedRigBounds(rig.bounds, [Math.min(...sizes), size], [Math.min(...rotations), Math.max(...rotations)]);
+        bounds = bounds ? {left: Math.min(bounds.left, box.left), right: Math.max(bounds.right, box.right),
+          top: Math.min(bounds.top, box.top), bottom: Math.max(bounds.bottom, box.bottom)} : box;
+      }
     }
-    const layout = {fontSize, width, height, halfWidth, halfHeight};
+    const layout = {fontSize, width, height, halfWidth, halfHeight,
+      ...(bounds && instances.every(({entity}) => entity.kind === 'custom') ? {bounds} : {})};
     slots.layouts.set(id, layout);
     const validOrder = [...new Set(order.filter((slot) => SLOTS.includes(slot)))];
     if (!validOrder.length) validOrder.push(...SLOTS);

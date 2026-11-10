@@ -132,7 +132,7 @@ def _promote(candidate: Path, run_dir: Path, backup: Path):
              "narration-preview.wav", "video"]
     # Derived video files must no longer look current after narration changes.
     names += ["video.mp4", "video-info.json", "video-draft.mp4", "video-draft-info.json", "video-720p.mp4",
-              "thumbnail.png", "preview.html", "motion-inspection.json"]
+              "thumbnail.png", "preview.html", "motion-inspection.json", "spatial-inspection.json"]
     backup.mkdir()
     archived, promoted = [], []
     try:

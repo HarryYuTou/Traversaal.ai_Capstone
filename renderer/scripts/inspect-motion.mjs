@@ -25,6 +25,7 @@ const {compileMotion, displayedPaths, entityAtFrame, toStage} = await load('engi
 const {entityHalfExtents} = await load('metrics');
 const {activityAtFrame} = await load('pose');
 const {objectPerformanceAtFrame, OBJECT_CUE_KINDS} = await load('objectPerformance');
+const {rigPictureAtFrame} = await load('rig');
 
 const overlapping = (item, start, end) => item.from < end && item.from + item.durationInFrames > start;
 const clippedRange = (item, start, end) => [Math.max(start, item.from), Math.min(end, item.from + item.durationInFrames)];
@@ -90,15 +91,24 @@ const pictureSignature = (program, actors, frame, showRoutes, fps, look) => JSON
     return [prepared.entity.id, ...[state.x, state.y, state.size, state.rotation % 360, state.opacity].map(visualNumber),
       prepared.entity.kind === 'gauge' ? visualNumber(state.value) : null,
       mark ? [activity.kind, visualNumber(activity.opacity), activity.kind === 'work' ? visualNumber(activity.progress) : null] : null,
-      objectPicture(objectPose, prepared.entity.kind)];
+      objectPicture(objectPose, prepared.entity.kind),
+      prepared.rig ? rigPictureAtFrame(prepared.rig, frame) : null];
   }),
   routes: (showRoutes ? displayedPaths(program, frame) : []).filter(({geometry, from}) => geometry.length > 1e-5 && frame > from)
     .map(({key, from, progress}) => [key,
     visualNumber(Math.max(0, Math.min(1, (frame - from) / 10))), visualNumber(progress)]),
-});
+}, (_key, value) => typeof value === 'number' ? visualNumber(value) : value);
 
 export const inspectTimeline = (timeline) => {
   if (!Number.isFinite(timeline.fps) || timeline.fps <= 0) throw new Error('Timeline fps must be positive.');
+  let checkedFrames = 0;
+  for (const scene of timeline.scenes.filter((item) => item.template === 'motion')) {
+    if (!Number.isSafeInteger(scene.from) || scene.from < 0 || !Number.isSafeInteger(scene.durationInFrames)
+      || scene.durationInFrames <= 0 || !Number.isSafeInteger(scene.from + scene.durationInFrames)
+      || scene.durationInFrames > 100_000 || (checkedFrames += scene.durationInFrames) > 1_000_000) {
+      throw new Error('Motion inspection needs safe whole-frame intervals within its frame budget.');
+    }
+  }
   const scenes = [];
   for (const scene of timeline.scenes.filter((item) => item.template === 'motion')) {
     const program = compileMotion(scene.visual);
@@ -128,6 +138,7 @@ export const inspectTimeline = (timeline) => {
     let stillSince = scene.from;
     let previousPicture;
     const visibleCues = new Map();
+    const visiblePerformances = new Map();
     // Every frame, including the last, rather than only storyboard endpoints.
     for (let frame = scene.from; frame < end; frame++) {
       const actors = program.entities.map((prepared) => ({prepared, state: entityAtFrame(prepared, frame),
@@ -135,6 +146,23 @@ export const inspectTimeline = (timeline) => {
       const picture = pictureSignature(program, actors, frame, !scene.processTrace, timeline.fps, timeline.look ?? 'vector');
       for (const {prepared, state, objectPose} of actors) {
         if (state.opacity <= 0.01) continue;
+        if (prepared.rig) {
+          const signature = (at) => JSON.stringify(rigPictureAtFrame(prepared.rig, at),
+            (_key, value) => typeof value === 'number' ? visualNumber(value) : value);
+          if (signature(frame) !== signature(frame - 1)) {
+            for (const performance of scene.visual.performances ?? []) {
+              if (performance.entityId !== prepared.entity.id || frame < performance.from
+                || frame >= performance.from + performance.durationInFrames) continue;
+              // An overlapping no-op clip must not borrow visible motion from a different part.
+              const without = {...prepared.rig, performances: prepared.rig.performances
+                .filter((entry) => entry.performance !== performance)};
+              if (signature(frame) === JSON.stringify(rigPictureAtFrame(without, frame),
+                (_key, value) => typeof value === 'number' ? visualNumber(value) : value)) continue;
+              if (!visiblePerformances.has(performance)) visiblePerformances.set(performance, []);
+              visiblePerformances.get(performance).push(frame);
+            }
+          }
+        }
         for (const cue of prepared.cues ?? []) {
           if (frame < cue.from || frame >= cue.from + cue.durationInFrames ||
             !OBJECT_CUE_KINDS[cue.kind]?.includes(prepared.entity.kind) ||
@@ -150,7 +178,8 @@ export const inspectTimeline = (timeline) => {
       previousPicture = picture;
       const boxes = actors.map(({prepared, state}) => {
         const at = toStage(state);
-        const half = entityHalfExtents(prepared.entity.kind, state.size, state.rotation, timeline.look ?? 'vector');
+        const half = entityHalfExtents(prepared.entity.kind, state.size, state.rotation,
+          timeline.look ?? 'vector', prepared.rigExtents);
         return {id: prepared.entity.id, kind: prepared.entity.kind, state,
           left: at.x - half.x, right: at.x + half.x, top: at.y - half.y, bottom: at.y + half.y};
       }).filter(({state}) => state.opacity > 0.5);
@@ -170,13 +199,16 @@ export const inspectTimeline = (timeline) => {
       }
     }
     recordHold(stillSince, end);
-    const eventCoverage = scene.processTrace || visibleCues.size ? (scene.lines ?? []).map((line) => ({
+    const eventCoverage = scene.processTrace || visibleCues.size || visiblePerformances.size ? (scene.lines ?? []).map((line) => ({
       narrationId: line.id, text: line.text,
       events: events.filter((event) => overlapping(event, line.from, line.from + line.durationInFrames)).map((event) => event.kind),
       activities: (scene.visual.activities ?? []).filter((activity) => overlapping(activity, line.from, line.from + line.durationInFrames))
         .map(({entityId, kind}) => ({entityId, kind})),
       cues: [...visibleCues].filter(([, frames]) => frames.some((frame) => frame >= line.from && frame < line.from + line.durationInFrames))
         .map(([{entityId, kind}]) => ({entityId, kind})),
+      ...(scene.visual.performances?.length ? {performances: [...visiblePerformances]
+        .filter(([, frames]) => frames.some((frame) => frame >= line.from && frame < line.from + line.durationInFrames))
+        .map(([{entityId, clipId}]) => ({entityId, clipId}))} : {}),
     })) : [];
     const finalEvent = events.filter((event) => event.from < end).at(-1);
     const trace = scene.processTrace;
@@ -190,6 +222,7 @@ export const inspectTimeline = (timeline) => {
       ...(scene.visual.activities ?? []).filter((activity) => overlapping(activity, scene.from, end))
         .map((activity) => { const [start, finish] = clippedRange(activity, scene.from, end); return Math.floor((start + finish - 1) / 2); }),
       ...[...visibleCues.values()].flatMap((frames) => [frames[Math.floor((frames.length - 1) / 2)], frames.at(-1)]),
+      ...[...visiblePerformances.values()].flatMap((frames) => [frames[0], frames[Math.floor((frames.length - 1) / 2)], frames.at(-1)]),
       end - 1];
     scenes.push({id: scene.id, title: scene.visual.title, source: scene.processTrace ? 'process' : 'motion',
       from: scene.from, durationInFrames: scene.durationInFrames,

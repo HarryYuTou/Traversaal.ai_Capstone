@@ -110,6 +110,26 @@ def inspect_motion(timeline_path: Path, timeline: dict, progress=lambda message:
     return {"path": output.name, "status": report["status"]}
 
 
+def inspect_spatial(props_path: Path, timeline: dict, progress=lambda message: None) -> dict | None:
+    """Require solved contacts and safe framing for custom scenes before spending a full render."""
+    if not any(scene["template"] == "motion" and (
+            scene.get("visual", {}).get("contacts") or
+            any(entity.get("kind") == "custom" for entity in scene.get("visual", {}).get("entities", [])))
+            for scene in timeline["scenes"]):
+        return None
+    output = props_path.parent.parent / "spatial-inspection.json"
+    progress("Checking planted contacts, release continuity and camera bounds...")
+    result = subprocess.run([_node(), str(RENDERER / "scripts" / "inspect-spatial.mjs"),
+                             str(props_path), str(output), "--custom-contact-only"],
+                            cwd=RENDERER, capture_output=True, text=True)
+    if result.returncode != 0 or not output.is_file():
+        raise RenderError(f"Spatial inspection did not finish: {result.stderr.strip()}")
+    report = json.loads(output.read_text(encoding="utf-8"))
+    if report.get("status") != "spatial-checks-passed":
+        raise RenderError("Contact or camera checks need attention; inspect spatial-inspection.json before rendering.")
+    return {"path": output.name, "status": report["status"]}
+
+
 def render_video(run_dir: Path, draft: bool = False, share: bool = False, progress=lambda message: None,
                  theme: str = "light", music: bool = True, concurrency: int | None = None,
                  look: str = "vector") -> dict:
@@ -143,6 +163,7 @@ def render_video(run_dir: Path, draft: bool = False, share: bool = False, progre
     require_duration(run_dir, timeline["durationSeconds"], "narrated-timeline")
     motion_inspection = inspect_motion(timeline_path, timeline, progress)
     props_path = render_props(timeline_path, theme, music, progress, look)
+    spatial_inspection = inspect_spatial(props_path, timeline, progress)
     command = render_command(props_path, output, draft, concurrency)
     progress(f"Rendering {timeline['durationInFrames']} frames with Remotion...")
     started = perf_counter()
@@ -164,6 +185,8 @@ def render_video(run_dir: Path, draft: bool = False, share: bool = False, progre
             "subtitles": [f"{VIDEO_DIR}/subtitles.srt", f"{VIDEO_DIR}/subtitles.vtt"]}
     if motion_inspection:
         info["motionInspection"] = motion_inspection
+    if spatial_inspection:
+        info["spatialInspection"] = spatial_inspection
     if not draft:
         progress("Rendering the thumbnail...")
         if subprocess.run(still_command(props_path, run_dir / "thumbnail.png"), cwd=RENDERER).returncode == 0:
