@@ -220,8 +220,9 @@ def main(argv=None):
     scorecard = sub.add_parser("scorecard", help="Success rate and quality score for finished runs (no API calls).")
     scorecard.add_argument("--runs", type=Path, nargs="+", required=True, help="Run directories, such as runs/l1-*")
     scorecard.add_argument("--ratings", type=Path, help="Human ratings CSV (see docs/QUALITY_SCORECARD.md)")
-    scorecard.add_argument("--min-seconds", type=float, default=MIN_SECONDS,
-                           help=f"Shortest video that counts (default {MIN_SECONDS})")
+    scorecard.add_argument("--min-seconds", type=float,
+                           help="Shortest video that counts, for every run. Default: each run's own "
+                                f"minimumDurationSec, or {MIN_SECONDS} for runs that do not record one")
     output = scorecard.add_mutually_exclusive_group(required=True)
     output.add_argument("--out", type=Path, help="New directory for scorecard.md, .csv and .json")
     output.add_argument("--template", type=Path, help="Write an empty ratings CSV for these runs instead")

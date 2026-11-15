@@ -21,12 +21,15 @@ def write(path: Path, data) -> None:
 
 
 def make_run(root: Path, name: str, *, live=True, plan="completed", review="completed", narration="completed",
-             seconds=434.5, expected=None, draft=False, motion=None, render=True) -> Path:
+             seconds=434.5, expected=None, draft=False, motion=None, render=True, minimum=None) -> Path:
     run = root / name
     run.mkdir()
     write(run / "scene-plan.json", {"title": f"Title of {name}", "scenes": []})
     if live:
-        write(run / "project-spec.json", {"topic": f"Topic {name}", "audience": "Adults", "targetDurationSec": 420})
+        spec = {"topic": f"Topic {name}", "audience": "Adults", "targetDurationSec": 420}
+        if minimum is not None:
+            spec["minimumDurationSec"] = minimum
+        write(run / "project-spec.json", spec)
         write(run / "llm-response.json", {"status": plan, "estimatedCostUsd": 1.25, "attempts": [],
                                           **({"error": "Outline failed validation"} if plan != "completed" else {})})
         if plan != "completed":
@@ -157,6 +160,71 @@ class CheckTests(unittest.TestCase):
         self.assertTrue(checks["automaticPass"])
         self.assertIsNone(checks["reviewScores"])
 
+    def test_each_run_is_held_to_the_minimum_it_was_generated_with(self):
+        # A one-minute demo (no minimum), a 120 s test minimum, and an older run without the field.
+        demo = run_checks(make_run(self.root, "demo", seconds=61.0, minimum=0))
+        self.assertTrue(demo["automaticPass"])
+        self.assertEqual((demo["minSeconds"], demo["minimumSource"]), (0, "run"))
+        tested = run_checks(make_run(self.root, "tested", seconds=130.8, minimum=120))
+        self.assertTrue(tested["automaticPass"])
+        self.assertEqual((tested["minSeconds"], tested["minimumSource"]), (120, "run"))
+        short = run_checks(make_run(self.root, "short-of-own", seconds=110.0, minimum=120))
+        self.assertIn("length: 110.0 s is under the 120 s minimum", short["failures"])
+        legacy = run_checks(make_run(self.root, "legacy", seconds=400.0))
+        self.assertEqual((legacy["minSeconds"], legacy["minimumSource"]), (420, "default"))
+        self.assertFalse(legacy["automaticPass"])
+
+    def test_explicit_minimum_overrides_every_run(self):
+        checks = run_checks(make_run(self.root, "demo", seconds=61.0, minimum=0), min_seconds=420)
+        self.assertEqual((checks["minSeconds"], checks["minimumSource"]), (420, "command line"))
+        self.assertIn("length: 61.0 s is under the 420 s minimum", checks["failures"])
+        self.assertFalse(checks["automaticPass"])
+
+    def test_content_extension_rounds_and_lengths_are_reported(self):
+        run = make_run(self.root, "extended", seconds=428.9, minimum=420)
+        write(run / "duration-extension.json", {"status": "passed", "estimatedCostUsd": 0.2, "rounds": [
+            {"round": 1, "promoted": True, "beforeSeconds": 412.4, "afterSeconds": 418.0},
+            {"round": 2, "promoted": False, "beforeSeconds": 418.0},  # A failed attempt is not a round.
+            {"round": 2, "promoted": True, "beforeSeconds": 418.0, "afterSeconds": 428.9},
+        ]})
+        self.assertEqual(run_checks(run)["extension"],
+                         {"status": "passed", "rounds": 2, "beforeSeconds": 412.4, "afterSeconds": 428.9})
+        # Older records have no "promoted" flag; an accepted round is one with afterSeconds.
+        old = make_run(self.root, "old-format")
+        write(old / "duration-extension.json", {"status": "passed", "rounds": [
+            {"directory": "duration-attempt-01", "beforeSeconds": 88.7, "afterSeconds": 130.8}]})
+        self.assertEqual(run_checks(old)["extension"]["rounds"], 1)
+        unneeded = make_run(self.root, "long-enough")
+        write(unneeded / "duration-extension.json", {"status": "passed", "rounds": []})
+        self.assertEqual(run_checks(unneeded)["extension"],
+                         {"status": "passed", "rounds": 0, "beforeSeconds": None, "afterSeconds": None})
+        self.assertIsNone(run_checks(make_run(self.root, "no-record"))["extension"])
+
+    def test_report_shows_each_minimum_and_extension(self):
+        extended = make_run(self.root, "l1-extended", seconds=426.0, minimum=420)
+        write(extended / "duration-extension.json", {"status": "passed", "rounds": [
+            {"promoted": True, "beforeSeconds": 412.4, "afterSeconds": 426.0}]})
+        demo = make_run(self.root, "demo", seconds=61.0, minimum=0)
+        failed = make_run(self.root, "l1-failed", seconds=405.0, minimum=420)
+        write(failed / "duration-extension.json", {"status": "failed", "rounds": []})
+        out = write_report(build([extended, demo, failed]), self.root / "report")
+        text = (out / "scorecard.md").read_text(encoding="utf-8")
+        self.assertIn("(minimum set per run)", text)
+        self.assertIn("**Runs lengthened by a content extension:** 1", text)
+        self.assertIn("| `l1-extended` | Topic l1-extended | 7:06 | 7:00 | 6:52 → 7:06 (1 round) |", text)
+        self.assertIn("| `demo` | Topic demo | 1:01 | none | — |", text)
+        self.assertIn("| `l1-failed` | Topic l1-failed | 6:45 | 7:00 | failed |", text)
+        with (out / "scorecard.csv").open(newline="") as handle:
+            rows = {row["run"]: row for row in csv.DictReader(handle)}
+        self.assertEqual((rows["l1-extended"]["min_seconds"], rows["l1-extended"]["minimum_source"]), ("420", "run"))
+        self.assertEqual((rows["l1-extended"]["extension_rounds"], rows["l1-extended"]["seconds_before_extension"]),
+                         ("1", "412.4"))
+        self.assertEqual(rows["demo"]["extension_rounds"], "")
+        shared = build([extended, failed], min_seconds=420)["summary"]
+        self.assertEqual(shared["minSeconds"], 420)
+        self.assertIn("(minimum 7:00)", markdown(build([extended, failed])))
+        self.assertIn("(no minimum)", markdown(build([demo])))
+
     def test_saved_plan_reproduction_is_marked_and_not_live(self):
         checks = run_checks(make_run(self.root, "replay", live=False))
         self.assertFalse(checks["live"])
@@ -282,6 +350,18 @@ class ScorecardTests(unittest.TestCase):
             self.assertEqual(main(["scorecard", "--runs", str(self.root / "missing"), "--out",
                                    str(self.root / "x")]), 1)
         self.assertIn("is not a run directory", errors.getvalue())
+
+    def test_command_line_minimum_applies_to_every_run(self):
+        demo = make_run(self.root, "06-demo", seconds=61.0, minimum=0)
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(main(["scorecard", "--runs", str(demo), "--out", str(self.root / "own")]), 0)
+            self.assertEqual(main(["scorecard", "--runs", str(demo), "--min-seconds", "420",
+                                   "--out", str(self.root / "level1")]), 0)
+        own = json.loads((self.root / "own" / "scorecard.json").read_text(encoding="utf-8"))
+        level1 = json.loads((self.root / "level1" / "scorecard.json").read_text(encoding="utf-8"))
+        self.assertTrue(own["runs"][0]["automaticPass"])
+        self.assertEqual(level1["runs"][0]["verdict"], "failed")
+        self.assertEqual(level1["summary"]["minSeconds"], 420)
 
 
 if __name__ == "__main__":

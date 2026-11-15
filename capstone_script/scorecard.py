@@ -17,7 +17,7 @@ from .planner import write_json
 
 HUMAN_CRITERIA = ("accuracy", "clarity", "visuals", "audio", "sync")
 RATING_COLUMNS = ("run", "rater", *HUMAN_CRITERIA, "notes")
-MIN_SECONDS = 420          # Level 1 asks for complete seven-minute videos.
+MIN_SECONDS = 420          # Level 1 asks for complete seven-minute videos; used when a run records no minimum.
 QUALITY_BAR = 3.5          # Mean of the five criterion averages.
 CRITERION_FLOOR = 3.0      # No single criterion may average below this.
 LENGTH_TOLERANCE = 0.2     # Probed MP4 length vs. the timeline, as render_video checks it.
@@ -31,8 +31,37 @@ def _read(path: Path):
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
 
 
-def run_checks(run_dir: Path, min_seconds: float = MIN_SECONDS) -> dict:
-    """Stage results, length, cost and reviewer scores for one run directory."""
+def run_minimum(spec: dict, min_seconds: float | None = None) -> tuple[float, str]:
+    """The shortest length this run must reach, and where that number came from.
+
+    An explicit min_seconds holds every run to the same length. Otherwise a run
+    keeps the minimumDurationSec it was generated with (0 means it had none), and
+    runs from before that field existed fall back to the Level 1 length.
+    """
+    if min_seconds is not None:
+        return min_seconds, "command line"
+    if spec.get("minimumDurationSec") is not None:
+        return spec["minimumDurationSec"], "run"
+    return MIN_SECONDS, "default"
+
+
+def extension_summary(extension: dict | None) -> dict | None:
+    """Accepted content extensions: how many, and the narrated length before and after them."""
+    if not extension:
+        return None
+    rounds = extension.get("rounds", [])
+    # Records from before the "promoted" flag mark an accepted round by its afterSeconds.
+    promoted = [item for item in rounds if item.get("promoted", "afterSeconds" in item)]
+    return {"status": extension.get("status"), "rounds": len(promoted),
+            "beforeSeconds": promoted[0].get("beforeSeconds") if promoted else None,
+            "afterSeconds": promoted[-1].get("afterSeconds") if promoted else None}
+
+
+def run_checks(run_dir: Path, min_seconds: float | None = None) -> dict:
+    """Stage results, length, cost and reviewer scores for one run directory.
+
+    min_seconds overrides every run's own minimum; see run_minimum.
+    """
     run_dir = Path(run_dir)
     if not run_dir.is_dir():
         raise ScorecardError(f"{run_dir} is not a run directory.")
@@ -87,9 +116,10 @@ def run_checks(run_dir: Path, min_seconds: float = MIN_SECONDS) -> dict:
         if stages[stage] == "missing" and not failures:
             failures.append(f"{stage}: no output; the run stopped before this stage")
 
-    length_ok = seconds is not None and seconds >= min_seconds
+    minimum, minimum_source = run_minimum(spec, min_seconds)
+    length_ok = seconds is not None and seconds >= minimum
     if seconds is not None and not length_ok:
-        failures.append(f"length: {seconds:.1f} s is under the {min_seconds:.0f} s minimum")
+        failures.append(f"length: {seconds:.1f} s is under the {minimum:.0f} s minimum")
 
     # The animation report is written before rendering, so read it even when the render did not finish.
     motion = (info or {}).get("motionInspection") or _read(run_dir / "motion-inspection.json")
@@ -117,6 +147,7 @@ def run_checks(run_dir: Path, min_seconds: float = MIN_SECONDS) -> dict:
         "topic": spec.get("topic") or plan.get("title") or run_dir.name,
         "title": plan.get("title"), "targetSeconds": spec.get("targetDurationSec"),
         "live": live, "stages": stages, "seconds": seconds, "lengthOk": length_ok,
+        "minSeconds": minimum, "minimumSource": minimum_source, "extension": extension_summary(extension),
         "motionInspection": motion["status"] if motion else None,
         "spatialInspection": spatial_status,
         "costUsd": round((llm or {}).get("estimatedCostUsd", 0.0) + review_cost, 4),
@@ -200,11 +231,12 @@ def _mean(values):
     return round(mean(values), 2) if values else None
 
 
-def summarize(runs: list[dict], min_seconds: float) -> dict:
+def summarize(runs: list[dict]) -> dict:
     live = [run for run in runs if run["live"]]
     successes = [run for run in live if run["automaticPass"]]
     rated = [run for run in live if run["quality"]["complete"]]  # Headline quality covers live runs only.
     reviewed = [run for run in runs if run["reviewScores"]]
+    minimums = {run["minSeconds"] for run in runs}
     return {
         "runs": len(runs), "liveAttempts": len(live), "reproductions": len(runs) - len(live),
         "automaticSuccesses": len(successes),
@@ -216,11 +248,15 @@ def summarize(runs: list[dict], min_seconds: float) -> dict:
                           if reviewed else None,
         "meanSeconds": _mean(run["seconds"] for run in runs),
         "costUsd": round(sum(run["costUsd"] for run in runs), 2),
-        "minSeconds": min_seconds, "qualityBar": QUALITY_BAR, "criterionFloor": CRITERION_FLOOR,
+        # One shared minimum, or None when runs were generated with different minimums.
+        "minSeconds": minimums.pop() if len(minimums) == 1 else None,
+        "extendedRuns": sum(bool(run["extension"] and run["extension"]["rounds"]) for run in runs),
+        "qualityBar": QUALITY_BAR, "criterionFloor": CRITERION_FLOOR,
     }
 
 
-def build(run_dirs: list[Path], ratings_path: Path | None = None, min_seconds: float = MIN_SECONDS) -> dict:
+def build(run_dirs: list[Path], ratings_path: Path | None = None, min_seconds: float | None = None) -> dict:
+    """min_seconds holds every run to one minimum; None uses each run's own (see run_minimum)."""
     if not run_dirs:
         raise ScorecardError("Give at least one run directory.")
     runs = [run_checks(path, min_seconds) for path in run_dirs]
@@ -233,7 +269,7 @@ def build(run_dirs: list[Path], ratings_path: Path | None = None, min_seconds: f
         run["quality"] = quality(ratings.get(run["run"], []))
         run["verdict"] = verdict(run)
     return {"createdAt": datetime.now(timezone.utc).isoformat(), "ratings": str(ratings_path) if ratings_path else None,
-            "summary": summarize(runs, min_seconds), "runs": runs}
+            "summary": summarize(runs), "runs": runs}
 
 
 def _clock(seconds):
@@ -247,6 +283,20 @@ def _number(value, digits=2):
     return "—" if value is None else f"{value:.{digits}f}"
 
 
+def _minimum(seconds):
+    return "none" if seconds == 0 else _clock(seconds)
+
+
+def _extension(extension):
+    if not extension:
+        return "—"
+    if extension["rounds"]:
+        rounds = "round" if extension["rounds"] == 1 else "rounds"
+        return (f"{_clock(extension['beforeSeconds'])} → {_clock(extension['afterSeconds'])} "
+                f"({extension['rounds']} {rounds})")
+    return "not needed" if extension["status"] == "passed" else (extension["status"] or "—")
+
+
 def markdown(results: dict) -> str:
     summary = results["summary"]
     rate = ("—" if summary["successRate"] is None else
@@ -258,18 +308,22 @@ def markdown(results: dict) -> str:
         f"{summary['qualityBar']} and every criterion ≥ {summary['criterionFloor']})",
         f"- **Mean human quality score (rated live runs):** {_number(summary['meanQualityScore'])} / 5",
         f"- **Reproductions listed but not counted:** {summary['reproductions']}",
-        f"- **Mean length:** {_clock(summary['meanSeconds'])} (minimum {_clock(summary['minSeconds'])})",
+        f"- **Mean length:** {_clock(summary['meanSeconds'])} ("
+        + ("minimum set per run" if summary["minSeconds"] is None else
+           "no minimum" if summary["minSeconds"] == 0 else f"minimum {_clock(summary['minSeconds'])}") + ")",
+        f"- **Runs lengthened by a content extension:** {summary['extendedRuns']}",
         f"- **API cost recorded in the runs:** ${summary['costUsd']:.2f}", "",
-        "| # | Run | Topic | Length | Plan | Review | Narration | Render | Motion check | Spatial check | "
+        "| # | Run | Topic | Length | Minimum | Extension | Plan | Review | Narration | Render | Motion check | Spatial check | "
         "Human: accuracy, clarity, visuals, audio, sync | Quality | Reviewer (script) | Cost | Verdict |",
-        "| ---: | --- | --- | ---: | --- | --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | --- |",
+        "| ---: | --- | --- | ---: | ---: | --- | --- | --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | --- |",
     ]
     for number, run in enumerate(results["runs"], start=1):
         stages = run["stages"]
         human = ", ".join("—" if value is None else f"{value:g}" for value in run["quality"]["criteria"].values())
         reviewer = _number(mean(run["reviewScores"].values())) if run["reviewScores"] else "—"
         lines.append(
-            f"| {number} | `{run['run']}` | {run['topic']} | {_clock(run['seconds'])} | {stages['plan']} | "
+            f"| {number} | `{run['run']}` | {run['topic']} | {_clock(run['seconds'])} | "
+            f"{_minimum(run['minSeconds'])} | {_extension(run['extension'])} | {stages['plan']} | "
             f"{stages['review']} | {stages['narration']} | {stages['render']} | {run['motionInspection'] or '—'} | "
             f"{run['spatialInspection'] or '—'} | "
             f"{human} | {_number(run['quality']['score'])} | {reviewer} | ${run['costUsd']:.2f} | "
@@ -289,7 +343,11 @@ def csv_rows(results: dict) -> list[dict]:
     rows = []
     for run in results["runs"]:
         row = {"run": run["run"], "topic": run["topic"], "live": run["live"],
-               "seconds": run["seconds"], **{f"stage_{name}": value for name, value in run["stages"].items()},
+               "seconds": run["seconds"], "min_seconds": run["minSeconds"],
+               "minimum_source": run["minimumSource"],
+               "extension_rounds": (run["extension"] or {}).get("rounds"),
+               "seconds_before_extension": (run["extension"] or {}).get("beforeSeconds"),
+               **{f"stage_{name}": value for name, value in run["stages"].items()},
                "motion_check": run["motionInspection"], "spatial_check": run["spatialInspection"],
                "automatic_pass": run["automaticPass"],
                **{f"human_{name}": run["quality"]["criteria"][name] for name in HUMAN_CRITERIA},
