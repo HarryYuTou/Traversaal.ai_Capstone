@@ -136,6 +136,10 @@ select { appearance: none; padding: 12px 36px; height: 43px; cursor: pointer; }
 .settings-content { padding-bottom: 10px; }
 .setting-row { display: flex; justify-content: space-between; align-items: center; font-size: 11px; padding: 5px 0 14px; }
 .theme-picker { display: flex; gap: 5px; }
+.render-limit { gap: 9px 15px; padding-top: 12px; flex-wrap: wrap; }
+.render-limit > span { flex: 1 1 200px; }
+.render-limit small { display: block; font-size: 9px; color: #939d87; margin-top: 4px; }
+.render-limit .theme-picker { flex-shrink: 0; }
 .theme-picker button { display: flex; align-items: center; gap: 5px; padding: 7px 9px; border: 1px solid #e4e8dd; border-radius: 5px; font-size: 10px; background: white; }
 .theme-picker button[aria-pressed="true"] { border-color: #8f9e81; background: #f3f6ef; }
 .theme-dot { width: 9px; height: 9px; border-radius: 50%; border: 1px solid #b6bdaa; }

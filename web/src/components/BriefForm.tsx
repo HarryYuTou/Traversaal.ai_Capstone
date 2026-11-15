@@ -1,6 +1,6 @@
 import { ArrowRight, ChevronDown, Clock3, FlaskConical, LoaderCircle, Sparkles } from 'lucide-react';
 import { useId, useRef, useState } from 'react';
-import type { Health, VideoRequest } from '../api';
+import { RENDER_LIMITS, type Health, type VideoRequest } from '../api';
 
 const IDEAS = [
   { label: 'How GPS works', topic: 'How does GPS know where you are?' },
@@ -101,7 +101,7 @@ export default function BriefForm({ value, onChange, onSubmit, health, disabled,
         </>}
 
         <details className="video-settings">
-          <summary><span>Video settings</span><span className="settings-summary">{value.theme === 'night' ? 'Night' : 'Light'} · {value.draft ? 'Draft' : '1080p'}<ChevronDown size={15} /></span></summary>
+          <summary><span>Video settings</span><span className="settings-summary">{value.theme === 'night' ? 'Night' : 'Light'} · {value.draft ? 'Draft' : '1080p'}{value.concurrency ? ` · ${value.concurrency} at a time` : ''}<ChevronDown size={15} /></span></summary>
           <div className="settings-content">
             <div className="setting-row"><span id={`${id}-theme`}>Visual style</span><div className="theme-picker" role="group" aria-labelledby={`${id}-theme`}>
               <button type="button" aria-pressed={value.theme === 'light'} onClick={() => update({ theme: 'light' })}><span className="theme-dot light" />Light</button>
@@ -110,6 +110,10 @@ export default function BriefForm({ value, onChange, onSubmit, health, disabled,
             <label className="toggle-row"><span>Background music<small>A soft soundtrack under the narration</small></span><input type="checkbox" checked={value.music} onChange={(event) => update({ music: event.target.checked })} /><span className="toggle-track" aria-hidden="true" /></label>
             {!sample && <label className="toggle-row"><span>Review the script<small>Check clarity and flow before narration</small></span><input type="checkbox" checked={value.review} onChange={(event) => update({ review: event.target.checked })} /><span className="toggle-track" aria-hidden="true" /></label>}
             <label className="toggle-row"><span>Quick draft<small>540p for a faster first look</small></span><input type="checkbox" checked={value.draft} onChange={(event) => update({ draft: event.target.checked })} /><span className="toggle-track" aria-hidden="true" /></label>
+            <div className="setting-row render-limit"><span id={`${id}-concurrency`}>Frames rendered at once<small id={`${id}-concurrency-hint`}>On an 8 GB laptop, choose 2 or 1 if long videos stop while rendering. Fewer is slower.</small></span><div className="theme-picker" role="group" aria-labelledby={`${id}-concurrency`} aria-describedby={`${id}-concurrency-hint`}>
+              <button type="button" aria-pressed={!value.concurrency} onClick={() => update({ concurrency: null })}>Auto</button>
+              {RENDER_LIMITS.map((limit) => <button key={limit} type="button" aria-pressed={value.concurrency === limit} onClick={() => update({ concurrency: limit })}>{limit} at a time</button>)}
+            </div></div>
           </div>
         </details>
       </fieldset>

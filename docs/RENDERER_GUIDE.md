@@ -66,7 +66,8 @@ On a MacBook with 8 GB of memory, the seven-minute queue video crashed at the
 default and finished in 18 minutes with two tabs
 ([review](reviews/2026-10-20-queues-7min.md)), so use `--concurrency 2`, or
 `1` if it still crashes. `run --render` and `ensure-duration --render` accept
-the same option, and `video-info.json` records the value used (`null` for the
+the same option, the web studio offers it as **Frames rendered at once** under
+Video settings, and `video-info.json` records the value used (`null` for the
 default).
 
 For illustrated motion, rendering first writes `motion-inspection.json` in
