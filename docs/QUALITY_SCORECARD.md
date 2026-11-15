@@ -19,7 +19,31 @@ result has the required length:
 | Narration | Every line was voiced | `audio-manifest.json` |
 | Render | A full-size `video.mp4` exists and its probed length matches the timeline within 0.2 s | `video-info.json` |
 | Spatial | When spatial evidence exists, its status is `spatial-checks-passed` | `spatial-inspection.json`, or `video-info.json` → `spatialInspection` |
-| Length | The video lasts at least 420 seconds (change with `--min-seconds`) | `video-info.json` |
+| Length | The video lasts at least the run's minimum (see below) | `video-info.json`, `project-spec.json` |
+
+### Which minimum length applies
+
+Each run is held to the minimum it was generated with, recorded as
+`minimumDurationSec` in its `project-spec.json`. New runs with a target of 420
+seconds or more record 420 by default, so Level 1 runs are checked against
+seven minutes. A run made with `--minimum-duration 0`, such as a one-minute
+demo, has no minimum and does not fail on length. Runs from before that field
+existed are checked against 420 seconds.
+
+`--min-seconds N` holds **every** run to N seconds instead, whatever it
+recorded. For the Level 1 report, `--min-seconds 420` guarantees that no run
+generated with a lower minimum is counted as a seven-minute video. The
+report's Minimum column shows the number used for each run (`none` for no
+minimum), and `scorecard.json` records where it came from in `minimumSource`:
+`run`, `default` or `command line`.
+
+When the narration came out shorter than the minimum, the pipeline adds
+explanatory scenes (`duration-extension.json`). The Extension column shows the
+narrated length before and after the accepted rounds, for example
+`6:52 → 7:06 (1 round)`; `not needed` when the first narration was already long
+enough, and the record's status, such as `failed`, when no round was accepted.
+A video that reached the minimum only through an extension still counts, but
+raters should check the added scenes fit the flow.
 
 Animation diagnostics (`motion-inspection.json`) are reported but do not fail
 a run. A `needs-review` result tells the raters where to look.
@@ -107,8 +131,9 @@ and it meets the quality bar.
 
 `scorecard.md` starts with the success rate, the number of accepted videos,
 and the mean quality score of the rated live runs (reproductions are scored in
-their own rows but left out of both headline numbers). The per-run table that follows gives each run's
-length, every check, the human and reviewer scores, the API cost and a
+their own rows but left out of both headline numbers), and how many runs a
+content extension lengthened. The per-run table that follows gives each run's
+length, the minimum it was checked against, any content extension, every check, the human and reviewer scores, the API cost and a
 verdict:
 
 - **accepted**: a live run that passed every check and met the quality bar.
