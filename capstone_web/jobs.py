@@ -22,6 +22,7 @@ EVENT_PREFIX = "CAPSTONE_EVENT:"
 ACTIVE = {"queued", "running"}
 STAGES = {"planning", "reviewing", "narrating", "rendering"}
 INTERRUPTED = "Generation was interrupted when the local server stopped. Submit a new job to try again; no automatic retry was made."
+MAX_CONCURRENCY = 8  # Remotion's own default never exceeds 8 browser tabs.
 
 
 class RequestError(ValueError):
@@ -33,10 +34,12 @@ class RequestError(ValueError):
 def validate_request(body):
     if not isinstance(body, dict):
         raise RequestError("Send a JSON object with the video settings.")
-    allowed = {"topic", "audience", "durationSeconds", "minimumDurationSec", "review", "theme", "music", "draft", "source"}
+    allowed = {"topic", "audience", "durationSeconds", "minimumDurationSec", "review", "theme", "music", "draft",
+               "source", "concurrency"}
     if body.keys() - allowed:
         raise RequestError("Unknown request fields: " + ", ".join(sorted(body.keys() - allowed)))
-    result = {"review": True, "theme": "light", "music": True, "draft": False, "source": "topic", **body}
+    result = {"review": True, "theme": "light", "music": True, "draft": False, "source": "topic",
+              "concurrency": None, **body}
     for name, limit in (("topic", 500), ("audience", 200)):
         value = result.get(name)
         if not isinstance(value, str) or not value.strip() or len(value.strip()) > limit:
@@ -50,6 +53,10 @@ def validate_request(body):
     for name in ("review", "music", "draft"):
         if type(result[name]) is not bool:
             raise RequestError(f"{name} must be true or false.")
+    # Frames Remotion draws at once; None keeps its default. 1 or 2 fits an 8 GB laptop.
+    concurrency = result["concurrency"]
+    if concurrency is not None and (type(concurrency) is not int or not 1 <= concurrency <= MAX_CONCURRENCY):
+        raise RequestError(f"concurrency must be null or a whole number from 1 to {MAX_CONCURRENCY}.")
     if result["theme"] not in ("light", "night"):
         raise RequestError("theme must be light or night.")
     if result["source"] not in ("topic", "sample"):

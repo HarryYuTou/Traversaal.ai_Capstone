@@ -73,6 +73,11 @@ starting a job that can download it.
 3. Open **Video settings** to choose Light or Night, background music,
    optional script review, and a 540p quick draft. Full output is 1080p.
    Sample generation uses the fixed sample script and skips planning/review.
+   **Frames rendered at once** stays on **Auto** (Remotion's default, about
+   half the CPU cores) unless you pick **2 at a time** or **1 at a time**. On
+   an 8 GB laptop, choose 2 (or 1 if it still stops) for seven-minute videos;
+   rendering takes longer but uses less memory. This is the same limit as the
+   command line's `--concurrency`.
 4. Select **Generate video** or **Generate sample video**. Setup problems
    appear before a job is accepted. The workspace shows the actual stage and,
    during narration, the number of completed lines.
@@ -223,7 +228,8 @@ A topic request has this shape:
   "review": true,
   "theme": "light",
   "music": true,
-  "draft": false
+  "draft": false,
+  "concurrency": null
 }
 ```
 
@@ -233,7 +239,10 @@ whole number between 30 and 600. Defaults are `source: "topic"`,
 Optional `minimumDurationSec` defaults to 420 for new topic targets of at least
 420 seconds, otherwise zero. Set it to `0` to opt out, or a whole number from
 30 through the target duration. Null is rejected; sample requests force zero.
-Allowed themes are `light` and `night`. Unknown fields are rejected, and
+Optional `concurrency` is the number of frames Remotion renders at once: null
+(the default) keeps Remotion's own setting, or a whole number from 1 to 8.
+The UI offers Auto, 2 and 1. Jobs saved before this field render at the
+default. Allowed themes are `light` and `night`. Unknown fields are rejected, and
 requests must use JSON with a body no larger than 16,384 bytes.
 
 For `source: "sample"`, supply the same required fields; the server replaces

@@ -41,6 +41,17 @@ class ValidationTests(unittest.TestCase):
             with self.subTest(minimum=minimum), self.assertRaises(RequestError):
                 validate_request(request_body(durationSeconds=420, minimumDurationSec=minimum))
 
+    def test_render_concurrency_defaults_to_remotion_and_accepts_small_whole_numbers(self):
+        self.assertIsNone(validate_request(request_body())["concurrency"])
+        self.assertIsNone(validate_request(request_body(concurrency=None))["concurrency"])
+        for value in (1, 2, 8):
+            with self.subTest(value=value):
+                self.assertEqual(validate_request(request_body(concurrency=value))["concurrency"], value)
+        self.assertEqual(validate_request(request_body(source="sample", concurrency=2))["concurrency"], 2)
+        for value in (0, -1, 9, 2.0, "2", True):
+            with self.subTest(value=value), self.assertRaises(RequestError):
+                validate_request(request_body(concurrency=value))
+
     def test_normalizes_text_and_fixed_sample(self):
         self.assertEqual(validate_request(request_body(topic="  Hello  "))["topic"], "Hello")
         sample = validate_request(request_body(source="sample", theme="night", draft=True))
@@ -621,9 +632,11 @@ class WorkerTests(unittest.TestCase):
                 patch("capstone_script.narrate.narrate_plan", side_effect=narration), \
                 patch("capstone_script.timeline.write_timeline"), \
                 patch("capstone_script.render.render_video", return_value={
-                    "probedSeconds": 90, "width": 1920, "height": 1080, "bytes": 4000}):
+                    "probedSeconds": 90, "width": 1920, "height": 1080, "bytes": 4000}) as render:
             result = generate({"id": "a" * 32, "request": request_body()}, Path(directory), events.append)
         self.assertEqual(order, ["planning", "reviewing", "narrating"])
+        # A request saved before the concurrency option keeps Remotion's default.
+        self.assertIsNone(render.call_args.kwargs["concurrency"])
         self.assertEqual(result["title"], "Reviewed title")
         self.assertTrue(any(event.get("stage") == "reviewing" for event in events))
         client.assert_called_once()
@@ -642,7 +655,7 @@ class WorkerTests(unittest.TestCase):
                 patch("capstone_script.timeline.write_timeline") as timeline, \
                 patch("capstone_script.render.render_video", return_value=info) as render, \
                 patch("capstone_web.worker.model_cached", return_value=True):
-            job = {"id": "a" * 32, "request": validate_request(request_body(source="sample", draft=True))}
+            job = {"id": "a" * 32, "request": validate_request(request_body(source="sample", draft=True, concurrency=2))}
             result = generate(job, Path(directory), events.append)
             planner.assert_not_called()
             review.assert_not_called()
@@ -653,6 +666,7 @@ class WorkerTests(unittest.TestCase):
             self.assertTrue(any(scene.template == "motion" for scene in sample_plan.scenes))
             timeline.assert_called_once()
             self.assertTrue(render.call_args.kwargs["draft"])
+            self.assertEqual(render.call_args.kwargs["concurrency"], 2)
         self.assertEqual(result["durationSeconds"], 88.3)
         self.assertEqual(events[-1]["type"], "result")
         self.assertTrue(any(event.get("lineProgress", {}).get("current") == 1 for event in events))

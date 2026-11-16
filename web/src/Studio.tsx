@@ -1,6 +1,6 @@
 import { ArrowUpRight, Check, CircleAlert, CircleHelp, Globe2, History, LoaderCircle, LogOut, MonitorPlay, RotateCcw, UserRound } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { isActive, type User, type VideoRequest } from './api';
+import { isActive, RENDER_LIMITS, type User, type VideoRequest } from './api';
 import Brand from './components/Brand';
 import BriefForm from './components/BriefForm';
 import HistoryPanel from './components/HistoryPanel';
@@ -9,7 +9,7 @@ import VideoPreview from './components/VideoPreview';
 import StudioDialog from './components/StudioDialog';
 import { useStudio } from './useStudio';
 
-const DEFAULT_BRIEF: VideoRequest = { topic: '', audience: 'Curious adults with no prior knowledge', durationSeconds: 90, review: true, theme: 'light', music: true, draft: false, source: 'topic' };
+const DEFAULT_BRIEF: VideoRequest = { topic: '', audience: 'Curious adults with no prior knowledge', durationSeconds: 90, review: true, theme: 'light', music: true, draft: false, source: 'topic', concurrency: null };
 const briefKey = (userId: string) => `traversaal.studio.brief.v2.${userId}`;
 function initialBrief(key: string): VideoRequest {
   try {
@@ -20,6 +20,7 @@ function initialBrief(key: string): VideoRequest {
       durationSeconds: [30, 60, 90, 120, 180, 300, 420, 600].includes(saved.durationSeconds || 0) ? saved.durationSeconds! : 90,
       source: saved.source === 'sample' ? 'sample' : 'topic', theme: saved.theme === 'night' ? 'night' : 'light',
       review: saved.review !== false, music: saved.music !== false, draft: saved.draft === true,
+      concurrency: RENDER_LIMITS.includes(saved.concurrency ?? 0) ? saved.concurrency : null,
     };
   } catch { return DEFAULT_BRIEF; }
 }

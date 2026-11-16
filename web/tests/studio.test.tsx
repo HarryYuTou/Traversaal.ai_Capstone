@@ -90,6 +90,40 @@ describe('Studio workflow', () => {
     expect(api.createJob).toHaveBeenCalledWith(expect.objectContaining({ durationSeconds: 420, minimumDurationSec: 0 }));
   });
 
+  it('keeps Remotion\'s default render concurrency unless a lower limit is chosen', async () => {
+    render(<App />);
+    await screen.findByRole('button', { name: /Studio ready/ });
+    await userEvent.click(screen.getByRole('button', { name: 'How GPS works' }));
+    const auto = screen.getByRole('button', { name: 'Auto' });
+    expect(auto.getAttribute('aria-pressed')).toBe('true');
+    await userEvent.click(screen.getByRole('button', { name: 'Generate video' }));
+    expect(api.createJob).toHaveBeenLastCalledWith(expect.objectContaining({ concurrency: null }));
+  });
+
+  it('sends a chosen render limit, including for the sample', async () => {
+    render(<App />);
+    await screen.findByRole('button', { name: /Studio ready/ });
+    await userEvent.click(screen.getByRole('button', { name: '2 at a time' }));
+    expect(screen.getByRole('button', { name: '2 at a time' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByText(/Light · 1080p · 2 at a time/)).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: 'Try a sample' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Generate sample video' }));
+    expect(api.createJob).toHaveBeenLastCalledWith(expect.objectContaining({ source: 'sample', concurrency: 2 }));
+  });
+
+  it('restores a saved render limit and ignores values the studio does not offer', async () => {
+    const key = `traversaal.studio.brief.v2.${user.id}`;
+    localStorage.setItem(key, JSON.stringify({ ...request, concurrency: 1 }));
+    render(<App />);
+    await screen.findByRole('button', { name: /Studio ready/ });
+    expect(screen.getByRole('button', { name: '1 at a time' }).getAttribute('aria-pressed')).toBe('true');
+    cleanup();
+    localStorage.setItem(key, JSON.stringify({ ...request, concurrency: 5 }));
+    render(<App />);
+    await screen.findByRole('button', { name: /Studio ready/ });
+    expect(screen.getByRole('button', { name: 'Auto' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
   it('shows target, actual runtime and the measured minimum result', async () => {
     localStorage.setItem(JOB_KEY, baseJob.id);
     vi.mocked(api.job).mockResolvedValue({ ...complete,

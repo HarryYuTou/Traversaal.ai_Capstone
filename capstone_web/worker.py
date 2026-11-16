@@ -111,7 +111,9 @@ def generate(job, job_dir, emit_event=emit):
         if not (output / "video/timeline.json").exists():
             write_timeline(output)
         update("rendering", "Remotion is rendering your MP4. This can take several minutes.")
+        # Jobs saved before the concurrency option have no key and keep Remotion's default.
         info = render_video(output, draft=request["draft"], theme=request["theme"], music=request["music"],
+                            concurrency=request.get("concurrency"),
                             progress=lambda message: print(message, flush=True))
         base = f"/api/jobs/{job['id']}/files"
         result = {"videoUrl": base + "/video.mp4", "downloadUrl": base + "/video.mp4?download=1",

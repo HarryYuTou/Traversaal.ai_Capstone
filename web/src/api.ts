@@ -10,7 +10,11 @@ export type VideoRequest = {
   music: boolean;
   draft: boolean;
   source: 'topic' | 'sample';
+  /** Frames Remotion renders at once; null or absent keeps its default (about half the CPU cores). */
+  concurrency?: number | null;
 };
+/** Render limits the studio offers besides Remotion's default; 1 or 2 lets long videos finish on 8 GB. */
+export const RENDER_LIMITS = [2, 1];
 export type Job = {
   id: string;
   status: 'queued' | 'running' | 'completed' | 'failed';
