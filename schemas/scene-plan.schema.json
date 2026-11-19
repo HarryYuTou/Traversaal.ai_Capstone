@@ -637,7 +637,7 @@
     },
     "MapArea": {
       "additionalProperties": false,
-      "description": "Countries grouped together, such as the Allies or the Axis, named with today's borders.",
+      "description": "Countries grouped together, such as the Allies or the Axis, named with today's borders.\n\nEach country is a name from schemas/map-countries.json (Natural Earth), which the map shades.\nCommon names and small misspellings that mean exactly one of them are corrected on validation.",
       "properties": {
         "id": {
           "maxLength": 48,

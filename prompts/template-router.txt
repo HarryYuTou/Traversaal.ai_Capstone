@@ -12,7 +12,7 @@ Templates
 - timeline: two to five dated events; use only when the supplied reference or well-established facts support the dates.
 - stat: one to three meaningful numbers; avoid unsupported specific statistics.
 - quote: exact, attributed words provided in the reference or reliably known.
-- map: geography, places, regions and geographic routes.
+- map: geography, places, regions and geographic routes. Select it whenever the topic depends on where places are relative to each other, such as a trade route, directions between places or which sea a wind blows from, rather than showing those places as markers in a row.
 
 Stock drawings have fixed meanings: a parcel cannot become furniture just by changing its label. When a physical object is missing, motion can author a custom rig that actually depicts its structure and action. A labeled marker is appropriate for an explicitly abstract station or location. Gauges always display percentages; select motion for meaningful object actions, not to replace qualitative claims with invented numerical meters. A supporting template remains preferable when a physical illustration would misrepresent the idea.
 

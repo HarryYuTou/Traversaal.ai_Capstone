@@ -1,9 +1,14 @@
 import React from 'react';
 import {AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig} from 'remotion';
+import type {Topology} from 'topojson-specification';
+// Natural Earth 1:50m countries (public domain), as TopoJSON from world-atlas (ISC).
+import world from 'world-atlas/countries-50m.json';
 // Shared with the Python validator, which checks plans against the same region names.
 import regions from '../../../schemas/map-regions.json';
+import {LookContext} from '../motion/sketch';
 import {useTheme} from '../theme';
 import type {TimelineScene} from '../types';
+import {buildBasemap, wobble} from './basemap';
 import {Kicker, RisingWords} from './SceneFrame';
 import {appear, ease, highlightLevel, revealFrame} from './timing';
 
@@ -101,16 +106,39 @@ const arc = ([x1, y1]: Point, [x2, y2]: Point) => {
 };
 
 /**
- * A full-frame map of one region: a latitude and longitude grid with labelled places that drop in as the
- * narration names them, an optional route that draws itself leg by leg toward each new place, and the
- * country groups as colored labels. The whole map drifts slowly closer while the scene plays.
+ * One full-frame SVG layer of the map. Its own compositing layer keeps the detailed coastlines from being
+ * repainted on every frame: only the opacity and the scene's slow zoom change, and both are applied to the
+ * finished layer.
+ */
+const Layer: React.FC<{width: number; height: number; opacity?: number; children: React.ReactNode}> =
+  ({width, height, opacity = 1, children}) => (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}
+      style={{position: 'absolute', inset: 0, opacity, willChange: 'transform, opacity'}}>
+      {children}
+    </svg>
+  );
+
+/**
+ * A full-frame map of one region: land, coastlines and country borders over a faint latitude and longitude
+ * grid, with labelled places that drop in as the narration names them, an optional route that draws itself
+ * leg by leg toward each new place, and the country groups shaded on the map and named in a key. The whole
+ * map drifts slowly closer while the scene plays.
  */
 export const MapScene: React.FC<Props> = ({scene, label}) => {
   const theme = useTheme();
   const frame = useCurrentFrame();
   const {fps, width, height} = useVideoConfig();
+  const sketch = React.useContext(LookContext) === 'sketch';
   const project = fitted(scene.visual.region, width, height);
   const {areas, places, route} = scene.visual;
+  // Projecting the coastlines is the costly part, so it happens once per scene, not once per frame.
+  const basemap = React.useMemo(() => buildBasemap(world as unknown as Topology, project, {width, height},
+    sketch ? wobble(1) : undefined), [scene.visual.region, width, height, sketch]);
+  // The sketch look draws each coastline twice, as a pencil would, with a second wobble.
+  const retrace = React.useMemo(() => sketch
+    ? buildBasemap(world as unknown as Topology, project, {width, height}, wobble(2)).land : '',
+  [scene.visual.region, width, height, sketch]);
+  const grid = React.useMemo(() => graticule(project), [scene.visual.region, width, height]);
   const areaStates = areas.map((area, index) => {
     const matches = (line: {highlightId?: string}) => line.highlightId === area.id;
     const start = revealFrame(scene.lines, scene.from, matches, 8 + index * 12);
@@ -127,10 +155,37 @@ export const MapScene: React.FC<Props> = ({scene, label}) => {
   const scrim = `${theme.backdrop[0]}e6`;
   return (
     <AbsoluteFill>
-      <AbsoluteFill style={{transform: `scale(${zoom})`, transformOrigin: '50% 58%'}}>
-        <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+      <AbsoluteFill style={{transform: `scale(${zoom})`, transformOrigin: '50% 58%', willChange: 'transform'}}>
+        <Layer width={width} height={height}>
           <rect width={width} height={height} fill={theme.water} />
-          <path d={graticule(project)} fill="none" stroke={theme.line} strokeWidth={1.5} opacity={0.8} />
+          <path d={grid} fill="none" stroke={theme.line} strokeWidth={1.5} opacity={0.7} />
+          <path d={basemap.land} fill={theme.land} />
+        </Layer>
+        {areas.map((area, index) => {
+          const {shown, level} = areaStates[index];
+          const shape = area.countries.map(basemap.country).join('');
+          const color = theme.areas[index];
+          // Two fixed drawings, faded by opacity alone, so neither is redrawn while an area is highlighted.
+          return (
+            <React.Fragment key={area.id}>
+              <Layer width={width} height={height} opacity={shown}>
+                <path d={shape} fill={color} fillOpacity={0.3} stroke={color} strokeOpacity={0.55} strokeWidth={1.5}
+                  strokeLinejoin="round" />
+              </Layer>
+              <Layer width={width} height={height} opacity={shown * level}>
+                <path d={shape} fill={color} fillOpacity={0.3} stroke={color} strokeWidth={3.5} strokeLinejoin="round" />
+              </Layer>
+            </React.Fragment>
+          );
+        })}
+        <Layer width={width} height={height}>
+          <g fill="none" strokeLinejoin="round" strokeLinecap="round">
+            <path d={basemap.borders} stroke={theme.border} strokeWidth={1.4} />
+            <path d={basemap.land} stroke={theme.muted} strokeOpacity={sketch ? 0.6 : 0.5} strokeWidth={sketch ? 2 : 1.5} />
+            {sketch ? <path d={retrace} stroke={theme.muted} strokeOpacity={0.35} strokeWidth={1.2} /> : null}
+          </g>
+        </Layer>
+        <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{position: 'absolute', inset: 0}}>
           {route ? placeStates.slice(1).map((state, index) => {
             const leg = arc(placeStates[index].at, state.at);
             const drawn = ease(frame, state.start - 12, 26);

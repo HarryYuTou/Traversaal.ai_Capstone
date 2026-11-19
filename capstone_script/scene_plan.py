@@ -11,7 +11,10 @@ limits, English text) are checked in Python by `semantic_problems`. JSON Schema
 cannot express them, so other languages must not assume the schema covers them.
 """
 
+import copy
+import difflib
 import json
+import re
 from pathlib import Path
 from typing import Annotated, Literal, Union
 import unicodedata
@@ -37,6 +40,8 @@ SCHEMAS = Path(__file__).resolve().parents[1] / "schemas"
 ICONS = tuple(json.loads((SCHEMAS / "icons.json").read_text(encoding="utf-8")))
 # Map regions with their bounds; the renderer reads the same file to frame each map.
 MAP_REGIONS = json.loads((SCHEMAS / "map-regions.json").read_text(encoding="utf-8"))
+# Country names on the renderer's world map (Natural Earth), and common names that mean one of them.
+MAP_COUNTRIES = json.loads((SCHEMAS / "map-countries.json").read_text(encoding="utf-8"))
 
 # IDs become file names (audio/<narrationId>.wav), so they must be path-safe.
 Id = Annotated[str, StringConstraints(pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", max_length=48)]
@@ -213,7 +218,11 @@ class QuoteVisual(_Model):
 
 
 class MapArea(_Model):
-    """Countries grouped together, such as the Allies or the Axis, named with today's borders."""
+    """Countries grouped together, such as the Allies or the Axis, named with today's borders.
+
+    Each country is a name from schemas/map-countries.json (Natural Earth), which the map shades.
+    Common names and small misspellings that mean exactly one of them are corrected on validation.
+    """
 
     id: Id
     label: Label
@@ -576,6 +585,86 @@ def semantic_problems(plan: ScenePlan) -> list[str]:
     return problems + icon_problems(plan) + chapter_problems(plan)
 
 
+def _country_key(name: str) -> str:
+    """Compare names without case, accents, punctuation, a leading "the" or "Saint" against "St."."""
+    text = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode().casefold()
+    words = re.sub(r"[^a-z0-9]+", " ", text.replace("&", " and ")).split()
+    if words[:1] == ["the"]:
+        words = words[1:]
+    return " ".join("st" if word == "saint" else word for word in words)
+
+
+_COUNTRY_KEYS = {**{_country_key(alias): name for alias, name in MAP_COUNTRIES["aliases"].items()},
+                 **{_country_key(name): name for name in MAP_COUNTRIES["names"]}}
+# A misspelling is corrected only when it is this similar to a name and clearly closer to it than to any other.
+_SPELLING_CUTOFF, _SPELLING_MARGIN = 0.85, 0.1
+
+
+def _country_matches(name: str) -> list[tuple[float, str]]:
+    """Map names similar to `name`, best first, as (similarity, name), at most one entry per name."""
+    key, best = _country_key(name), {}
+    for candidate, country in _COUNTRY_KEYS.items():
+        ratio = difflib.SequenceMatcher(None, key, candidate).ratio()
+        best[country] = max(ratio, best.get(country, 0))
+    return sorted(((ratio, country) for country, ratio in best.items()), reverse=True)
+
+
+def resolve_country(name: str) -> str | None:
+    """The map's name for a country: the same name, a known alias or an unambiguous misspelling; else None."""
+    if name in MAP_COUNTRIES["names"]:
+        return name
+    if _country_key(name) in _COUNTRY_KEYS:
+        return _COUNTRY_KEYS[_country_key(name)]
+    matches = _country_matches(name)
+    (best, country), runner_up = matches[0], matches[1][0] if len(matches) > 1 else 0
+    return country if best >= _SPELLING_CUTOFF and best - runner_up >= _SPELLING_MARGIN else None
+
+
+def correct_countries(data, notes: list[str] | None = None):
+    """Return plan data with map country names replaced by the map's names where that is unambiguous.
+
+    Each correction is added to `notes`; names that match nothing are left for `country_problems`.
+    The input is not changed.
+    """
+    scenes = data.get("scenes") if isinstance(data, dict) else None
+    corrected = None
+    for s, scene in enumerate(scenes if isinstance(scenes, list) else []):
+        visual = scene.get("visual") if isinstance(scene, dict) and scene.get("template") == "map" else None
+        areas = visual.get("areas") if isinstance(visual, dict) else None
+        for a, area in enumerate(areas if isinstance(areas, list) else []):
+            countries = area.get("countries") if isinstance(area, dict) else None
+            for c, country in enumerate(countries if isinstance(countries, list) else []):
+                name = resolve_country(country) if isinstance(country, str) else None
+                if name is None or name == country:
+                    continue
+                corrected = copy.deepcopy(data) if corrected is None else corrected
+                corrected["scenes"][s]["visual"]["areas"][a]["countries"][c] = name
+                if notes is not None:
+                    notes.append(f"scenes[{s}].visual.areas[{a}].countries[{c}]: {country!r} was read as {name!r}")
+    return data if corrected is None else corrected
+
+
+def country_problems(plan: ScenePlan) -> list[str]:
+    """Map countries that match no name on the map, so they would not be shaded; for the planner's review."""
+    problems = []
+    for s, scene in enumerate(plan.scenes):
+        if scene.template != "map":
+            continue
+        for a, area in enumerate(scene.visual.areas):
+            for c, country in enumerate(area.countries):
+                if country in MAP_COUNTRIES["names"]:
+                    continue
+                key = f" {_country_key(country)} "
+                close = [name for name in MAP_COUNTRIES["names"] if key in f" {_country_key(name)} "][:3] or \
+                    [name for ratio, name in _country_matches(country)[:3] if ratio >= 0.75]
+                hint = (f"did you mean {' or '.join(repr(name) for name in close)}?" if close else
+                        'use the name a world map gives it with today\'s borders, such as "Germany", '
+                        '"United States of America" or "Dem. Rep. Congo"; list a former state as the countries now on its land')
+                problems.append(f"scenes[{s}].visual.areas[{a}].countries[{c}]: {country!r} is not a country "
+                                f"on the map; {hint}")
+    return problems
+
+
 def map_problems(visual: MapVisual, where: str) -> list[str]:
     problems = []
     if visual.region not in MAP_REGIONS:
@@ -832,9 +921,13 @@ def error_problems(exc: ValidationError) -> list[str]:
     return [f"{_location(e['loc'])}: {e['msg']}" for e in exc.errors()]
 
 
-def validate_plan(data) -> ScenePlan:
+def validate_plan(data, notes: list[str] | None = None) -> ScenePlan:
+    """A checked ScenePlan, with map country names corrected as `correct_countries` describes.
+
+    Corrections are added to `notes` when it is given; PlanValidationError lists every problem.
+    """
     try:
-        plan = ScenePlan.model_validate(data)
+        plan = ScenePlan.model_validate(correct_countries(data, notes))
     except ValidationError as exc:
         raise PlanValidationError(error_problems(exc)) from None
     problems = semantic_problems(plan)
