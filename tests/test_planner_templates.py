@@ -2,16 +2,17 @@
 
 import copy
 import json
+from pathlib import Path
 import unittest
 
 from capstone_script.long_form import Outline
 from capstone_script.planner import (
     UNSUPPORTED_KEYWORDS, _OutputPlan, coverage_problems, drop_unknown_icons, from_model_output, normalize_ids,
-    output_schema, planner_prompt, review_plan, structured_schema,
+    output_schema, planner_prompt, request_plan, review_plan, structured_schema,
 )
 from capstone_script.review import Review, apply_edits
 from capstone_script.scene_plan import MAP_REGIONS, TEMPLATES, dump_plan, validate_plan
-from test_planner import VALID, as_model_output
+from test_planner import VALID, FakeClient, as_model_output, response
 from test_scene_plan import with_new_templates
 from test_visual_templates import all_scenes
 
@@ -103,6 +104,57 @@ class PlannerTemplateTests(unittest.TestCase):
             self.assertIn(template, prompt)
         self.assertIn(", ".join(MAP_REGIONS), prompt)
         self.assertNotIn("$", prompt.replace("\"$\"", ""))
+
+    @staticmethod
+    def map_review():
+        """A plan the review accepts as it is: every place and area highlighted, at a length that fits."""
+        data = all_scenes()
+        del data["scenes"][2]  # Three scenes fit a 20-second video; the map is the last of them.
+        data["scenes"][2]["narration"].append({"id": "scene-04-line-04", "text": "Han China guarded the start.",
+                                               "highlightId": "han"})
+        return {"projectId": "new-templates", "targetDurationSec": 20}, data
+
+    def test_country_names_are_corrected_without_a_repair_request(self):
+        spec, data = self.map_review()
+        self.assertEqual(review_plan(json.dumps(as_model_output(data)), spec)[1], [])
+        output = as_model_output(data)
+        output["scenes"][2]["visual"]["map"]["areas"][0]["countries"] = ["Peoples Republic of Chna"]
+        self.assertIsNone(review_plan(json.dumps(output), spec)[0])  # Too far from any name: sent back.
+
+        output["scenes"][2]["visual"]["map"]["areas"][0]["countries"] = ["Chna"]
+        notes, messages = [], []
+        plan, problems = review_plan(json.dumps(output), spec, notes=notes)
+        self.assertEqual(problems, [])
+        self.assertEqual(plan.scenes[2].visual.areas[0].countries, ["China"])
+        self.assertEqual(notes, ["scenes[2].visual.areas[0].countries[0]: 'Chna' was read as 'China'"])
+
+        client, attempts = FakeClient(response(output)), []
+        plan = request_plan(client, "system", "request", {}, spec, "scene plan", attempts, "plan", messages.append)
+        self.assertEqual(len(client.calls), 1)
+        self.assertEqual(attempts[-1]["problems"], [])
+        self.assertEqual(attempts[-1]["notes"], notes)
+        self.assertIn("Corrected a map country name: " + notes[0], messages)
+
+    def test_a_country_that_matches_nothing_is_sent_back_once(self):
+        spec, data = self.map_review()
+        unknown = as_model_output(data)
+        unknown["scenes"][2]["visual"]["map"]["areas"][1]["countries"] = ["Soviet Union"]
+        client, attempts = FakeClient(response(unknown), response(as_model_output(data))), []
+        plan = request_plan(client, "system", "request", {}, spec, "scene plan", attempts, "plan")
+        self.assertEqual(plan.scenes[2].visual.areas[1].countries, ["Italy"])
+        self.assertEqual(len(client.calls), 2)
+        self.assertTrue(any("'Soviet Union' is not a country on the map" in problem
+                            for problem in attempts[0]["problems"]), attempts[0]["problems"])
+        self.assertNotIn("notes", attempts[-1])
+
+    def test_prompts_send_geographic_relations_to_the_map(self):
+        prompt = planner_prompt()
+        self.assertIn("show it with a map scene", prompt)
+        self.assertIn("Do not stand for those places with location markers or icons placed in a row", prompt)
+        self.assertIn('"Dem. Rep. Congo"', prompt)
+        self.assertNotIn("show it with a map scene", planner_prompt(["motion", "concept"]))
+        router = (Path(__file__).resolve().parents[1] / "prompts" / "template-router.txt").read_text(encoding="utf-8")
+        self.assertIn("rather than showing those places as markers in a row", router)
 
     def test_motion_prompt_explains_rendered_meaning_and_visible_object_lifecycles(self):
         prompt = planner_prompt()

@@ -27,15 +27,15 @@ from .contact import MotionContact
 from .scene_plan import (
     ICONS, MAP_REGIONS, TEMPLATES, WORDS_PER_SECOND, MotionAction, MotionCue, MotionEntity, MotionPath,
     ProcessActor, ProcessStation, ProcessOccupancy, ProcessEvent,
-    PlanValidationError, _Model, dump_plan, error_problems, summarize,
+    PlanValidationError, _Model, country_problems, dump_plan, error_problems, summarize,
     validate_plan,
 )
 
 MODEL = "claude-opus-5-5"
 EFFORT = "high"
 MAX_TOKENS = 16000
-PROMPT_VERSION = "scene-planner-v19-contact-geometry"
-TEMPLATE_ROUTER_VERSION = "template-router-v4"
+PROMPT_VERSION = "scene-planner-v20-map-geography"
+TEMPLATE_ROUTER_VERSION = "template-router-v5"
 MAX_REQUEST_TEMPLATES = 3
 PROMPTS = Path(__file__).resolve().parents[1] / "prompts"
 # The timeline adds short pauses around lines, so speech fills about 95% of the video.
@@ -418,6 +418,8 @@ def planner_prompt(templates=None) -> str:
                 continue
             if line.startswith("- Motion entities,") and "motion" not in allowed:
                 continue
+            if line.startswith("- When the narration is about how places relate") and "map" not in allowed:
+                continue
             kept.append(line)
         prompt = "\n".join(kept) + "\n"
     return Template(prompt).safe_substitute(
@@ -693,8 +695,12 @@ def parse_json(text: str):
         return None, [f"the response is not valid JSON: {exc}"]
 
 
-def review_plan(text: str, spec: dict, require_templates: bool = True):
-    """Return (plan, problems); the plan is None unless the response can be used as it is."""
+def review_plan(text: str, spec: dict, require_templates: bool = True, notes: list[str] | None = None):
+    """Return (plan, problems); the plan is None unless the response can be used as it is.
+
+    Map country names that mean exactly one country on the map are corrected rather than sent back
+    for repair; each correction is added to `notes` when it is given.
+    """
     data, problems = parse_json(text)
     if problems:
         return None, problems
@@ -702,7 +708,7 @@ def review_plan(text: str, spec: dict, require_templates: bool = True):
     # A visual without its template's part also fails validation; the missing part is reported once.
     partless = tuple(problem.split(":", 1)[0] for problem in problems if ".visual." in problem)
     try:
-        plan = validate_plan(normalize_ids(drop_unknown_icons(data), spec["projectId"]))
+        plan = validate_plan(normalize_ids(drop_unknown_icons(data), spec["projectId"]), notes)
     except PlanValidationError as exc:
         found = [output_terms(problem, data) for problem in exc.problems]
         return None, problems + [problem for problem in found if not problem.startswith(partless)]
@@ -710,8 +716,25 @@ def review_plan(text: str, spec: dict, require_templates: bool = True):
     problems += [f"scenes[{index}].template: {scene.template!r} is not allowed for this video; use "
                  + ", ".join(allowed)
                  for index, scene in enumerate(plan.scenes) if scene.template not in allowed]
-    problems += length_problems(plan, spec, require_templates) + coverage_problems(plan)
+    problems += length_problems(plan, spec, require_templates) + coverage_problems(plan) + country_problems(plan)
     return (None if problems else plan), problems
+
+
+def request_plan(client, system: str, request: str, schema: dict, spec: dict, noun: str, attempts: list, step: str,
+                 progress=lambda message: None, **review_options):
+    """request_json for a scene plan; the accepted attempt records the country names that were corrected."""
+    notes = []
+
+    def review(text):
+        notes.clear()
+        return review_plan(text, spec, notes=notes, **review_options)
+
+    plan = request_json(client, system, request, schema, review, noun, attempts, step, progress)
+    if notes:
+        attempts[-1]["notes"] = list(notes)
+        for note in notes:
+            progress(f"Corrected a map country name: {note}")
+    return plan
 
 
 def _record(step: str, response, latency_ms: int, text: str, problems: list[str]) -> dict:
@@ -799,9 +822,8 @@ def generate_plan(spec: dict, client, reference_text: str | None = None, progres
                   attempts: list | None = None):
     """Return a plan from one request (plus one repair). Raises PlannerError when none is usable."""
     system = planner_prompt(spec.get("allowedTemplates"))
-    return request_json(client, system, request_text(spec, reference_text), output_schema(spec.get("allowedTemplates")),
-                        lambda text: review_plan(text, spec), "scene plan",
-                        [] if attempts is None else attempts, "plan", progress)
+    return request_plan(client, system, request_text(spec, reference_text), output_schema(spec.get("allowedTemplates")),
+                        spec, "scene plan", [] if attempts is None else attempts, "plan", progress)
 
 
 def estimated_cost(attempts) -> float:

@@ -14,7 +14,7 @@ from typing import Annotated
 from pydantic import Field, StringConstraints, ValidationError
 
 from .planner import (
-    PROMPTS, PlannerError, normalize_ids, output_schema, parse_json, planner_prompt, request_json, review_plan,
+    PROMPTS, PlannerError, normalize_ids, output_schema, parse_json, planner_prompt, request_json, request_plan,
     scene_range, structured_schema, template_instruction, word_range,
 )
 from .scene_plan import (
@@ -215,10 +215,9 @@ def generate_long_plan(spec: dict, client, reference_text: str | None = None, pr
                         "For motion, derive the ending state from its actions. If resetting a comparison "
                         "or introducing a different example, explicitly say so in narration; do not silently "
                         "resurrect completed actors or change their identities.")
-        plan = request_json(client, system, request,
-                            schema, partial(review_plan, spec=chapter_spec, require_templates=False),
+        plan = request_plan(client, system, request, schema, chapter_spec,
                             f"scene plan for chapter {index + 1} of {count}", attempts,
-                            f"chapter-{index + 1:02d}", progress)
+                            f"chapter-{index + 1:02d}", progress, require_templates=False)
         plans.append(plan)
         previous = [line.text for line in plan.scenes[-1].narration][-3:]
     try:

@@ -7,8 +7,11 @@ import unittest
 
 import jsonschema
 
+from pathlib import Path
+
 from capstone_script.scene_plan import (
-    MAP_REGIONS, PlanValidationError, dump_plan, json_schema, summarize, validate_plan,
+    MAP_COUNTRIES, MAP_REGIONS, PlanValidationError, country_problems, dump_plan, json_schema, resolve_country,
+    summarize, validate_plan,
 )
 from capstone_script.timeline import build_timeline
 
@@ -118,6 +121,67 @@ class VisualTemplateTests(unittest.TestCase):
         data = all_scenes()
         del data["scenes"][2]["visual"]["author"]
         self.assert_problem(data, "scenes[2].visual.author")
+
+    def test_map_country_names_that_mean_one_country_are_corrected_with_a_note(self):
+        data = all_scenes()
+        data["scenes"][3]["visual"]["areas"][0]["countries"] = ["USA", "Phillipines", "the Netherlands", "China"]
+        original = copy.deepcopy(data)
+        notes = []
+        plan = validate_plan(data, notes)
+        self.assertEqual(plan.scenes[3].visual.areas[0].countries,
+                         ["United States of America", "Philippines", "Netherlands", "China"])
+        self.assertEqual(notes, [
+            "scenes[3].visual.areas[0].countries[0]: 'USA' was read as 'United States of America'",
+            "scenes[3].visual.areas[0].countries[1]: 'Phillipines' was read as 'Philippines'",
+            "scenes[3].visual.areas[0].countries[2]: 'the Netherlands' was read as 'Netherlands'",
+        ])
+        self.assertEqual(data, original)  # The caller's data is left as it was.
+        self.assertEqual(country_problems(plan), [])
+
+    def test_resolving_country_names(self):
+        cases = {"United States of America": "United States of America", "india": "India", "UK": "United Kingdom",
+                 "Cote d'Ivoire": "Côte d'Ivoire", "Bosnia & Herzegovina": "Bosnia and Herz.",
+                 "St Lucia": "Saint Lucia", "Saint Kitts and Nevis": "St. Kitts and Nevis", "Kazakstan": "Kazakhstan",
+                 "Gemany": "Germany", "Soviet Union": None, "Korea": None, "Persia": None, "Han China": None}
+        for name, expected in cases.items():
+            with self.subTest(name=name):
+                self.assertEqual(resolve_country(name), expected)
+
+    def test_a_country_that_matches_nothing_is_kept_but_reported_to_the_planner(self):
+        data = all_scenes()
+        data["scenes"][3]["visual"]["areas"][0]["countries"] = ["Soviet Union"]
+        data["scenes"][3]["visual"]["areas"][1]["countries"] = ["Korea"]
+        notes = []
+        plan = validate_plan(data, notes)  # Saved plans with such names still load and render, unshaded.
+        self.assertEqual(notes, [])
+        problems = country_problems(plan)
+        self.assertEqual(len(problems), 2, problems)
+        self.assertTrue(problems[0].startswith(
+            "scenes[3].visual.areas[0].countries[0]: 'Soviet Union' is not a country on the map; "), problems[0])
+        self.assertIn("list a former state as the countries now on its land", problems[0])
+        self.assertIn("did you mean 'North Korea' or 'South Korea'?", problems[1])
+
+    def test_a_corrected_country_cannot_be_shaded_twice(self):
+        data = all_scenes()
+        data["scenes"][3]["visual"]["areas"][1]["countries"] = ["china"]
+        self.assert_problem(data, "scenes[3].visual.areas[1].countries[0]: 'China' is already in another area")
+
+    def test_the_map_country_list_and_the_handwritten_examples_agree(self):
+        names = MAP_COUNTRIES["names"]
+        self.assertEqual(len(names), len(set(names)))
+        for alias, name in MAP_COUNTRIES["aliases"].items():
+            with self.subTest(alias=alias):
+                self.assertIn(name, names)
+                self.assertNotIn(alias, names)
+                self.assertEqual(resolve_country(alias), name)
+        examples = Path(__file__).resolve().parents[1] / "examples"
+        for path in sorted(examples.rglob("*.json")):
+            plan = json.loads(path.read_text(encoding="utf-8"))
+            for scene in plan.get("scenes", []) if isinstance(plan, dict) else []:
+                for area in scene.get("visual", {}).get("areas", []) if scene.get("template") == "map" else []:
+                    for country in area["countries"]:
+                        with self.subTest(example=path.name, country=country):
+                            self.assertIn(country, names)
 
     def test_map_checks_region_countries_ids_and_route(self):
         cases = [
