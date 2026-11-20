@@ -11,6 +11,8 @@ import {FlowScene} from './scenes/FlowScene';
 import {MapScene} from './scenes/MapScene';
 import {QuoteScene} from './scenes/QuoteScene';
 import {StatScene} from './scenes/StatScene';
+import {GeneratedVideoScene} from './scenes/GeneratedVideoScene';
+import {FullSeedanceVideo} from './FullSeedanceVideo';
 import {MotionScene} from './motion/MotionScene';
 import {LookContext, loadSketchFont} from './motion/sketch';
 import {processPresentations, type ProcessPresentation} from './motion/processPresentation';
@@ -21,6 +23,8 @@ import type {Timeline, TimelineScene} from './types';
 
 const SceneView: React.FC<{scene: TimelineScene; label: string; presentation?: ProcessPresentation}> = ({scene, label, presentation}) => {
   switch (scene.template) {
+    case 'generated-video':
+      return <GeneratedVideoScene scene={scene} />;
     case 'concept':
       return <ConceptScene scene={scene} label={label} />;
     case 'flow':
@@ -47,7 +51,7 @@ type Part = {key: string; from: number; durationInFrames: number; content: React
   continuousFromPrevious?: boolean};
 
 /** The whole video: title card, chapter cards and scenes over a moving backdrop, with captions and progress. */
-export const Explainer: React.FC<Timeline> = (timeline) => {
+const AnimatedExplainer: React.FC<Timeline> = (timeline) => {
   const theme = themes[timeline.theme ?? 'light'] ?? themes.light;
   const chapters = new Map(timeline.chapters.map((chapter) => [chapter.id, chapter]));
   const lines = timeline.scenes.flatMap((scene) => scene.lines);
@@ -107,3 +111,7 @@ export const Explainer: React.FC<Timeline> = (timeline) => {
     </ThemeContext.Provider>
   );
 };
+
+export const Explainer: React.FC<Timeline> = (timeline) => timeline.visualMode === 'seedance-full'
+  ? <FullSeedanceVideo {...timeline} />
+  : <AnimatedExplainer {...timeline} />;

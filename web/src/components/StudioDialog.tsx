@@ -19,7 +19,7 @@ export default function StudioDialog({ kind, onClose, health, healthError, check
         <p>Your studio runs on this computer. These checks make sure everything is in place before you start.</p>
         {healthError && <div className="inline-error" role="alert">{healthError}</div>}
         <ul className="setup-checks">{health?.checks.map((check) => <li key={check.id}><span className={check.ok ? 'check-ok' : 'check-needed'}>{check.ok ? <Check size={17} /> : <CircleAlert size={17} />}</span><div><strong>{check.label}</strong><p>{check.detail}</p></div></li>)}</ul>
-        <p className="setup-note">A sample uses an existing script and does not need an API key. Generating your own topic uses the Claude API configured on the server. Keep credentials out of the browser.</p>
+        <p className="setup-note">An animated sample needs no API key. Seedance footage, including samples, uses your Ark key and incurs video charges. Your own topic also uses Claude for planning. Keep credentials out of the browser.</p>
         <button className="primary-button" type="button" disabled={checking} onClick={onCheck}>{checking && <LoaderCircle className="spin" size={16} />}{checking ? 'Checking…' : 'Check again'}</button>
       </> : <>
         <p>Start with a question you’d like to explain. Your audience and target length help shape the story.</p>

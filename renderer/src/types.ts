@@ -82,6 +82,8 @@ type SceneBase = {
 };
 
 export type TimelineScene =
+  | (SceneBase & {template: 'generated-video'; visual: {title: string; model: string;
+      clips: {path: string; from: number; durationInFrames: number}[]}})
   | (SceneBase & {template: 'concept'; visual: ConceptVisual})
   | (SceneBase & {template: 'flow'; visual: FlowVisual})
   | (SceneBase & {template: 'comparison'; visual: ComparisonVisual})
@@ -102,6 +104,7 @@ export type TimelineChapter = {
 };
 
 export type Timeline = {
+  visualMode?: 'seedance-full';
   schemaVersion: string;
   projectId: string;
   title: string;

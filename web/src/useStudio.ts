@@ -123,6 +123,24 @@ export function useStudio(userId: string) {
     setConnectionError('');
   }, [job, restoring, rememberJob]);
 
+  const resume = useCallback(async (selected: Job) => {
+    if (submittingRef.current || isActive(job) || restoring || !selected.canResume) return;
+    submittingRef.current = true;
+    setSubmitting(true);
+    setSubmitError('');
+    try {
+      const resumed = await api.resumeJob(selected.id);
+      rememberJob(resumed.id);
+      setJob(resumed);
+      setConnectionError('');
+    } catch (error) {
+      setSubmitError((error as Error).message);
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
+    }
+  }, [job, restoring, rememberJob]);
+
   /** Show a job from history in the workspace; refused while another job is still being created. */
   const open = useCallback((selected: Job) => {
     if (selected.id === job?.id) return true;
@@ -135,5 +153,5 @@ export function useStudio(userId: string) {
     return true;
   }, [job, restoring, rememberJob]);
 
-  return { health, healthError, checking, checkHealth, job, restoring, submitting, submitError, connectionError, submit, reset, open };
+  return { health, healthError, checking, checkHealth, job, restoring, submitting, submitError, connectionError, submit, resume, reset, open };
 }

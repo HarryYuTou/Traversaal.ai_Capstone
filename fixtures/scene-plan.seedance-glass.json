@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1",
+  "projectId": "why-a-cold-glass-gets-wet",
+  "title": "Why a Cold Glass Gets Wet",
+  "scenes": [
+    {
+      "id": "cold-glass", "purpose": "hook", "template": "concept",
+      "visual": {"title": "A cold glass, a surprising puddle", "statement": "The water comes from the air.", "points": ["Cold surface", "Moist air"], "icon": "droplet"},
+      "narration": [{"id": "glass-01", "text": "A cold glass can get wet on the outside, even when nothing spills. The glass is not leaking water. Where does that water come from?", "highlightPointIndex": 0}]
+    },
+    {
+      "id": "droplets", "purpose": "explain", "template": "concept",
+      "visual": {"title": "Water vapor becomes liquid", "statement": "Cooling makes condensation possible.", "points": ["Water vapor in the air", "Droplets on the cold surface"], "icon": "droplet"},
+      "narration": [{"id": "glass-02", "text": "The air contains water vapor. When air next to the glass cools enough, some of that vapor condenses into liquid droplets.", "highlightPointIndex": 1}]
+    },
+    {
+      "id": "puddle", "purpose": "takeaway", "template": "concept",
+      "visual": {"title": "Condensation, not a leak", "statement": "Tiny droplets can join and run down.", "points": ["Droplets join together", "Water collects below"], "icon": "droplet"},
+      "narration": [{"id": "glass-03", "text": "Those droplets join together and run down the outside. The puddle came from moisture in the surrounding air. This familiar process is called condensation.", "highlightPointIndex": 1}]
+    }
+  ]
+}

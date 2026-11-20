@@ -40,6 +40,89 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe('Studio workflow', () => {
+  it('submits a full Seedance sample with a single quality and no separate footage limit', async () => {
+    vi.mocked(api.health).mockResolvedValue({...health, seedanceReady: true, seedanceSampleReady: true,
+      seedanceSample: {title: 'Why a Cold Glass Gets Wet', topic: 'Why does a cold glass get wet?', audience: 'Adults', durationSeconds: 30}});
+    render(<App />);
+    await screen.findByRole('button', {name: /Studio ready/});
+    await userEvent.selectOptions(screen.getByLabelText('Visuals'), 'seedance');
+    await userEvent.click(screen.getByRole('button', {name: 'Try a sample'}));
+    expect(screen.getByText('No script API charge. Seedance video charges apply.')).toBeTruthy();
+    expect(screen.queryByText('No AI script request or API usage')).toBeNull();
+    await userEvent.selectOptions(screen.getByLabelText('Video quality'), '480p');
+    expect(screen.getAllByLabelText('Target length')).toHaveLength(1);
+    expect((screen.getByLabelText('Target length') as HTMLSelectElement).disabled).toBe(true);
+    expect(screen.queryByLabelText('Generated footage limit')).toBeNull();
+    expect(screen.queryByLabelText(/Quick draft/)).toBeNull();
+    await userEvent.click(screen.getByRole('button', {name: 'Generate sample video'}));
+    expect(api.createJob).toHaveBeenCalledWith(expect.objectContaining({visualMode: 'seedance', videoResolution: '480p',
+      durationSeconds: 30, source: 'sample', review: false, draft: false}));
+    expect(vi.mocked(api.createJob).mock.calls[0][0]).not.toHaveProperty('maxGeneratedSeconds');
+  });
+
+  it('uses one length and quality for Seedance while preserving animation settings when switching back', async () => {
+    vi.mocked(api.health).mockResolvedValue({...health, seedanceReady: true});
+    render(<App />);
+    await screen.findByRole('button', {name: /Studio ready/});
+    await userEvent.click(screen.getByText('Video settings'));
+    await userEvent.click(screen.getByRole('button', {name: 'Night'}));
+    await userEvent.click(screen.getByLabelText(/Quick draft/));
+    await userEvent.selectOptions(screen.getByLabelText('Target length'), '420');
+    await userEvent.selectOptions(screen.getByLabelText('Visuals'), 'seedance');
+    expect(screen.getAllByLabelText('Target length')).toHaveLength(1);
+    expect(screen.getAllByLabelText('Video quality')).toHaveLength(1);
+    expect(screen.queryByLabelText(/Quick draft/)).toBeNull();
+    expect(screen.queryByLabelText(/Level 1 duration check/)).toBeNull();
+    expect(screen.queryByRole('button', {name: 'Night'})).toBeNull();
+    await userEvent.selectOptions(screen.getByLabelText('Video quality'), '720p');
+    await userEvent.selectOptions(screen.getByLabelText('Target length'), '60');
+    await userEvent.click(screen.getByRole('button', {name: 'How GPS works'}));
+    await userEvent.selectOptions(screen.getByLabelText('Visuals'), 'animation');
+    expect((screen.getByLabelText(/Quick draft/) as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByRole('button', {name: 'Night'}).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.queryByLabelText('Video quality')).toBeNull();
+    expect(screen.getByText('The final length follows the narration and may vary.')).toBeTruthy();
+    await userEvent.selectOptions(screen.getByLabelText('Visuals'), 'seedance');
+    await userEvent.click(screen.getByRole('button', {name: 'Generate video'}));
+    expect(api.createJob).toHaveBeenCalledWith(expect.objectContaining({visualMode: 'seedance', durationSeconds: 60,
+      videoResolution: '720p', draft: false, theme: 'light', minimumDurationSec: 0}));
+    expect(vi.mocked(api.createJob).mock.calls[0][0]).not.toHaveProperty('maxGeneratedSeconds');
+  });
+
+  it('resumes the same paid job without submitting a new generation', async () => {
+    localStorage.setItem(JOB_KEY, baseJob.id);
+    const stopped: Job = {...baseJob, status: 'failed', stage: 'failed', canResume: true,
+      request: {...request, visualMode: 'seedance'}, error: 'Connection interrupted'};
+    vi.mocked(api.job).mockResolvedValue(stopped);
+    vi.spyOn(api, 'resumeJob').mockResolvedValue({...stopped, status: 'queued', stage: 'queued'});
+    render(<App />);
+    await userEvent.click(await screen.findByRole('button', {name: 'Resume saved video'}));
+    expect(api.resumeJob).toHaveBeenCalledWith(baseJob.id);
+    expect(api.createJob).not.toHaveBeenCalled();
+    expect(localStorage.getItem(JOB_KEY)).toBe(baseJob.id);
+  });
+
+  it('does not offer a paid retry for an ambiguous submission', async () => {
+    localStorage.setItem(JOB_KEY, baseJob.id);
+    vi.mocked(api.job).mockResolvedValue({...baseJob, status: 'failed', stage: 'failed', canResume: false,
+      request: {...request, visualMode: 'seedance'}, error: 'Submission unknown; inspect saved task records.'});
+    render(<App />);
+    await screen.findByText('Submission unknown; inspect saved task records.');
+    expect(screen.queryByRole('button', {name: 'Resume saved video'})).toBeNull();
+    expect(screen.queryByRole('button', {name: 'Try again with this brief'})).toBeNull();
+    expect(api.createJob).not.toHaveBeenCalled();
+  });
+
+  it('blocks Seedance sample generation when its API credential is unavailable', async () => {
+    render(<App />);
+    await screen.findByRole('button', {name: /Studio ready/});
+    await userEvent.selectOptions(screen.getByLabelText('Visuals'), 'seedance');
+    await userEvent.click(screen.getByRole('button', {name: 'Try a sample'}));
+    await userEvent.click(screen.getByRole('button', {name: 'Generate sample video'}));
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(api.createJob).not.toHaveBeenCalled();
+  });
+
   it('rejects an empty brief before creating a task and focuses the problem', async () => {
     render(<App />);
     await screen.findByRole('button', { name: /Studio ready/ });

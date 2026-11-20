@@ -1,6 +1,6 @@
 import { ArrowUpRight, Check, CircleAlert, CircleHelp, Globe2, History, LoaderCircle, LogOut, MonitorPlay, RotateCcw, UserRound } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { isActive, type User, type VideoRequest } from './api';
+import { isActive, isReady, type User, type VideoRequest } from './api';
 import Brand from './components/Brand';
 import BriefForm from './components/BriefForm';
 import HistoryPanel from './components/HistoryPanel';
@@ -20,6 +20,8 @@ function initialBrief(key: string): VideoRequest {
       durationSeconds: [30, 60, 90, 120, 180, 300, 420, 600].includes(saved.durationSeconds || 0) ? saved.durationSeconds! : 90,
       source: saved.source === 'sample' ? 'sample' : 'topic', theme: saved.theme === 'night' ? 'night' : 'light',
       review: saved.review !== false, music: saved.music !== false, draft: saved.draft === true,
+      visualMode: saved.visualMode === 'seedance' ? 'seedance' : 'animation',
+      videoResolution: saved.videoResolution === '720p' ? '720p' : '480p',
     };
   } catch { return DEFAULT_BRIEF; }
 }
@@ -31,7 +33,7 @@ export default function Studio({ user, onSignOut }: { user: User; onSignOut: () 
   const [view, setView] = useState<'workspace' | 'history'>('workspace');
   const busy = studio.submitting || studio.restoring || isActive(studio.job);
   const activeBrief = busy && studio.job ? studio.job.request : brief;
-  const selectedReady = brief.source === 'sample' ? studio.health?.sampleReady : studio.health?.liveReady;
+  const selectedReady = isReady(studio.health, brief);
   useEffect(() => {
     try { localStorage.setItem(briefKey(user.id), JSON.stringify(brief)); } catch { /* Draft persistence is optional. */ }
   }, [brief, user.id]);
@@ -54,7 +56,7 @@ export default function Studio({ user, onSignOut }: { user: User; onSignOut: () 
     {view === 'history' ? <main id="main-content" className="workspace">
       <HistoryPanel busy={busy} currentJobId={studio.job?.id ?? null}
         onOpen={(job) => { if (studio.open(job)) setView('workspace'); }}
-        onRetry={(job) => { setView('workspace'); void studio.submit(job.request); }}
+        onRetry={(job) => { setView('workspace'); void (job.canResume ? studio.resume(job) : studio.submit(job.request)); }}
         onCreate={() => setView('workspace')} />
       <footer className="workspace-footer"><span>A little curiosity. A clearer world.</span><span>Traversaal Capstone <span className="footer-dot">·</span> Studio v1</span></footer>
     </main> : <main id="main-content" className="workspace">
@@ -66,7 +68,7 @@ export default function Studio({ user, onSignOut }: { user: User; onSignOut: () 
       </div>
       <div className="workspace-meta"><span><Globe2 size={13} />English narration</span><span className="meta-separator" /><span>30 seconds to 10 minutes</span><span className="meta-separator" /><span>Made on your computer</span></div>
 
-      {!busy && !studio.checking && !selectedReady && <div className="setup-banner"><CircleAlert size={17} /><p>{studio.healthError ? 'Connect to the generation service to start creating.' : brief.source === 'topic' && studio.health?.sampleReady ? 'Your own topic needs a Claude API key. You can try a sample while you set up.' : 'A few setup steps are needed before your first video.'}</p><button type="button" onClick={() => setDialog('setup')}>View setup<ArrowUpRight size={14} /></button></div>}
+      {!busy && !studio.checking && !selectedReady && <div className="setup-banner"><CircleAlert size={17} /><p>{studio.healthError ? 'Connect to the generation service to start creating.' : brief.visualMode === 'seedance' ? 'Seedance footage needs an Ark API key. Check the setup for this mode.' : brief.source === 'topic' && studio.health?.sampleReady ? 'Your own topic needs a Claude API key. You can try a sample while you set up.' : 'A few setup steps are needed before your first video.'}</p><button type="button" onClick={() => setDialog('setup')}>View setup<ArrowUpRight size={14} /></button></div>}
       {studio.connectionError && <div className="connection-banner" role="status"><LoaderCircle className="spin" size={16} />{studio.connectionError}</div>}
 
       <div className="studio-grid">
@@ -75,7 +77,10 @@ export default function Studio({ user, onSignOut }: { user: User; onSignOut: () 
           <VideoPreview job={studio.job} brief={brief} onReset={studio.reset} restoring={studio.restoring} />
           <StagePanel job={studio.job} />
           <div className="task-announcement sr-only" role="status" aria-live="polite" aria-atomic="true">{studio.job ? `${studio.job.stage}: ${studio.job.message}` : ''}</div>
-          {studio.job?.status === 'failed' && <button className="secondary-button retry-button" type="button" onClick={() => { void studio.submit(studio.job!.request); }} disabled={studio.submitting}><RotateCcw size={15} />Try again with this brief</button>}
+          {studio.job?.status === 'failed' && (studio.job.canResume || studio.job.request.visualMode !== 'seedance') &&
+            <button className="secondary-button retry-button" type="button" onClick={() => {
+              void (studio.job!.canResume ? studio.resume(studio.job!) : studio.submit(studio.job!.request));
+            }} disabled={studio.submitting}><RotateCcw size={15} />{studio.job.canResume ? 'Resume saved video' : 'Try again with this brief'}</button>}
           {studio.job?.status === 'completed' && <p className="completion-note"><Check size={14} />Saved to your history on this computer. Review it before sharing.</p>}
         </div>
       </div>
