@@ -14,14 +14,14 @@ import sys
 import threading
 from uuid import uuid4
 
-from .health import ROOT, SAMPLE
+from .health import ROOT, SAMPLE, SEEDANCE_SAMPLE
 from capstone_script.duration import requested_minimum
 
 JOB_ID = re.compile(r"^[0-9a-f]{32}$")
 EVENT_PREFIX = "CAPSTONE_EVENT:"
 ACTIVE = {"queued", "running"}
-STAGES = {"planning", "reviewing", "narrating", "rendering"}
-INTERRUPTED = "Generation was interrupted when the local server stopped. Submit a new job to try again; no automatic retry was made."
+STAGES = {"planning", "reviewing", "narrating", "storyboarding", "generating_video", "rendering"}
+INTERRUPTED = "Generation was interrupted when the local server stopped. Resume if available, or submit a new job. No automatic retry was made."
 
 
 class RequestError(ValueError):
@@ -33,7 +33,8 @@ class RequestError(ValueError):
 def validate_request(body):
     if not isinstance(body, dict):
         raise RequestError("Send a JSON object with the video settings.")
-    allowed = {"topic", "audience", "durationSeconds", "minimumDurationSec", "review", "theme", "music", "draft", "source"}
+    allowed = {"topic", "audience", "durationSeconds", "minimumDurationSec", "review", "theme", "music", "draft", "source",
+               "visualMode", "videoResolution", "maxGeneratedSeconds"}
     if body.keys() - allowed:
         raise RequestError("Unknown request fields: " + ", ".join(sorted(body.keys() - allowed)))
     result = {"review": True, "theme": "light", "music": True, "draft": False, "source": "topic", **body}
@@ -54,8 +55,24 @@ def validate_request(body):
         raise RequestError("theme must be light or night.")
     if result["source"] not in ("topic", "sample"):
         raise RequestError("source must be topic or sample.")
+    result.setdefault("visualMode", "animation")
+    result.setdefault("videoResolution", "480p")
+    if result["visualMode"] not in ("animation", "seedance"):
+        raise RequestError("visualMode must be animation or seedance.")
+    if result["videoResolution"] not in ("480p", "720p"):
+        raise RequestError("videoResolution must be 480p or 720p.")
+    if result["visualMode"] == "seedance":
+        if "maxGeneratedSeconds" in body:
+            raise RequestError("Seedance now generates the entire video. Refresh the page and choose one target length and video quality.")
+        # Seedance quality controls both generation and export; animation-only settings cannot override it.
+        result.update(draft=False, theme="light", minimumDurationSec=0)
+    else:
+        result.setdefault("maxGeneratedSeconds", 60)
+        if type(result["maxGeneratedSeconds"]) is not int or not 4 <= result["maxGeneratedSeconds"] <= 120:
+            raise RequestError("maxGeneratedSeconds must be a whole number between 4 and 120, including retries.")
     if result["source"] == "sample":
-        result.update({key: SAMPLE[key] for key in ("topic", "audience", "durationSeconds")}, review=False)
+        sample = SEEDANCE_SAMPLE if result["visualMode"] == "seedance" else SAMPLE
+        result.update({key: sample[key] for key in ("topic", "audience", "durationSeconds")}, review=False)
         result["minimumDurationSec"] = 0
     else:
         try:
@@ -110,6 +127,8 @@ class JobStore:
                    "message": "Queued. Jobs run one at a time on this computer.",
                    "createdAt": timestamp, "updatedAt": timestamp, "request": copy.deepcopy(request),
                    "error": None, "result": None, "owner": owner}
+            if request.get("visualMode") == "seedance":
+                job["pipelineVersion"] = 2
             self._write(job)
             self.jobs[job["id"]] = job
             return copy.deepcopy(job)
@@ -136,7 +155,7 @@ class JobStore:
         """Keep failure visible even if the disk cannot accept a status update."""
         with self.lock:
             job = {**self.jobs[job_id], "status": "failed", "stage": "failed", "message": message,
-                   "error": message, "result": None, "updatedAt": now()}
+                   "error": message, "result": None, "updatedAt": now(), "canResume": self.can_resume(job_id)}
             try:
                 self._write(job)
             except Exception:
@@ -146,6 +165,28 @@ class JobStore:
                 job.update(message=detail, error=detail)
             self.jobs[job_id] = job
             return copy.deepcopy(job)
+
+    def can_resume(self, job_id):
+        job = self.jobs[job_id]
+        output = self.directory / job_id / "output"
+        if job["request"].get("visualMode") != "seedance" or not (output / "pipeline-checkpoint.json").is_file():
+            return False
+        try:
+            manifest_path = output / "video-generation.json"
+            manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {"shots": {}}
+            return all(row["state"] not in ("submitting", "submission_unknown") for row in manifest["shots"].values())
+        except (OSError, ValueError, KeyError, TypeError):
+            return False
+
+    def resume(self, job_id):
+        with self.lock:
+            job = self.jobs[job_id]
+            if job["status"] != "failed" or not self.can_resume(job_id):
+                raise RequestError("This job cannot be resumed safely. Existing task records were preserved.", "not_resumable", 409)
+            if sum(item["status"] in ACTIVE for item in self.jobs.values()) >= 8:
+                raise RequestError("The local queue is full.", "queue_full", 429)
+            return self.update(job_id, status="queued", stage="queued", message="Queued to resume saved video tasks.",
+                               error=None, result=None, canResume=False, resumeCount=job.get("resumeCount", 0) + 1)
 
     def interrupt(self):
         with self.lock:
@@ -210,17 +251,18 @@ class JobRunner:
             return
         if event.get("stage") in STAGES:
             values = {"stage": event["stage"], "message": str(event.get("message", "Generating video."))[:500]}
-            progress = event.get("lineProgress")
-            if isinstance(progress, dict) and type(progress.get("current")) is int and type(progress.get("total")) is int:
-                if 0 <= progress["current"] <= progress["total"]:
-                    values["lineProgress"] = progress
+            for field in ("lineProgress", "clipProgress"):
+                progress = event.get(field)
+                if isinstance(progress, dict) and type(progress.get("current")) is int and type(progress.get("total")) is int:
+                    if 0 <= progress["current"] <= progress["total"]:
+                        values[field] = {"current": progress["current"], "total": progress["total"]}
             self.store.update(job_id, **values)
 
     def _subprocess(self, job_id, callback):
         job_dir = self.store.directory / job_id
         command = [sys.executable, "-m", "capstone_web.worker", "--job", str(job_dir / "job.json")]
         result, failure = None, None
-        with (job_dir / "worker.log").open("w", encoding="utf-8") as log:
+        with (job_dir / "worker.log").open("a", encoding="utf-8") as log:
             with self.process_lock:
                 if self.stop.is_set():
                     raise WorkerError(INTERRUPTED)

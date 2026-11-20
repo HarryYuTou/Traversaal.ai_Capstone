@@ -49,6 +49,7 @@ export default function VideoPreview({ job, brief, onReset, restoring }: { job: 
 
     {result ? <div className="result-details">
       <h3>{result.title}</h3>
+      {result.generatedVideo && <p className="field-hint">Seedance 2.0 Fast · {result.generatedVideo.shotCount} clips · {result.generatedVideo.resolution} {result.generatedVideo.coverage === 'full' ? 'full video' : 'source footage'} · {result.generatedVideo.estimatedCostCny == null ? 'Cost unavailable' : `estimated ¥${result.generatedVideo.estimatedCostCny.toFixed(2)}`} in video generation. Actual Ark bill controls.</p>}
       <div className="result-meta"><span><Clock3 size={13} />{formatDuration(result.durationSeconds)}</span><span>{result.width} × {result.height}</span><span>{(result.bytes / 1_000_000).toFixed(1)} MB</span>{job?.request.source === 'sample' && <span>Sample script</span>}</div>
       <div className="result-meta" aria-label="Duration verification">
         <span>Target {formatDuration(result.durationCheck?.targetDurationSec ?? job!.request.durationSeconds)}</span>

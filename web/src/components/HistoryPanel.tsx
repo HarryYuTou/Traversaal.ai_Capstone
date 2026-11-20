@@ -72,6 +72,7 @@ export default function HistoryPanel({ busy, currentJobId, onOpen, onRetry, onCr
                 {result ? <span><Clock3 size={12} />{formatDuration(result.durationSeconds)}</span> : <span>Target {formatDuration(job.request.durationSeconds)}</span>}
                 {job.request.source === 'sample' && <span>Sample script</span>}
                 {job.request.draft && <span>Draft</span>}
+                {job.request.visualMode === 'seedance' && <span>Seedance Fast · {job.request.videoResolution || '480p'}</span>}
                 {current && <span className="history-current">In your workspace</span>}
               </div>
               {job.status === 'failed' && job.error && <p className="history-error">{job.error}</p>}
@@ -79,7 +80,7 @@ export default function HistoryPanel({ busy, currentJobId, onOpen, onRetry, onCr
             <div className="history-actions">
               <button type="button" className="secondary-button" onClick={() => onOpen(job)} disabled={blocked} title={blocked ? 'Wait for the current video to finish first.' : undefined}>Open</button>
               {result && <a className="secondary-button" href={result.downloadUrl} download aria-label={`Download MP4: ${title}`}><ArrowDownToLine size={14} />MP4</a>}
-              {job.status === 'failed' && <button type="button" className="text-button" onClick={() => onRetry(job)} disabled={busy}><RotateCcw size={13} />Try again</button>}
+              {job.status === 'failed' && (job.canResume || job.request.visualMode !== 'seedance') && <button type="button" className="text-button" onClick={() => onRetry(job)} disabled={busy}><RotateCcw size={13} />{job.canResume ? 'Resume' : 'Try again'}</button>}
             </div>
           </li>;
         })}

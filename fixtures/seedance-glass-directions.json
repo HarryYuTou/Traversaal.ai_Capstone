@@ -1,0 +1,8 @@
+{
+  "style": "Photoreal educational macro cinematography. A single plain straight-sided transparent drinking tumbler with clear water and three ice cubes, on a pale beige stone tabletop, warm muted cafe background, soft daylight from the left. The same glass and environment in every shot. No people. Restrained camera movement, natural physics, shallow depth of field.",
+  "prompts": {
+    "cold-glass": "Medium close-up of the stationary ice-water glass, seen from slightly above tabletop level. The rim is visible and no water spills over it. The outer surface is initially mostly clear, with a few tiny condensation beads appearing low on the outside. Very gentle camera push toward the cold glass. Emphasize the cool glass in the warm room; do not show steam, a leak, or pouring water.",
+    "droplets": "Macro close-up focused on the outside wall of the same cold glass. Tiny clear condensation beads gradually form and grow on the external glass surface, while the background stays softly blurred. The water inside stays still. Keep the rim out of frame. A locked camera makes the changing droplets readable. Water vapor itself is invisible: no smoke, mist, floating particles, molecular diagram or visible vapor stream.",
+    "puddle": "Low macro view of the lower outside wall and base of the same ice-water tumbler on the beige stone table. Several beads on the outer wall merge into a larger drop, which slowly slides downward under gravity and reaches the small wet ring around the base. No water spills from the rim and the glass is unbroken. Gentle focus shift from the moving droplet to the small wet ring, finishing on the result. No flood or exaggerated splash."
+  }
+}

@@ -1,5 +1,5 @@
 /** The only HTTP boundary. UI components do not depend on the Python pipeline. */
-export type Stage = 'queued' | 'planning' | 'reviewing' | 'narrating' | 'rendering' | 'completed' | 'failed';
+export type Stage = 'queued' | 'planning' | 'reviewing' | 'narrating' | 'storyboarding' | 'generating_video' | 'rendering' | 'completed' | 'failed';
 export type VideoRequest = {
   topic: string;
   audience: string;
@@ -10,8 +10,13 @@ export type VideoRequest = {
   music: boolean;
   draft: boolean;
   source: 'topic' | 'sample';
+  visualMode?: 'animation' | 'seedance';
+  videoResolution?: '480p' | '720p';
+  // Only present in saved hybrid jobs. New submissions do not send a footage limit.
+  maxGeneratedSeconds?: number;
 };
 export type Job = {
+  pipelineVersion?: number;
   id: string;
   status: 'queued' | 'running' | 'completed' | 'failed';
   stage: Stage;
@@ -21,6 +26,8 @@ export type Job = {
   request: VideoRequest;
   error: string | null;
   lineProgress?: { current: number; total: number };
+  clipProgress?: { current: number; total: number };
+  canResume?: boolean;
   result: null | {
     title: string;
     videoUrl: string;
@@ -38,6 +45,8 @@ export type Job = {
     width: number;
     height: number;
     bytes: number;
+    generatedVideo?: {model: string; resolution: string; shotCount: number; seconds: number; coverage?: 'full';
+      submittedSeconds: number; completionTokens: number; estimatedCostCny: number | null};
   };
 };
 export type User = { id: string; username: string; createdAt: string };
@@ -45,6 +54,9 @@ export type Health = {
   status: 'ok';
   liveReady: boolean;
   sampleReady: boolean;
+  seedanceReady?: boolean;
+  seedanceSampleReady?: boolean;
+  seedanceSample?: { title: string; topic: string; audience: string; durationSeconds: number };
   checks: { id: string; label: string; ok: boolean; detail: string }[];
   sample: { title: string; topic: string; audience: string; durationSeconds: number };
 };
@@ -90,9 +102,20 @@ export const api = {
   logout: () => request<{ user: null }>('/auth/logout', { method: 'POST' }).then(() => undefined),
   jobs: () => request<{ jobs: Job[] }>('/jobs').then((body) => body.jobs),
   health: () => request<Health>('/health'),
-  createJob: (input: VideoRequest) => request<Job>('/jobs', { method: 'POST', body: JSON.stringify(input) }),
+  createJob: (input: VideoRequest) => {
+    const {maxGeneratedSeconds: _legacyLimit, ...current} = input;
+    const body = input.visualMode === 'seedance' ? {...current, draft: false, theme: 'light', minimumDurationSec: 0} : current;
+    return request<Job>('/jobs', { method: 'POST', body: JSON.stringify(body) });
+  },
   job: (id: string) => request<Job>(`/jobs/${encodeURIComponent(id)}`),
+  resumeJob: (id: string) => request<Job>(`/jobs/${encodeURIComponent(id)}/resume`, {method: 'POST', body: '{}'}),
 };
+
+export function isReady(health: Health | null, brief: VideoRequest): boolean {
+  return Boolean(brief.visualMode === 'seedance'
+    ? brief.source === 'sample' ? health?.seedanceSampleReady : health?.seedanceReady
+    : brief.source === 'sample' ? health?.sampleReady : health?.liveReady);
+}
 
 export function isActive(job: Job | null): boolean {
   return job?.status === 'running' || job?.status === 'queued';

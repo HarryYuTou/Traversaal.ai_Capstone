@@ -5,6 +5,17 @@ pipeline. Enter a topic, audience, and target length, follow the generation
 stages, then play or download the finished MP4. A built-in sample provides a
 way to exercise real narration and rendering without making a Claude request.
 
+Under **Visuals**, choose **Animated explanations** for the original animation
+pipeline, or **Seedance Fast · full video** for entirely generated imagery. Seedance
+has one **Target length** and one **Video quality** (480p or 720p), which applies to
+both the generated footage and final MP4. Narration, captions and optional music
+are added automatically. It uses only Doubao-Seedance-2.0-fast, and Ark charges
+apply even to its approximately 30-second sample. There is no separate generated
+footage limit or Quick draft setting in this mode. See [Level 2](LEVEL2.md) for
+setup, cost estimates, recovery and verification limits. Previously saved hybrid
+jobs keep their original rendering and resume behavior; start a new job to use
+full-video generation.
+
 This version runs on one computer at `127.0.0.1`. Each person signs in with a
 local account, and a **History** page lists every video that account has made.
 Accounts and jobs are stored on the computer running the server. There is no

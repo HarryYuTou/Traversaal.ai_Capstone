@@ -65,6 +65,16 @@ no Claude key; a new topic uses the configured Claude API. Follow the
 [web studio guide](docs/WEB_STUDIO.md) to install and start it. This version
 does not include public deployment.
 
+**Level 2 — Seedance Fast full video** generates every scene with
+`doubao-seedance-2-0-fast-260128`, then adds narration, captions and optional music.
+Choose one target length and one video quality (480p or 720p); the selected quality
+also sets the final MP4 resolution. There are no separate animated title or chapter
+cards. Task IDs and verified clips are preserved for explicit resume, with at most
+one retry per failed shot. Animated explanations keep their existing settings.
+The dedicated sample uses an authored condensation script and local narration;
+its video footage incurs Ark API charges. See the [Level 2 guide](docs/LEVEL2.md)
+for setup, recovery, sample generation, and the current verification limits.
+
 For command-line topic-to-video generation, follow the
 [quick start](docs/QUICKSTART.md). The standalone **local English text-to-speech
 on CPU** module also remains available: it reads a UTF-8 text file and writes a

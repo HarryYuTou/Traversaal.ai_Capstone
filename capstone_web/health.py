@@ -8,6 +8,11 @@ import shutil
 
 ROOT = Path(__file__).resolve().parents[1]
 SAMPLE_FIXTURE = Path("fixtures/scene-plan.motion-network.json")
+SEEDANCE_FIXTURE = Path("fixtures/scene-plan.seedance-glass.json")
+SEEDANCE_SAMPLE = {
+    "title": "Why a Cold Glass Gets Wet", "topic": "Why does a cold glass get wet on the outside?",
+    "audience": "Curious adults", "durationSeconds": 30,
+}
 SAMPLE = {
     "title": "How a Message Crosses the Internet",
     "topic": "How does a message travel across the internet?",
@@ -25,8 +30,8 @@ def has_module(name):
         return False
 
 
-def api_key_available(root=ROOT):
-    names = {"ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"}
+def api_key_available(root=ROOT, names=None):
+    names = names or {"ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"}
     if any(os.environ.get(name, "").strip() for name in names):
         return True
     path = Path(root) / ".env"
@@ -79,8 +84,12 @@ def health(root=ROOT):
          "detail": "Required for a new topic. Install requirements.lock.txt."},
         {"id": "claude_key", "label": "Claude API credential", "ok": api_key_available(root),
          "detail": "Read from the server environment or project .env; never sent to the browser."},
+        {"id": "seedance_key", "label": "Seedance Fast API credential", "ok": api_key_available(root, {"ARK_API_KEY"}),
+         "detail": "ARK_API_KEY stays on the server. Only Doubao-Seedance-2.0-fast is used; paid API usage applies."},
     ]
     flags = {item["id"]: item["ok"] for item in checks}
     sample_ready = all(flags[key] for key in ("python", "node", "renderer", "sample"))
-    return {"status": "ok", "liveReady": sample_ready and flags["claude_sdk"] and flags["claude_key"],
+    live_ready = sample_ready and flags["claude_sdk"] and flags["claude_key"]
+    return {"status": "ok", "liveReady": live_ready, "seedanceReady": live_ready and flags["seedance_key"],
+            "seedanceSampleReady": sample_ready and flags["seedance_key"], "seedanceSample": dict(SEEDANCE_SAMPLE),
             "sampleReady": sample_ready, "checks": checks, "sample": dict(SAMPLE)}

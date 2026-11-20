@@ -151,6 +151,9 @@ class Handler(BaseHTTPRequestHandler):
         path = urlsplit(self.path).path
         routes = {"/api/jobs": self._create_job, "/api/auth/register": self._register,
                   "/api/auth/login": self._login, "/api/auth/logout": self._logout}
+        parts = path.strip("/").split("/")
+        if len(parts) == 4 and parts[:2] == ["api", "jobs"] and parts[3] == "resume" and JOB_ID.fullmatch(parts[2]):
+            routes[path] = lambda: self._resume_job(parts[2])
         if path not in routes:
             self._error(404, "not_found", "API route not found.")
             return
@@ -187,8 +190,12 @@ class Handler(BaseHTTPRequestHandler):
             request = validate_request(self._read_json())
             readiness = self.server.readiness()
             ready = readiness["sampleReady"] if request["source"] == "sample" else readiness["liveReady"]
+            if request["visualMode"] == "seedance":
+                ready = readiness.get("seedanceSampleReady" if request["source"] == "sample" else "seedanceReady", False)
             if not ready:
                 excluded = {"tts_cache", "claude_sdk", "claude_key"} if request["source"] == "sample" else {"tts_cache"}
+                if request["visualMode"] == "animation":
+                    excluded.add("seedance_key")
                 missing = [check["label"] for check in readiness["checks"] if not check["ok"] and check["id"] not in excluded]
                 raise RequestError("Setup is incomplete: " + ", ".join(missing) + ". Check the setup status before generating.",
                                    "not_ready", 503)
@@ -197,6 +204,19 @@ class Handler(BaseHTTPRequestHandler):
             self._json(202, job)
         except OSError:
             self._error(500, "storage_error", "Could not save the task. Check local disk space and permissions.")
+
+    def _resume_job(self, job_id):
+        user = self._user()
+        if user is None:
+            return
+        if self._read_json() != {}:
+            raise RequestError("Resume uses the saved settings; send an empty JSON object.")
+        job = self.server.store.get(job_id)
+        if job is None or job.get("owner") != user["id"]:
+            raise RequestError("This task was not found on this local server.", "job_not_found", 404)
+        resumed = self.server.store.resume(job_id)
+        self.server.runner.submit(resumed)
+        self._json(202, resumed)
 
     def do_HEAD(self):
         self.do_GET()
